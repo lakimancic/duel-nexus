@@ -1,6 +1,6 @@
-namespace Backend.Api.Models.Requests;
+namespace Backend.Application.DTOs.Auth;
 
-public class LoginRequest
+public class LoginDto
 {
     public string Email { get; init; } = null!;
     public string Password { get; init; } = null!;

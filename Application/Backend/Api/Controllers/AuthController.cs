@@ -1,9 +1,9 @@
-using Backend.Api.Models.Requests;
 using Backend.Application.Services;
 using Backend.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Domain.Entities;
 using Backend.Domain.Enums;
+using Backend.Application.DTOs.Auth;
 
 namespace Backend.Api.Controllers;
 
@@ -16,7 +16,7 @@ public class AuthController(IUserService userService, PasswordHasher passwordHas
     private readonly JwtTokenGenerator _jwtGenerator = jwtGenerator;
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterRequest request)
+    public async Task<IActionResult> Register(RegisterDto request)
     {
         if (await _userService.ExistsAsync(request.Email))
             return BadRequest(new { error = "User already exists" });
@@ -31,7 +31,7 @@ public class AuthController(IUserService userService, PasswordHasher passwordHas
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginRequest request)
+    public async Task<IActionResult> Login(LoginDto request)
     {
         var user = await _userService.GetByEmailAsync(request.Email);
         if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
