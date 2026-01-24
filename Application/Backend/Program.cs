@@ -2,12 +2,12 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using AutoMapper;
-using Backend.Application.Mappings;
-using Backend.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Backend.Data.Context;
+using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
-using Backend.Infrastructure.Persistence.IRepositories;
-using Backend.Infrastructure.Persistence.Repositories;
+using Backend.Data.UnitOfWork;
+using Backend.Application.Mappings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,12 +36,12 @@ builder.Services.AddControllers();
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<Backend.Infrastructure.Security.PasswordHasher>();
-builder.Services.AddSingleton<Backend.Infrastructure.Security.JwtTokenGenerator>();
+builder.Services.AddSingleton<Backend.Utils.Security.PasswordHasher>();
+builder.Services.AddSingleton<Backend.Utils.Security.JwtTokenGenerator>();
 
 builder.Services.AddScoped<IUserService, UserService>();
 
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 
 var mapperConfig = new MapperConfiguration(mc =>
 {

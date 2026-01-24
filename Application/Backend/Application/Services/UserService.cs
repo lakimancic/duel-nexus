@@ -1,24 +1,39 @@
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Persistence.IRepositories;
+using AutoMapper;
+using Backend.Application.DTOs.Auth;
+using Backend.Application.Services.Interfaces;
+using Backend.Data.Models;
+using Backend.Data.Repositories.Interfaces;
+using Backend.Data.UnitOfWork;
+using Backend.Utils.Security;
 
 namespace Backend.Application.Services;
 
-public class UserService(IUserRepository userRepository) : IUserService
+public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher passwordHasher) : IUserService
 {
-    private readonly IUserRepository _userRepository = userRepository;
-
-    public async Task<User?> GetByEmailAsync(string email)
-    {
-        return await _userRepository.GetByEmailAsync(email);
-    }
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IMapper _mapper = mapper;
+    private readonly PasswordHasher _passwordHasher = passwordHasher;
 
     public async Task<bool> ExistsAsync(string email)
     {
-        return await _userRepository.ExistsAsync(email);
+        return await _unitOfWork.Users.ExistsAsync(email);
     }
 
-    public async Task AddAsync(User user)
+    public async Task<UserDto?> LoginAsync(LoginDto loginDto)
     {
-        await _userRepository.AddAsync(user);
+        var user = await _unitOfWork.Users.GetByEmailAsync(loginDto.Email);
+        if (user == null || !_passwordHasher.Verify(loginDto.Password, user.Password))
+            return null;
+        return _mapper.Map<User, UserDto>(user);
+    }
+
+    public async Task<UserDto> RegisterAsync(RegisterDto registerDto)
+    {
+        User user = _mapper.Map<RegisterDto, User>(registerDto);
+        var passwordHash = _passwordHasher.Hash(user.Password);
+        user.Password = passwordHash;
+        await _unitOfWork.Users.AddAsync(user);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<User, UserDto>(user);
     }
 }

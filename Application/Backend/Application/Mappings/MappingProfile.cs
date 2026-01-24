@@ -1,6 +1,6 @@
 using AutoMapper;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Persistence.Entities;
+using Backend.Application.DTOs.Auth;
+using Backend.Data.Models;
 
 namespace Backend.Application.Mappings;
 
@@ -8,6 +8,7 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<UserEntity, User>().ReverseMap();
+        CreateMap<RegisterDto, User>().ReverseMap();
+        CreateMap<User, UserDto>().ReverseMap();
     }
 }

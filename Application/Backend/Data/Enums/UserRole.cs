@@ -1,4 +1,4 @@
-namespace Backend.Domain.Enums;
+namespace Backend.Data.Enums;
 
 public enum UserRole
 {
