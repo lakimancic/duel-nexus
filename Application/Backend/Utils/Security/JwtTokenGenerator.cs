@@ -1,16 +1,15 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Backend.Domain.Entities;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Backend.Infrastructure.Security;
+namespace Backend.Utils.Security;
 
 public class JwtTokenGenerator(IConfiguration config)
 {
     private readonly IConfiguration _config = config;
 
-    public string Generate(User user)
+    public string Generate(UserDto user)
     {
         var claims = new List<Claim>
         {

@@ -1,7 +1,6 @@
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Persistence.Entities;
+using Backend.Data.Models;
 
-namespace Backend.Infrastructure.Persistence.IRepositories;
+namespace Backend.Data.Repositories.Interfaces;
 
 public interface IUserRepository : IRepository<User>
 {
