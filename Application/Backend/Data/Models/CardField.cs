@@ -4,7 +4,7 @@ using Backend.Data.Enums;
 
 namespace Backend.Data.Models;
 
-public class GameCard
+public class CardField
 {
     [Key]
     public Guid Id { get; set; }
@@ -13,13 +13,12 @@ public class GameCard
     [ForeignKey(nameof(PlayerGameId))]
     public PlayerGame PlayerGame { get; set; } = null!;
 
-    public Guid CardId { get; set; }
-    [ForeignKey(nameof(CardId))]
-    public Card Card { get; set; } = null!;
+    public int Index { get; set; }
 
-    public CardZone Zone { get; set; }
+    public Guid? GameCardId { get; set; }
+    [ForeignKey(nameof(GameCardId))]
+    public GameCard? Card { get; set; }
 
-    public int? DeckOrder { get; set; }
-
+    public CardPosition Position { get; set; }
     public bool IsFaceDown { get; set; }
 }
