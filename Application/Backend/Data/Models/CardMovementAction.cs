@@ -4,7 +4,7 @@ using Backend.Data.Enums;
 
 namespace Backend.Data.Models;
 
-public class PlaceCardAction
+public class CardMovementAction
 {
     [Key]
     public Guid Id { get; set; }
@@ -21,13 +21,10 @@ public class PlaceCardAction
     [ForeignKey(nameof(GameCardId))]
     public GameCard Card { get; set; } = null!;
 
-    public int? FieldIndex { get; set; }
+    public CardZone FromZone { get; set; }
+    public CardZone ToZone { get; set; }
 
-    public bool FaceDown { get; set; }
-
-    public bool DefensePosition { get; set; }
-
-    public PlaceType Type { get; set; }
+    public CardMovementType MovementType { get; set; }
 
     public DateTime ExecutedAt { get; set; }
 }

@@ -22,4 +22,8 @@ public class GameCard
     public int? DeckOrder { get; set; }
 
     public bool IsFaceDown { get; set; }
+
+    public int? FieldIndex { get; set; }
+
+    public bool DefensePosition { get; set; }
 }
