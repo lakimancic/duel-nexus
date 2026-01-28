@@ -16,4 +16,5 @@ public class Game
     public GameRoom Room { get; set; } = null!;
 
     public ICollection<PlayerGame> Players { get; set; } = [];
+    public ICollection<Turn> Turns { get; set; } = [];
 }
