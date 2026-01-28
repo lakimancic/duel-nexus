@@ -23,6 +23,8 @@ public class DuelNexusDbContext(DbContextOptions<DuelNexusDbContext> options) : 
     public DbSet<PlaceCardAction> PlaceCardActions => Set<PlaceCardAction>();
     public DbSet<Turn> Turns => Set<Turn>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Deck> Decks => Set<Deck>();
+    public DbSet<Card> Cards => Set<Card>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
