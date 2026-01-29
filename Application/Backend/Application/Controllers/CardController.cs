@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Enums;
+using Backend.Application.DTOs.Decks;
 
-namespace Backend.Api.Controllers;
+namespace Backend.Application.Controllers;
 
 [ApiController]
 [Route("cards")]

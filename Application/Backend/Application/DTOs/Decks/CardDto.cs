@@ -1,5 +1,7 @@
 using Backend.Data.Enums;
 
+namespace Backend.Application.DTOs.Decks;
+
 public class CardDto
 {
     public string Name { get; set; } = null!;

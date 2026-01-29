@@ -29,8 +29,6 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
                 _context.Set<DeckCard>().Add(card);
             }
         }
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteManyCardAsync(List<Guid> cardIds)
@@ -43,8 +41,6 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
                 throw new Exception("No matching cards found in the deck.");
 
         _context.Set<DeckCard>().RemoveRange(cards);
-
-        await _context.SaveChangesAsync();
     }
 
 }

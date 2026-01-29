@@ -2,6 +2,7 @@ using AutoMapper;
 using Backend.Application.DTOs.Auth;
 using Backend.Data.Models;
 using Backend.Data.Enums;
+using Backend.Application.DTOs.Decks;
 
 namespace Backend.Application.Mappings;
 
@@ -40,6 +41,15 @@ public class MappingProfile : Profile
 
         CreateMap<DeckDto, Deck>().ReverseMap();
         CreateMap<Deck, DeckDto>().ReverseMap();
-        
+
+        // Game rooms
+        CreateMap<GameRoomPlayer, DTOs.GameRooms.GameRoomPlayerDto>()
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Username))
+            .ForMember(dest => dest.UserElo, opt => opt.MapFrom(src => src.User.Elo))
+            .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
+
+        CreateMap<GameRoom, DTOs.GameRooms.GameRoomDto>()
+            .ForMember(dest => dest.Players, opt => opt.MapFrom(src => src.Players));
+
     }
 }
