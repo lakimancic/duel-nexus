@@ -8,6 +8,7 @@ using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
+using Backend.Data.Repositories.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,8 @@ builder.Services.AddSingleton<Backend.Utils.Security.PasswordHasher>();
 builder.Services.AddSingleton<Backend.Utils.Security.JwtTokenGenerator>();
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICardService, CardService>();
+builder.Services.AddScoped<IDeckService, DeckService>();
 
 builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 

@@ -19,7 +19,7 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         return _mapper.Map<List<Deck>, List<DeckDto>>(decks);
     }
 
-    public async Task<DeckDto?> GetDeckById(int id)
+    public async Task<DeckDto?> GetDeckById(Guid id)
     {
         var deck = await _unitOfWork.Decks.GetByIdAsync(id);
         if(deck == null) return null;
@@ -32,28 +32,33 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         return _mapper.Map<List<Deck>, List<DeckDto>>(decks);
     }
 
-    public async Task<DeckDto> CreateDeck(Deck deck)
+    public async Task<DeckDto> CreateDeck(DeckDto deck)
     {
-        await _unitOfWork.Decks.AddAsync(deck);
+        var deckEntity = _mapper.Map<DeckDto, Deck>(deck);
+        await _unitOfWork.Decks.AddAsync(deckEntity);
         await _unitOfWork.CompleteAsync();
-        return _mapper.Map<Deck, DeckDto>(deck);
+        return _mapper.Map<Deck, DeckDto>(deckEntity);
     }
 
-    public async Task AddCards(Guid deckId, IEnumerable<(Card card, int quantity)> cardsWithQuantity)
+    public async Task AddCards(Guid deckId, List<DeckCardDto> cards)
     {
-        await _unitOfWork.DeckCardRepository.AddCardsInDeckAsync(deckId, cardsWithQuantity);
+        var _ = await GetDeckById(deckId) ?? throw new Exception("Deck not found");
+
+        List<DeckCard> cardsList = _mapper.Map<List<DeckCardDto>, List<DeckCard>>(cards);
+        await _unitOfWork.DeckCardRepository.AddCardsInDeckAsync(deckId, cardsList);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task RemoveCards(Guid deckId, List<Guid> cardIds)
+    public async Task DeleteDeck(DeckDto deck)
     {
-        throw new NotImplementedException();
-
+        var deckEntity = _mapper.Map<DeckDto, Deck>(deck);
+        _unitOfWork.Decks.Delete(deckEntity);
+        await _unitOfWork.CompleteAsync();
     }
 
-    public async Task DeleteDeck(Deck deck)
+    public async Task RemoveCards(List<Guid> cardIds)
     {
-        _unitOfWork.Decks.Delete(deck);
+        await _unitOfWork.DeckCardRepository.DeleteManyCardAsync(cardIds);
         await _unitOfWork.CompleteAsync();
     }
 }

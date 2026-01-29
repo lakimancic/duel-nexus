@@ -20,7 +20,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         return _mapper.Map<List<Card>, List<CardDto>>(cards);
     }
 
-    public async Task<CardDto?> GetCardById(int id)
+    public async Task<CardDto?> GetCardById(Guid id)
     {
         var card = await _unitOfWork.Cards.GetByIdAsync(id);
         if(card == null) return null;
@@ -35,20 +35,21 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         return _mapper.Map<Card, CardDto>(card);
     }
 
-    public async Task DeleteCard(CardDto cardDto)
+    public async Task DeleteCard(Guid cardId)
     {
-        Card card = _mapper.Map<CardDto, Card>(cardDto);
+        var card = await _unitOfWork.Cards.GetByIdAsync(cardId);
+        if (card == null) return;
         _unitOfWork.Cards.Delete(card);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task<CardDto?> EditCard(int id, CardDto cardDto)
-    {
-        Card card = _mapper.Map<CardDto,Card>(cardDto);
-        
+    public async Task<CardDto?> EditCard(Guid id, CardDto cardDto)
+    {   
         var existingCard = await _unitOfWork.Cards.GetByIdAsync(id);
         if (existingCard == null) return null;
-        
+
+        var card = _mapper.Map(cardDto, existingCard);
+
         _unitOfWork.Cards.Update(card);
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Card, CardDto>(card);
