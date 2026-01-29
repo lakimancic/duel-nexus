@@ -1,5 +1,4 @@
-using Backend.Application.DTOs.Auth;
-using Backend.Data.Models;
+using Backend.Application.DTOs.Decks;
 
 namespace Backend.Application.Services.Interfaces;
 

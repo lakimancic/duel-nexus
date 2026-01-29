@@ -1,14 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
+using Backend.Application.DTOs.Decks;
 
-namespace Backend.Api.Controllers;
+namespace Backend.Application.Controllers;
 
 [ApiController]
 [Route("decks")]
 public class DeckController(IDeckService deckService) : ControllerBase
 {
     private readonly IDeckService _deckService = deckService;
-    
+
     [HttpPost("")]
     public async Task<IActionResult> CreateDeck([FromBody] DeckDto deck)
     {
@@ -22,7 +23,7 @@ public class DeckController(IDeckService deckService) : ControllerBase
         await _deckService.AddCards(deckId, cards);
         return Ok();
     }
-    
+
     [HttpDelete("{deckId}/cards")]
     public async Task<IActionResult> RemoveCards(Guid deckId, [FromBody]List<Guid> cardIds)
     {

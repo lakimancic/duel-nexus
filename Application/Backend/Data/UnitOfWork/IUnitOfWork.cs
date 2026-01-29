@@ -9,6 +9,12 @@ public interface IUnitOfWork : IDisposable
     ICardRepository Cards { get; }
     IDeckRepository Decks { get; }
     IDeckCardRepository DeckCardRepository { get; }
+    IGameRepository Games { get; }
+    IPlayerGameRepository PlayerGames { get; }
+    IGameRoomRepository GameRooms { get; }
+    IGameRoomPlayerRepository GameRoomPlayers { get; }
+    ITurnRepository Turns { get; }
+
     public DuelNexusDbContext Context { get; }
 
     Task CompleteAsync();

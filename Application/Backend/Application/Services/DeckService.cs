@@ -1,10 +1,8 @@
 using AutoMapper;
-using Backend.Application.DTOs.Auth;
+using Backend.Application.DTOs.Decks;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
-using Backend.Data.Repositories.Interfaces;
 using Backend.Data.UnitOfWork;
-using Backend.Utils.Security;
 
 namespace Backend.Application.Services;
 

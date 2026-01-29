@@ -11,6 +11,12 @@ public class UnitOfWork(DuelNexusDbContext context) : IUnitOfWork
     public ICardRepository Cards { get; private set; } = new CardRepository(context);
     public IDeckRepository Decks { get; private set; } = new DeckRepository(context);
     public IDeckCardRepository DeckCardRepository { get; private set; } = new DeckCardRepository(context);
+    public IGameRepository Games { get; private set; } = new GameRepository(context);
+    public IPlayerGameRepository PlayerGames { get; private set; } = new PlayerGameRepository(context);
+    public IGameRoomRepository GameRooms { get; private set; } = new GameRoomRepository(context);
+    public IGameRoomPlayerRepository GameRoomPlayers { get; private set; } = new GameRoomPlayerRepository(context);
+    public ITurnRepository Turns { get; private set; } = new TurnRepository(context);
+
     private bool _disposed = false;
 
     public DuelNexusDbContext Context => _context;

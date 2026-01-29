@@ -43,6 +43,7 @@ builder.Services.AddSingleton<Backend.Utils.Security.JwtTokenGenerator>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<IDeckService, DeckService>();
+builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 
 builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 

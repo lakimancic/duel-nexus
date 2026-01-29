@@ -1,10 +1,8 @@
 using AutoMapper;
-using Backend.Application.DTOs.Auth;
+using Backend.Application.DTOs.Decks;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
-using Backend.Data.Repositories.Interfaces;
 using Backend.Data.UnitOfWork;
-using Backend.Utils.Security;
 
 namespace Backend.Application.Services;
 
@@ -44,7 +42,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     }
 
     public async Task<CardDto?> EditCard(Guid id, CardDto cardDto)
-    {   
+    {
         var existingCard = await _unitOfWork.Cards.GetByIdAsync(id);
         if (existingCard == null) return null;
 
