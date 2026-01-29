@@ -1,32 +1,50 @@
 using Backend.Data.Context;
 using Backend.Data.Models;
 using Backend.Data.Repositories.Interfaces;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Repositories;
 
 public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCard>(context), IDeckCardRepository
 {
-    public async Task AddCardsInDeckAsync(Guid deckId, IEnumerable<(Card card, int quantity)> cardsWithQuantity)
+    public async Task AddCardsInDeckAsync(Guid deckId, List<DeckCard> cardsWithQuantity)
     {
-        var deckExists = await _context.Set<Deck>().AnyAsync(d => d.Id == deckId);
-        
-        if (!deckExists)
-            return;
+        var cardIds = cardsWithQuantity.Select(c => c.CardId).ToList();
 
-        foreach (var (card, quantity) in cardsWithQuantity)
+        var existingCards = await _context.Set<DeckCard>()
+            .Where(dc => dc.DeckId == deckId && cardIds.Contains(dc.CardId))
+            .ToListAsync();
+
+        foreach (var card in cardsWithQuantity)
         {
-            var deckCard = new DeckCard
+            var existing = existingCards.FirstOrDefault(c => c.CardId == card.CardId);
+            if (existing != null)
             {
-                Id = Guid.NewGuid(),
-                DeckId = deckId,
-                CardId = card.Id,
-                Quantity = quantity
-            };
-            
-            await _context.Set<DeckCard>().AddAsync(deckCard);
+                existing.Quantity += card.Quantity;
+            }
+            else
+            {
+                card.DeckId = deckId;
+                _context.Set<DeckCard>().Add(card);
+            }
         }
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task DeleteManyCardAsync(List<Guid> cardIds)
+    {
+        var cards = await _context.Set<DeckCard>()
+            .Where(c => cardIds.Contains(c.Id))
+            .ToListAsync();
+
+            if (cards.Count == 0)
+                throw new Exception("No matching cards found in the deck.");
+
+        _context.Set<DeckCard>().RemoveRange(cards);
+
+        await _context.SaveChangesAsync();
+    }
+
 }

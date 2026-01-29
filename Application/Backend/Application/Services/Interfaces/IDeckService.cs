@@ -7,10 +7,10 @@ public interface IDeckService
 {
     public Task<List<DeckDto>> GetAllDecks();
 
-    public Task<DeckDto?> GetDeckById(int id);
+    public Task<DeckDto?> GetDeckById(Guid id);
     public Task<List<DeckDto>?> GetDeckByUserId(Guid id);
-    public Task CreateDeck(Deck deck);
-    public Task DeleteDeck(Deck deck);
-    public Task AddCards(Guid deckId, IEnumerable<(Card card, int quantity)> cardsWithQuantity);
-    public Task RemoveCards(Guid deckId, List<Guid> cardIds);
+    public Task<DeckDto> CreateDeck(DeckDto deck);
+    public Task DeleteDeck(DeckDto deck);
+    public Task AddCards(Guid deckId, List<DeckCardDto> cards);
+    public Task RemoveCards(List<Guid> cardIds);
 }
