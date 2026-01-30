@@ -9,6 +9,15 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
 {
     public async Task<GameRoom> CreateGameRoomByHostAsync(User host, Deck deck)
     {
+        if (host == null)
+            throw new ArgumentNullException(nameof(host), "Host cannot be null");
+        if (deck == null)
+            throw new ArgumentNullException(nameof(deck), "Deck cannot be null");
+        if (host.Id == Guid.Empty)
+            throw new ArgumentException("Host ID cannot be empty", nameof(host));
+        if (deck.Id == Guid.Empty)
+            throw new ArgumentException("Deck ID cannot be empty", nameof(deck));
+
         var gameRoom = new GameRoom
         {
             HostUser = host,
@@ -29,6 +38,9 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
 
     public async Task<GameRoom?> GetByCodeAsync(string code)
     {
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Code cannot be empty or whitespace", nameof(code));
+
         return await _dbSet
             .Include(gr => gr.Players)
                 .ThenInclude(p => p.User)
@@ -45,6 +57,9 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
 
     public async Task<GameRoom?> GetByIdWithPlayersAsync(Guid id)
     {
+        if (id == Guid.Empty)
+            throw new ArgumentException("ID cannot be empty", nameof(id));
+
         return await _dbSet
             .Include(gr => gr.Players)
                 .ThenInclude(p => p.User)

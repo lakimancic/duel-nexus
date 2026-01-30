@@ -4,5 +4,5 @@ namespace Backend.Data.Repositories.Interfaces;
 
 public interface IGameRepository : IRepository<Game>
 {
-
+    Task<Game> CreateFromGameRoomAsync(GameRoom gameRoom);
 }
