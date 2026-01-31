@@ -51,5 +51,14 @@ public class MappingProfile : Profile
         CreateMap<GameRoom, DTOs.GameRooms.GameRoomDto>()
             .ForMember(dest => dest.Players, opt => opt.MapFrom(src => src.Players));
 
+
+        CreateMap<EffectDto, Effect>().ReverseMap();
+        CreateMap<Effect, EffectDto>().ReverseMap();
+
+
+        CreateMap<CreateEffectDto, Effect>().ReverseMap();
+        CreateMap<Effect, CreateEffectDto>().ReverseMap();
+
     }
+
 }
