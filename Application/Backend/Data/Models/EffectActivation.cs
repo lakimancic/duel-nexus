@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
+[Index(nameof(TurnId), nameof(SourceCardId), IsUnique = true)]
 public class EffectActivation
 {
     [Key]
@@ -14,9 +16,6 @@ public class EffectActivation
     public Guid TurnId { get; set; }
     [ForeignKey(nameof(TurnId))]
     public Turn Turn { get; set; } = null!;
-    public Guid PlayerGameId { get; set; }
-    [ForeignKey(nameof(PlayerGameId))]
-    public PlayerGame PlayerGame { get; set; } = null!;
 
     public Guid EffectId { get; set; }
     [ForeignKey(nameof(EffectId))]
@@ -29,4 +28,6 @@ public class EffectActivation
     public DateTime ActivatedAt { get; set; }
 
     public bool Resolved { get; set; }
+
+    public ICollection<EffectTarget> Targets { get; set; } = [];
 }

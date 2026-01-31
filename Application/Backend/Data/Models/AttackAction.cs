@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
+[Index(nameof(TurnId), nameof(AttackerCardId), IsUnique = true)]
 public class AttackAction
 {
     [Key]
@@ -19,6 +21,10 @@ public class AttackAction
     public Guid? DefenderCardId { get; set; }
     [ForeignKey(nameof(DefenderCardId))]
     public GameCard? Defender { get; set; }
+
+    public Guid? DefenderPlayerGameId { get; set; }
+    [ForeignKey(nameof(DefenderPlayerGameId))]
+    public PlayerGame? DefenderPlayer { get; set; }
 
     public DateTime ExecutedAt { get; set; }
 }

@@ -18,7 +18,7 @@ public class GameRoom
     [ForeignKey(nameof(HostUserId))]
     public User HostUser { get; set; } = null!;
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     public ICollection<GameRoomPlayer> Players { get; set; } = [];
 }

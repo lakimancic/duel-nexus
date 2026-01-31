@@ -18,7 +18,7 @@ public class GameRoomPlayer
 
     public Guid DeckId { get; set; }
     [ForeignKey(nameof(DeckId))]
-    public Deck Deck { get; set; } = null!;
+    public Deck? Deck { get; set; }
 
     public bool IsReady { get; set; }
 }
