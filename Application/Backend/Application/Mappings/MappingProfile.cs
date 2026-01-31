@@ -3,12 +3,9 @@ using Backend.Application.DTOs.Auth;
 using Backend.Data.Models;
 using Backend.Data.Enums;
 using Backend.Application.DTOs.Decks;
-<<<<<<< Updated upstream
 using Backend.Application.DTOs.Player;
-=======
 using Backend.Application.DTOs.GameRooms;
 using Backend.Application.DTOs.Users;
->>>>>>> Stashed changes
 
 namespace Backend.Application.Mappings;
 
