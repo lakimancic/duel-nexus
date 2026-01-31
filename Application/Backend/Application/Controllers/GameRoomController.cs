@@ -1,104 +1,114 @@
-using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.GameRooms;
+using Backend.Application.Services.Interfaces;
+using Backend.Data.Enums;
+using Backend.Utils.WebApi;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Application.Controllers;
 
 [ApiController]
-[Route("game-rooms")]
+[Route("admin/game-rooms")]
 public class GameRoomController(IGameRoomService gameRoomService) : ControllerBase
 {
     private readonly IGameRoomService _gameRoomService = gameRoomService;
+    private const int MaxPageSize = 50;
 
-    private IActionResult HandleException(Exception ex)
+    [HttpGet]
+    public async Task<IActionResult> GetGameRooms(int page = 1, int pageSize = 10, RoomStatus? status = null)
     {
-        return ex switch
-        {
-            KeyNotFoundException => NotFound(new { error = ex.Message }),
-            ArgumentException => BadRequest(new { error = ex.Message }),
-            InvalidOperationException => Conflict(new { error = ex.Message }),
-            _ => StatusCode(500, new { error = ex.Message })
-        };
-    }
-
-    [HttpPost("")]
-    public async Task<IActionResult> CreateGameRoom([FromBody] CreateGameRoomRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
+        pageSize = Math.Min(pageSize, MaxPageSize);
         try
         {
-            var gameRoom = await _gameRoomService.CreateGameRoomAsync(request.UserId, request.DeckId);
-            return CreatedAtAction(nameof(GetGameRoom), new { id = gameRoom.Id }, gameRoom);
-        }
-        catch (Exception ex)
-        {
-            return HandleException(ex);
-        }
-    }
-
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetGameRoom(Guid id)
-    {
-        try
-        {
-            var gameRoom = await _gameRoomService.GetGameRoomByIdAsync(id);
-            if (gameRoom == null)
-                return NotFound(new { error = "Game room not found" });
-            return Ok(gameRoom);
-        }
-        catch (Exception ex)
-        {
-            return HandleException(ex);
-        }
-    }
-
-    [HttpGet("")]
-    public async Task<IActionResult> GetAllGameRooms()
-    {
-        try
-        {
-            var gameRooms = await _gameRoomService.GetAllGameRoomsAsync();
+            var gameRooms = await _gameRoomService.GetGameRoomsAsync(page, pageSize, status);
             return Ok(gameRooms);
         }
         catch (Exception ex)
         {
-            return HandleException(ex);
+            return ExceptionHandler.HandleException(ex, this);
         }
     }
 
-    [HttpPost("add-player")]
-    public async Task<IActionResult> AddPlayerGameRoom([FromBody] JoinGameRoomRequest request)
+    [HttpPost]
+    public async Task<IActionResult> CreateGameRoom([FromBody] CreateGameRoomDto room)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         try
         {
-            var gameRoomId = await _gameRoomService.JoinGameRoomAsync(request.Code, request.UserId, request.DeckId);
-            return Ok(new { gameRoomId });
+            var createdRoom = await _gameRoomService.CreateGameRoomAsync(room.UserId);
+            return Ok(createdRoom);
         }
         catch (Exception ex)
         {
-            return HandleException(ex);
+            return ExceptionHandler.HandleException(ex, this);
         }
     }
 
-    [HttpPost("remove-player")]
-    public async Task<IActionResult> RemovePlayerGameRoom([FromBody] LeaveGameRoomRequest request)
+    [HttpGet("{gameRoomId}")]
+    public async Task<IActionResult> GetGameRoomById(Guid gameRoomId)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         try
         {
-            await _gameRoomService.LeaveGameRoomAsync(request.GameRoomId, request.UserId);
-            return NoContent();
+            var gameRoom = await _gameRoomService.GetGameRoomByIdAsync(gameRoomId);
+            return Ok(gameRoom);
         }
         catch (Exception ex)
         {
-            return HandleException(ex);
+            return ExceptionHandler.HandleException(ex, this);
+        }
+    }
+
+    [HttpPost("{gameRoomId}/add-player")]
+    public async Task<IActionResult> AddPlayerToGameRoom(Guid gameRoomId, [FromBody] CreateGameRoomDto playerDto)
+    {
+        try
+        {
+            await _gameRoomService.AddPlayerToGameRoomAsync(gameRoomId, playerDto.UserId);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return ExceptionHandler.HandleException(ex, this);
+        }
+    }
+
+    [HttpPost("{gameRoomId}/remove-player")]
+    public async Task<IActionResult> RemovePlayerFromGameRoom(Guid gameRoomId, [FromBody] CreateGameRoomDto playerDto)
+    {
+        try
+        {
+            await _gameRoomService.RemovePlayerFromGameRoomAsync(gameRoomId, playerDto.UserId);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return ExceptionHandler.HandleException(ex, this);
+        }
+    }
+
+    [HttpDelete("{gameRoomId}/cancel")]
+    public async Task<IActionResult> CloseGameRoom(Guid gameRoomId)
+    {
+        try
+        {
+            await _gameRoomService.CancelGameRoomAsync(gameRoomId);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return ExceptionHandler.HandleException(ex, this);
+        }
+    }
+
+    [HttpPut("{gameRoomId}/player-deck/{playerId}")]
+    public async Task<IActionResult> UpdatePlayerDeck(Guid gameRoomId, Guid playerId, [FromBody] ChangeRoomDeckDto dto)
+    {
+        try
+        {
+            await _gameRoomService.UpdatePlayerDeckAsync(gameRoomId, playerId, dto.DeckId);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return ExceptionHandler.HandleException(ex, this);
         }
     }
 }

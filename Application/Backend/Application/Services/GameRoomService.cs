@@ -1,9 +1,9 @@
-using Backend.Application.DTOs.GameRooms;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using AutoMapper;
+using Backend.Application.DTOs.GameRooms;
 
 namespace Backend.Application.Services;
 
@@ -13,55 +13,36 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
     private readonly IMapper _mapper = mapper;
     private const int MaxPlayersPerRoom = 5;
 
-    private void ValidateCode(string code)
+    public async Task<List<GameRoomDto>> GetGameRoomsAsync(int page, int pageSize, RoomStatus? status)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new ArgumentException("Code cannot be empty");
-        if (code.Length != 6)
-            throw new ArgumentException("Code must be exactly 6 characters");
+        if (page <= 0)
+            return [];
+        var rooms = await _unitOfWork.GameRooms.GetPagedAsync(page, pageSize, gr => status == null || gr.Status == status, includeProperties: "HostUser");
+        return [.. rooms.Items.Select(gr => _mapper.Map<GameRoom, GameRoomDto>(gr))];
     }
 
-    public async Task<GameRoomDto> CreateGameRoomAsync(Guid userId, Guid deckId)
+    public async Task<GameRoomDto> CreateGameRoomAsync(Guid userId)
     {
         var host = await _unitOfWork.Users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User with ID '{userId}' not found");
 
-        var deck = await _unitOfWork.Decks.GetByIdAsync(deckId)
-            ?? throw new KeyNotFoundException($"Deck with ID '{deckId}' not found");
-
-        if (deck.UserId != userId)
-            throw new InvalidOperationException("Deck does not belong to the user");
-
-        var gameRoom = await _unitOfWork.GameRooms.CreateGameRoomByHostAsync(host, deck);
+        var gameRoom = await _unitOfWork.GameRooms.CreateGameRoomByHostAsync(host);
         await _unitOfWork.CompleteAsync();
 
-        var created = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoom.Id)
-            ?? throw new InvalidOperationException("Failed to retrieve created game room");
-
-        return _mapper.Map<GameRoom, GameRoomDto>(created);
+        return _mapper.Map<GameRoom, GameRoomDto>(gameRoom);
     }
 
-    public async Task<IEnumerable<GameRoomDto>> GetAllGameRoomsAsync()
+    public async Task<GameRoomDto> GetGameRoomByIdAsync(Guid gameRoomId)
     {
-        var rooms = await _unitOfWork.GameRooms.GetAllWithPlayersAsync();
-        return _mapper.Map<List<GameRoom>, List<GameRoomDto>>(rooms);
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with ID '{gameRoomId}' not found");
+        return _mapper.Map<GameRoom, GameRoomDto>(gameRoom);
     }
 
-    public async Task<GameRoomDto?> GetGameRoomByIdAsync(Guid gameRoomId)
+    public async Task AddPlayerToGameRoomAsync(Guid gameRoomId, Guid userId)
     {
-        if (gameRoomId == Guid.Empty)
-            throw new ArgumentException("GameRoomId cannot be empty");
-
-        var room = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoomId);
-        return room == null ? null : _mapper.Map<GameRoom, GameRoomDto>(room);
-    }
-
-    public async Task<Guid> JoinGameRoomAsync(string code, Guid userId, Guid deckId)
-    {
-        ValidateCode(code);
-
-        var gameRoom = await _unitOfWork.GameRooms.GetByCodeAsync(code)
-            ?? throw new KeyNotFoundException($"Game room with code '{code}' not found");
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with id '{gameRoomId}' not found");
 
         if (gameRoom.Status != RoomStatus.Waiting)
             throw new InvalidOperationException($"Cannot join room with status '{gameRoom.Status}'");
@@ -76,47 +57,51 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
         var user = await _unitOfWork.Users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User with ID '{userId}' not found");
 
-        var deck = await _unitOfWork.Decks.GetByIdAsync(deckId)
-            ?? throw new KeyNotFoundException($"Deck with ID '{deckId}' not found");
-
-        if (deck.UserId != userId)
-            throw new InvalidOperationException("Deck does not belong to the user");
-
         await _unitOfWork.GameRoomPlayers.AddAsync(new GameRoomPlayer
         {
             GameRoom = gameRoom,
-            User = user,
-            Deck = deck,
+            User = user
         });
         await _unitOfWork.CompleteAsync();
-
-        var updated = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoom.Id)
-            ?? throw new InvalidOperationException("Failed to retrieve updated game room");
-
-        return updated.Id;
     }
 
-    public async Task LeaveGameRoomAsync(Guid gameRoomId, Guid userId)
+    public async Task RemovePlayerFromGameRoomAsync(Guid gameRoomId, Guid userId)
     {
-        if (gameRoomId == Guid.Empty)
-            throw new ArgumentException("GameRoomId cannot be empty");
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with id '{gameRoomId}' not found");
 
-        var gameRoom = await _unitOfWork.GameRooms.GetByIdAsync(gameRoomId)
-            ?? throw new KeyNotFoundException($"Game room with ID '{gameRoomId}' not found");
-
-        var player = await _unitOfWork.GameRoomPlayers.GetByGameRoomIdAndPlayerIdAsync(gameRoomId, userId)
-            ?? throw new KeyNotFoundException("Player is not in this game room");
-
-        if (gameRoom.HostUserId == userId && gameRoom.Players.Count > 1)
-            throw new InvalidOperationException("Host cannot leave the room while other players are present");
+        var player = gameRoom.Players.FirstOrDefault(p => p.UserId == userId)
+            ?? throw new KeyNotFoundException("Player not found in this game room");
 
         _unitOfWork.GameRoomPlayers.Delete(player);
+        await _unitOfWork.CompleteAsync();
+    }
 
-        if (gameRoom.Players.Count == 1)
-        {
-            _unitOfWork.GameRooms.Delete(gameRoom);
-        }
+    public async Task CancelGameRoomAsync(Guid gameRoomId)
+    {
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with id '{gameRoomId}' not found");
+        gameRoom.Status = RoomStatus.Cancelled;
+        _unitOfWork.GameRooms.Update(gameRoom);
+        await _unitOfWork.CompleteAsync();
+    }
 
+    public async Task UpdatePlayerDeckAsync(Guid gameRoomId, Guid playerId, Guid? deckId)
+    {
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with id '{gameRoomId}' not found");
+        var player = gameRoom.Players.FirstOrDefault(p => p.UserId == playerId)
+            ?? throw new KeyNotFoundException("Player not found in this game room");
+        var deck = deckId != null
+            ? await _unitOfWork.Decks.GetByIdAsync(deckId.Value)
+                ?? throw new KeyNotFoundException($"Deck with id '{deckId}' not found")
+            : null;
+        if (deck != null && deck.UserId != playerId)
+            throw new InvalidOperationException("Player does not own the specified deck");
+
+        player.DeckId = deckId;
+        player.IsReady = deckId != null;
+        _unitOfWork.GameRoomPlayers.Update(player);
         await _unitOfWork.CompleteAsync();
     }
 }

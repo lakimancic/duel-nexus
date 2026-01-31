@@ -8,7 +8,6 @@ using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
-using Backend.Data.Repositories.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,7 +45,6 @@ builder.Services.AddScoped<IDeckService, DeckService>();
 builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IEffectService, EffectService>();
 builder.Services.AddScoped<IPlayerCardService, PlayerCardService>();
-
 
 builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 

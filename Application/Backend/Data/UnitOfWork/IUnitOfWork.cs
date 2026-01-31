@@ -17,8 +17,6 @@ public interface IUnitOfWork : IDisposable
     IEffectRepository Effects { get; }
     IPlayerCardRepository PlayerCards { get; }
 
-
-
     public DuelNexusDbContext Context { get; }
 
     Task CompleteAsync();

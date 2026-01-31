@@ -7,7 +7,7 @@ namespace Backend.Data.Repositories;
 
 public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoom>(context), IGameRoomRepository
 {
-    public async Task<GameRoom> CreateGameRoomByHostAsync(User host, Deck deck)
+    public async Task<GameRoom> CreateGameRoomByHostAsync(User host)
     {
         var gameRoom = new GameRoom
         {
@@ -18,8 +18,7 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
             Players = [
                 new GameRoomPlayer
                 {
-                    User = host,
-                    Deck = deck,
+                    User = host
                 }
             ]
         };
@@ -33,14 +32,6 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
             .Include(gr => gr.Players)
                 .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(gr => gr.JoinCode == code);
-    }
-
-    public async Task<List<GameRoom>> GetAllWithPlayersAsync()
-    {
-        return await _dbSet
-            .Include(gr => gr.Players)
-                .ThenInclude(p => p.User)
-            .ToListAsync();
     }
 
     public async Task<GameRoom?> GetByIdWithPlayersAsync(Guid id)

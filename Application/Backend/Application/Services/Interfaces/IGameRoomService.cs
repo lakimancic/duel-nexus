@@ -1,13 +1,15 @@
 using Backend.Application.DTOs.GameRooms;
-using Backend.Data.Models;
+using Backend.Data.Enums;
 
 namespace Backend.Application.Services.Interfaces;
 
 public interface IGameRoomService
 {
-    Task<GameRoomDto> CreateGameRoomAsync(Guid userId, Guid deckId);
-    Task<IEnumerable<GameRoomDto>> GetAllGameRoomsAsync();
-    Task<Guid> JoinGameRoomAsync(string code, Guid userId, Guid deckId);
-    Task LeaveGameRoomAsync(Guid gameRoomId, Guid userId);
-    Task<GameRoomDto?> GetGameRoomByIdAsync(Guid gameRoomId);
+    Task<List<GameRoomDto>> GetGameRoomsAsync(int page, int pageSize, RoomStatus? status);
+    Task<GameRoomDto> CreateGameRoomAsync(Guid userId);
+    Task<GameRoomDto> GetGameRoomByIdAsync(Guid gameRoomId);
+    Task AddPlayerToGameRoomAsync(Guid gameRoomId, Guid userId);
+    Task RemovePlayerFromGameRoomAsync(Guid gameRoomId, Guid userId);
+    Task CancelGameRoomAsync(Guid gameRoomId);
+    Task UpdatePlayerDeckAsync(Guid gameRoomId, Guid playerId, Guid? deckId);
 }
