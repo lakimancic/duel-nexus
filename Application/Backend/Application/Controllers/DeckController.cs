@@ -19,7 +19,7 @@ public class DeckController(IDeckService deckService) : ControllerBase
     }
 
     [HttpPost("{deckId}/cards")]
-    public async Task<IActionResult> AddCards(Guid deckId, [FromBody]List<DeckCardDto> cards)
+    public async Task<IActionResult> AddCards(Guid deckId, [FromBody]List<InsertDeckCardDto> cards)
     {
         await _deckService.AddCards(deckId, cards);
         return Ok();

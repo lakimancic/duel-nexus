@@ -17,6 +17,8 @@ public class UnitOfWork(DuelNexusDbContext context) : IUnitOfWork
     public IGameRoomPlayerRepository GameRoomPlayers { get; private set; } = new GameRoomPlayerRepository(context);
     public ITurnRepository Turns { get; private set; } = new TurnRepository(context);
     public IEffectRepository Effects { get; private set; } = new EffectRepository(context);
+    public IPlayerCardRepository PlayerCards { get; private set; } = new PlayerCardRepository(context);
+
 
     private bool _disposed = false;
 
