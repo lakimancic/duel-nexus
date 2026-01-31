@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Data.Models;
 
 [Index(nameof(DeckId), nameof(CardId), IsUnique = true)]
-public class DeckCard
+public class PlayerCard
 {
     [Key]
     public Guid Id { get; set; }

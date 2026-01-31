@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
+[Index(nameof(RoomId), IsUnique = true)]
 public class Game
 {
     [Key]

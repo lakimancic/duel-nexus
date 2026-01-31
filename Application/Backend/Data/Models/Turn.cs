@@ -1,9 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Backend.Data.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
+[Index(nameof(GameId), nameof(TurnNumber), IsUnique = true)]
 public class Turn
 {
     [Key]

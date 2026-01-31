@@ -1,9 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Backend.Data.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
+[Index(nameof(TurnId), nameof(GameCardId), IsUnique = true)]
 public class PlaceCardAction
 {
     [Key]
@@ -12,10 +14,6 @@ public class PlaceCardAction
     public Guid TurnId { get; set; }
     [ForeignKey(nameof(TurnId))]
     public Turn Turn { get; set; } = null!;
-
-    public Guid PlayerGameId { get; set; }
-    [ForeignKey(nameof(PlayerGameId))]
-    public PlayerGame Player { get; set; } = null!;
 
     public Guid GameCardId { get; set; }
     [ForeignKey(nameof(GameCardId))]
