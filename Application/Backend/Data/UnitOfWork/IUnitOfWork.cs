@@ -14,6 +14,9 @@ public interface IUnitOfWork : IDisposable
     IGameRoomRepository GameRooms { get; }
     IGameRoomPlayerRepository GameRoomPlayers { get; }
     ITurnRepository Turns { get; }
+    IEffectRepository Effects { get; }
+
+
 
     public DuelNexusDbContext Context { get; }
 
