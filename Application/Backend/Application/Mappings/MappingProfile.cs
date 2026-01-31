@@ -3,6 +3,7 @@ using Backend.Application.DTOs.Auth;
 using Backend.Data.Models;
 using Backend.Data.Enums;
 using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Player;
 
 namespace Backend.Application.Mappings;
 
@@ -32,12 +33,8 @@ public class MappingProfile : Profile
             _ => throw new ArgumentOutOfRangeException(nameof(src.Type))
         });
 
-        // CreateMap<CardDto, Card>().ReverseMap();
-        // CreateMap<Card, CardDto>().ReverseMap();
-
-
-        CreateMap<DeckCardDto, DeckCard>().ReverseMap();
-        CreateMap<DeckCard, DeckCardDto>().ReverseMap();
+        CreateMap<InsertDeckCardDto, DeckCard>().ReverseMap();
+        CreateMap<DeckCard, InsertDeckCardDto>().ReverseMap();
 
         CreateMap<DeckDto, Deck>().ReverseMap();
         CreateMap<Deck, DeckDto>().ReverseMap();
@@ -54,10 +51,14 @@ public class MappingProfile : Profile
 
         CreateMap<EffectDto, Effect>().ReverseMap();
         CreateMap<Effect, EffectDto>().ReverseMap();
-
-
         CreateMap<CreateEffectDto, Effect>().ReverseMap();
         CreateMap<Effect, CreateEffectDto>().ReverseMap();
+
+
+        CreateMap<PlayerCardDto, PlayerCard>().ReverseMap();
+        CreateMap<PlayerCard, PlayerCardDto>().ReverseMap();
+        CreateMap<CreatePlayerCardDto, PlayerCard>().ReverseMap();
+        CreateMap<PlayerCard, CreatePlayerCardDto>().ReverseMap();
 
     }
 

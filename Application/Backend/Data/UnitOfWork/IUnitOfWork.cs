@@ -15,6 +15,7 @@ public interface IUnitOfWork : IDisposable
     IGameRoomPlayerRepository GameRoomPlayers { get; }
     ITurnRepository Turns { get; }
     IEffectRepository Effects { get; }
+    IPlayerCardRepository PlayerCards { get; }
 
 
 

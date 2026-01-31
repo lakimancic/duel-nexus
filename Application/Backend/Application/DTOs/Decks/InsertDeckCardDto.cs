@@ -1,7 +1,7 @@
 namespace Backend.Application.DTOs.Decks;
 
-public class DeckCardDto
+public class InsertDeckCardDto
 {
-    public Guid CardId {get;set;}
+    public Guid PlayerCardId {get;set;}
     public int Quantity {get;set;}
 }

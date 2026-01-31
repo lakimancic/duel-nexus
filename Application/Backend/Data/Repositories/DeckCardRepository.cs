@@ -29,6 +29,8 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
                 _context.Set<DeckCard>().Add(card);
             }
         }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteManyCardAsync(Guid id, List<Guid> cardIds)
@@ -43,4 +45,10 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
         _context.Set<DeckCard>().RemoveRange(cards);
     }
 
+    public Task<List<DeckCard>> GetByDeckId(Guid deckId)
+    {
+        return _context.Set<DeckCard>()
+            .Where(dc => dc.DeckId == deckId)
+            .ToListAsync();
+    }
 }

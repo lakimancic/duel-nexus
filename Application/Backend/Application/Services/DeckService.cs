@@ -37,15 +37,52 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Deck, DeckDto>(deckEntity);
     }
-
-    public async Task AddCards(Guid deckId, List<DeckCardDto> cards)
+    public async Task AddCards(Guid deckId, List<InsertDeckCardDto> cards)
     {
-        var _ = await GetDeckById(deckId) ?? throw new Exception("Deck not found");
+        var deck = await GetDeckById(deckId)
+            ?? throw new Exception("Deck not found");
 
-        List<DeckCard> cardsList = _mapper.Map<List<DeckCardDto>, List<DeckCard>>(cards);
-        await _unitOfWork.DeckCardRepository.AddCardsInDeckAsync(deckId, cardsList);
+        var playerCards = await _unitOfWork.PlayerCards.GetCardsByDeckId(deckId);
+
+        if (playerCards.Count == 0)
+            return;
+
+        var existingDeckCards = await _unitOfWork.DeckCardRepository.GetByDeckId(deckId);
+
+        var deckCardsToAdd = playerCards
+            .Join(
+                cards,
+                playerCard => playerCard.Id,                 
+                dto => dto.PlayerCardId,
+                (playerCard,dto) =>
+                {
+                    var alreadyInDeck = existingDeckCards
+                        .FirstOrDefault(dc => dc.CardId == playerCard.Id)
+                        ?.Quantity ?? 0;
+
+                    var allowed = playerCard.Quantity - alreadyInDeck;
+
+                    var quantityToAdd = Math.Min(dto.Quantity, allowed);
+
+                    return new DeckCard
+                    {
+                        DeckId = deckId,
+                        CardId = playerCard.Id,
+                        Quantity = Math.Max(quantityToAdd, 0)
+                    };
+                })
+            .Where(dc => dc.Quantity > 0)
+            .ToList();
+
+        if (deckCardsToAdd.Count == 0)
+            return;
+
+        await _unitOfWork.DeckCardRepository
+            .AddCardsInDeckAsync(deckId, deckCardsToAdd);
+
         await _unitOfWork.CompleteAsync();
     }
+
 
     public async Task DeleteDeck(DeckDto deck)
     {

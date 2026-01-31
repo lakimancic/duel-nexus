@@ -45,6 +45,7 @@ builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<IDeckService, DeckService>();
 builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IEffectService, EffectService>();
+builder.Services.AddScoped<IPlayerCardService, PlayerCardService>();
 
 
 builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
