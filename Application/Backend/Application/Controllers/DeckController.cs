@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.Decks;
+using Backend.Data.Models;
 
 namespace Backend.Application.Controllers;
 
@@ -30,7 +31,7 @@ public class DeckController(IDeckService deckService) : ControllerBase
         if(cardIds.Count == 0)
             return BadRequest(new { error = "No cards to remove" });
 
-        await _deckService.RemoveCards(cardIds);
+        await _deckService.RemoveCards(deckId, cardIds);
         return Ok();
     }
 

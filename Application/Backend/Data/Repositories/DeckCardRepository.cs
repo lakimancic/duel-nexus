@@ -31,10 +31,10 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
         }
     }
 
-    public async Task DeleteManyCardAsync(List<Guid> cardIds)
+    public async Task DeleteManyCardAsync(Guid id, List<Guid> cardIds)
     {
         var cards = await _context.Set<DeckCard>()
-            .Where(c => cardIds.Contains(c.Id))
+            .Where(c => c.DeckId == id && cardIds.Contains(c.CardId))
             .ToListAsync();
 
             if (cards.Count == 0)
