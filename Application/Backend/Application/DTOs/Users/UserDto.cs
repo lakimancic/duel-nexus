@@ -1,5 +1,7 @@
 using Backend.Data.Enums;
 
+namespace Backend.Application.DTOs.Users;
+
 public class UserDto
 {
     public Guid Id { get; set; }

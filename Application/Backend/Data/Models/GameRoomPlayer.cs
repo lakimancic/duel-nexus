@@ -16,7 +16,7 @@ public class GameRoomPlayer
     [ForeignKey(nameof(UserId))]
     public User User { get; set; } = null!;
 
-    public Guid DeckId { get; set; }
+    public Guid? DeckId { get; set; }
     [ForeignKey(nameof(DeckId))]
     public Deck? Deck { get; set; }
 

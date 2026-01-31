@@ -18,7 +18,7 @@ public class EffectTarget
     [ForeignKey(nameof(TargetCardId))]
     public GameCard? TargetCard { get; set; }
 
-    public Guid? TargetPlayerId { get; set; }
+    public Guid TargetPlayerId { get; set; }
     [ForeignKey(nameof(TargetPlayerId))]
     public PlayerGame TargetPlayer { get; set; } = null!;
 }

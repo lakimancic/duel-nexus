@@ -23,8 +23,6 @@ public class GameRepository(DuelNexusDbContext context) : Repository<Game>(conte
             {
                 User = grp.User,
                 UserId = grp.UserId,
-                DeckTemplate = grp.Deck,
-                DeckId = grp.DeckId,
                 Game = game,
                 LifePoints = 8000
             };

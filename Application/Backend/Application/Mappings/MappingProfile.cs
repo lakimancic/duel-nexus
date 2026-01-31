@@ -3,7 +3,12 @@ using Backend.Application.DTOs.Auth;
 using Backend.Data.Models;
 using Backend.Data.Enums;
 using Backend.Application.DTOs.Decks;
+<<<<<<< Updated upstream
 using Backend.Application.DTOs.Player;
+=======
+using Backend.Application.DTOs.GameRooms;
+using Backend.Application.DTOs.Users;
+>>>>>>> Stashed changes
 
 namespace Backend.Application.Mappings;
 
@@ -13,6 +18,7 @@ public class MappingProfile : Profile
     {
         CreateMap<RegisterDto, User>().ReverseMap();
         CreateMap<User, UserDto>().ReverseMap();
+        CreateMap<User, ShortUserDto>().ReverseMap();
 
         CreateMap<CardDto, MonsterCard>();
         CreateMap<CardDto, SpellCard>();
@@ -39,15 +45,15 @@ public class MappingProfile : Profile
         CreateMap<DeckDto, Deck>().ReverseMap();
         CreateMap<Deck, DeckDto>().ReverseMap();
 
-        // Game rooms
-        CreateMap<GameRoomPlayer, DTOs.GameRooms.GameRoomPlayerDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Username))
-            .ForMember(dest => dest.UserElo, opt => opt.MapFrom(src => src.User.Elo))
-            .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
-
-        CreateMap<GameRoom, DTOs.GameRooms.GameRoomDto>()
-            .ForMember(dest => dest.Players, opt => opt.MapFrom(src => src.Players));
-
+        CreateMap<GameRoom, GameRoomDto>().ReverseMap();
+        CreateMap<GameRoomPlayer, GameRoomPlayerDto>()
+        .ForMember(dest => dest.Id, opt =>
+            opt.MapFrom(src => src.User != null ? src.User.Id : Guid.Empty))
+        .ForMember(dest => dest.Username, opt =>
+            opt.MapFrom(src => src.User != null ? src.User.Username : string.Empty))
+        .ForMember(dest => dest.Elo, opt =>
+            opt.MapFrom(src => src.User != null ? src.User.Elo : 0))
+        .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
 
         CreateMap<EffectDto, Effect>().ReverseMap();
         CreateMap<Effect, EffectDto>().ReverseMap();
