@@ -54,9 +54,9 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task RemoveCards(List<Guid> cardIds)
+    public async Task RemoveCards(Guid id,List<Guid> cardIds)
     {
-        await _unitOfWork.DeckCardRepository.DeleteManyCardAsync(cardIds);
+        await _unitOfWork.DeckCardRepository.DeleteManyCardAsync(id,cardIds);
         await _unitOfWork.CompleteAsync();
     }
 }

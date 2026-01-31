@@ -11,5 +11,5 @@ public interface IDeckService
     public Task<DeckDto> CreateDeck(DeckDto deck);
     public Task DeleteDeck(DeckDto deck);
     public Task AddCards(Guid deckId, List<DeckCardDto> cards);
-    public Task RemoveCards(List<Guid> cardIds);
+    public Task RemoveCards(Guid id,List<Guid> cardIds);
 }
