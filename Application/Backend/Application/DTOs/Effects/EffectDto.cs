@@ -1,5 +1,7 @@
 using Backend.Data.Enums;
 
+namespace Backend.Application.DTOs.Effects;
+
 public class EffectDto
 {
     public Guid Id { get; set; }

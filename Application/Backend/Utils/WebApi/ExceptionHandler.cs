@@ -4,14 +4,14 @@ namespace Backend.Utils.WebApi;
 
 public class ExceptionHandler
 {
-    public static IActionResult HandleException(Exception ex, ControllerBase controller)
+    public static IActionResult HandleException(Exception ex)
     {
         return ex switch
         {
-            KeyNotFoundException => controller.NotFound(new { error = ex.Message }),
-            ArgumentException => controller.BadRequest(new { error = ex.Message }),
-            InvalidOperationException => controller.Conflict(new { error = ex.Message }),
-            _ => controller.StatusCode(500, new { error = ex.Message })
+            KeyNotFoundException => new NotFoundObjectResult(new { error = ex.Message }),
+            ArgumentException => new BadRequestObjectResult(new { error = ex.Message }),
+            InvalidOperationException => new ConflictObjectResult(new { error = ex.Message }),
+            _ => new ObjectResult(new { error = ex.Message }) { StatusCode = 500 }
         };
     }
 }

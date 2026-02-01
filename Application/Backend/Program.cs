@@ -8,6 +8,7 @@ using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
+using Backend.Utils.WebApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +33,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<GlobalExceptionFilter>();
+});
 
 builder.Services.AddAuthorization();
 
