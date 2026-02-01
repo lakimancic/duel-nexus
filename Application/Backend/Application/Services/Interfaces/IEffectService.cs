@@ -1,4 +1,5 @@
 using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Effects;
 
 namespace Backend.Application.Services.Interfaces;
 

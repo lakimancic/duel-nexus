@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Effects;
 
 namespace Backend.Application.Controllers;
 

@@ -3,7 +3,7 @@ using Backend.Application.DTOs.Auth;
 using Backend.Application.Services.Interfaces;
 using Backend.Utils.Security;
 
-namespace Backend.Api.Controllers;
+namespace Backend.Application.Controllers;
 
 [ApiController]
 [Route("auth")]

@@ -6,6 +6,7 @@ using Backend.Application.DTOs.Decks;
 using Backend.Application.DTOs.Player;
 using Backend.Application.DTOs.GameRooms;
 using Backend.Application.DTOs.Users;
+using Backend.Application.DTOs.Effects;
 
 namespace Backend.Application.Mappings;
 
@@ -17,16 +18,15 @@ public class MappingProfile : Profile
         CreateMap<User, UserDto>().ReverseMap();
         CreateMap<User, ShortUserDto>().ReverseMap();
 
-        CreateMap<CardDto, MonsterCard>();
-        CreateMap<CardDto, SpellCard>();
-        CreateMap<CardDto, TrapCard>();
-
+        CreateMap<CreateCardDto, MonsterCard>();
+        CreateMap<CreateCardDto, SpellCard>();
+        CreateMap<CreateCardDto, TrapCard>();
 
         CreateMap<MonsterCard, CardDto>();
         CreateMap<SpellCard, CardDto>();
         CreateMap<TrapCard, CardDto>();
 
-        CreateMap<CardDto, Card>()
+        CreateMap<CreateCardDto, Card>()
         .ConvertUsing((src, _, context) =>
         src.Type switch
         {
@@ -37,10 +37,8 @@ public class MappingProfile : Profile
         });
 
         CreateMap<InsertDeckCardDto, DeckCard>().ReverseMap();
-        CreateMap<DeckCard, InsertDeckCardDto>().ReverseMap();
 
         CreateMap<DeckDto, Deck>().ReverseMap();
-        CreateMap<Deck, DeckDto>().ReverseMap();
 
         CreateMap<GameRoom, GameRoomDto>().ReverseMap();
         CreateMap<GameRoomPlayer, GameRoomPlayerDto>()
@@ -53,16 +51,10 @@ public class MappingProfile : Profile
         .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
 
         CreateMap<EffectDto, Effect>().ReverseMap();
-        CreateMap<Effect, EffectDto>().ReverseMap();
         CreateMap<CreateEffectDto, Effect>().ReverseMap();
-        CreateMap<Effect, CreateEffectDto>().ReverseMap();
-
 
         CreateMap<PlayerCardDto, PlayerCard>().ReverseMap();
-        CreateMap<PlayerCard, PlayerCardDto>().ReverseMap();
         CreateMap<CreatePlayerCardDto, PlayerCard>().ReverseMap();
-        CreateMap<PlayerCard, CreatePlayerCardDto>().ReverseMap();
-
     }
 
 }

@@ -1,6 +1,7 @@
 using AutoMapper;
 using Backend.Application.DTOs.Decks;
 using Backend.Application.Services.Interfaces;
+using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 
@@ -12,9 +13,9 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     private readonly IMapper _mapper = mapper;
 
 
-    public async Task<List<CardDto>> GetAllCards()
+    public async Task<List<CardDto>> GetCardsAsync(int page, int pageSize)
     {
-        List<Card> cards =  await _unitOfWork.Cards.GetAllAsync();
+        List<Card> cards =  (await _unitOfWork.Cards.GetPagedAsync(page, pageSize)).Items;
         return _mapper.Map<List<Card>, List<CardDto>>(cards);
     }
 
@@ -25,9 +26,16 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         return _mapper.Map<Card, CardDto>(card);
     }
 
-    public async Task<CardDto> CreateCard(CardDto cardDto)
+    public async Task<CardDto> CreateCard(CreateCardDto cardDto)
     {
-        Card card = _mapper.Map<CardDto, Card>(cardDto);
+        if(cardDto.Type != CardType.Monster)
+        {
+            cardDto.Attack = 0;
+            cardDto.Defense = 0;
+            cardDto.Level = 0;
+        }
+
+        Card card = _mapper.Map<CreateCardDto, Card>(cardDto);
         await _unitOfWork.Cards.AddAsync(card);
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Card, CardDto>(card);
@@ -35,16 +43,23 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
 
     public async Task DeleteCard(Guid cardId)
     {
-        var card = await _unitOfWork.Cards.GetByIdAsync(cardId);
-        if (card == null) return;
+        var card = await _unitOfWork.Cards.GetByIdAsync(cardId)
+            ?? throw new KeyNotFoundException($"Card with ID '{cardId}' not found");
         _unitOfWork.Cards.Delete(card);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task<CardDto?> EditCard(Guid id, CardDto cardDto)
+    public async Task<CardDto?> EditCard(Guid id, CreateCardDto cardDto)
     {
-        var existingCard = await _unitOfWork.Cards.GetByIdAsync(id);
-        if (existingCard == null) return null;
+        var existingCard = await _unitOfWork.Cards.GetByIdAsync(id)
+            ?? throw new KeyNotFoundException($"Card with ID '{id}' not found");
+
+        if(cardDto.Type != CardType.Monster)
+        {
+            cardDto.Attack = 0;
+            cardDto.Defense = 0;
+            cardDto.Level = 0;
+        }
 
         var card = _mapper.Map(cardDto, existingCard);
 

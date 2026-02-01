@@ -1,5 +1,6 @@
 using AutoMapper;
 using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Effects;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;

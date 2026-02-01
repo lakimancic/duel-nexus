@@ -1,5 +1,7 @@
 using Backend.Data.Enums;
 
+namespace Backend.Application.DTOs.Effects;
+
 public class CreateEffectDto
 {
     public EffectType Type { get; set; }

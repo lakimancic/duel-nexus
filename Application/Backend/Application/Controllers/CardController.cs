@@ -6,11 +6,11 @@ using Backend.Application.DTOs.Decks;
 namespace Backend.Application.Controllers;
 
 [ApiController]
-[Route("cards")]
+[Route("admin/cards")]
 public class CardController(ICardService cardService) : ControllerBase
 {
     private readonly ICardService _cardService = cardService;
-
+    private const int MaxPageSize = 50;
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCardById(Guid id)
@@ -20,37 +20,24 @@ public class CardController(ICardService cardService) : ControllerBase
         return Ok(card);
     }
 
-    [HttpGet()]
-    public async Task<IActionResult> GetAllCards()
+    [HttpGet]
+    public async Task<IActionResult> GetCards(int page = 1, int pageSize = 10)
     {
-        var cards = await _cardService.GetAllCards();
+        pageSize = Math.Min(pageSize, MaxPageSize);
+        var cards = await _cardService.GetCardsAsync(page, pageSize);
         return Ok(cards);
     }
 
-    [HttpPost("")]
-    public async Task<IActionResult> CreateCard([FromBody] CardDto card)
+    [HttpPost]
+    public async Task<IActionResult> CreateCard([FromBody] CreateCardDto card)
     {
-        if(card.Type == CardType.Monster)
-        {
-            card.Attack = 0;
-            card.Defense = 0;
-            card.Level = 0;
-        }
-
         var createdCard = await _cardService.CreateCard(card);
         return Ok(createdCard);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCard(Guid id, [FromBody] CardDto card)
+    public async Task<IActionResult> UpdateCard(Guid id, [FromBody] CreateCardDto card)
     {
-        if(card.Type != CardType.Monster)
-        {
-            card.Attack = 0;
-            card.Defense = 0;
-            card.Level = 0;
-        }
-
         var updatedCard = await _cardService.EditCard(id, card);
         return Ok(updatedCard);
     }
@@ -59,6 +46,6 @@ public class CardController(ICardService cardService) : ControllerBase
     public async Task<IActionResult> DeleteCard(Guid id)
     {
         await _cardService.DeleteCard(id);
-        return Ok(new { message = "Card deleted successfully" });
+        return Ok(new { message = $"Card with id {id} deleted successfully" });
     }
 }
