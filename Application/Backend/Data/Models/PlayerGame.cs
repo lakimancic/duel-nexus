@@ -10,6 +10,8 @@ public class PlayerGame
     [Key]
     public Guid Id { get; set; }
 
+    public int Index { get; set; }
+
     public Guid GameId { get; set; }
     [ForeignKey(nameof(GameId))]
     public Game Game { get; set; } = null!;

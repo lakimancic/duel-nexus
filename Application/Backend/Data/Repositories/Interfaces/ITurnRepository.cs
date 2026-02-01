@@ -4,5 +4,5 @@ namespace Backend.Data.Repositories.Interfaces;
 
 public interface ITurnRepository : IRepository<Turn>
 {
-
+    Task InitializeTurnsForGameAsync(Game game);
 }

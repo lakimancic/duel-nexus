@@ -26,5 +26,5 @@ public class AttackAction
     [ForeignKey(nameof(DefenderPlayerGameId))]
     public PlayerGame? DefenderPlayer { get; set; }
 
-    public DateTime ExecutedAt { get; set; }
+    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 }

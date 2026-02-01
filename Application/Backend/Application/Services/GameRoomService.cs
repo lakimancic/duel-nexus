@@ -50,7 +50,7 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
         if (gameRoom.Players.Count >= MaxPlayersPerRoom)
             throw new InvalidOperationException($"Game room is full (max {MaxPlayersPerRoom} players)");
 
-        var playerExists = gameRoom.Players.Any(p => p.UserId == userId);
+        var playerExists = await _unitOfWork.GameRoomPlayers.GetByGameRoomIdAndPlayerIdAsync(gameRoomId, userId) != null;
         if (playerExists)
             throw new InvalidOperationException("Player is already in this game room");
 
@@ -100,8 +100,24 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
             throw new InvalidOperationException("Player does not own the specified deck");
 
         player.DeckId = deckId;
-        player.IsReady = deckId != null;
         _unitOfWork.GameRoomPlayers.Update(player);
         await _unitOfWork.CompleteAsync();
+    }
+
+    public async Task<Guid> StartGameFromRoomAsync(Guid gameRoomId)
+    {
+        var gameRoom = await _unitOfWork.GameRooms.GetByIdWithPlayersAsync(gameRoomId)
+            ?? throw new KeyNotFoundException($"Game room with id '{gameRoomId}' not found");
+        if (gameRoom.Status != RoomStatus.Waiting)
+            throw new InvalidOperationException($"Cannot start game from room with status '{gameRoom.Status}'");
+        if (gameRoom.Players.Count < 2)
+            throw new InvalidOperationException("At least two players are required to start the game");
+
+        var game = await _unitOfWork.Games.CreateFromGameRoomAsync(gameRoom);
+        gameRoom.Status = RoomStatus.Started;
+        _unitOfWork.GameRooms.Update(gameRoom);
+        await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
+        await _unitOfWork.CompleteAsync();
+        return game.Id;
     }
 }

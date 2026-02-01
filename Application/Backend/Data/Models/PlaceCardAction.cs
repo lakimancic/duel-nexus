@@ -27,5 +27,5 @@ public class PlaceCardAction
 
     public PlaceType Type { get; set; }
 
-    public DateTime ExecutedAt { get; set; }
+    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 }

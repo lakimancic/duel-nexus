@@ -12,4 +12,5 @@ public interface IGameRoomService
     Task RemovePlayerFromGameRoomAsync(Guid gameRoomId, Guid userId);
     Task CancelGameRoomAsync(Guid gameRoomId);
     Task UpdatePlayerDeckAsync(Guid gameRoomId, Guid playerId, Guid? deckId);
+    Task<Guid> StartGameFromRoomAsync(Guid gameRoomId);
 }

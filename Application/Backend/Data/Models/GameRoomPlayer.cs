@@ -20,5 +20,6 @@ public class GameRoomPlayer
     [ForeignKey(nameof(DeckId))]
     public Deck? Deck { get; set; }
 
-    public bool IsReady { get; set; }
+    [NotMapped]
+    public bool IsReady => DeckId.HasValue;
 }
