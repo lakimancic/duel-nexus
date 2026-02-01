@@ -9,6 +9,7 @@ public class DuelNexusDbContext(DbContextOptions<DuelNexusDbContext> options) : 
     public DbSet<AttackAction> AttackActions => Set<AttackAction>();
     public DbSet<Card> Cards => Set<Card>();
     public DbSet<CardMovementAction> CardMovementActions => Set<CardMovementAction>();
+    public DbSet<ChatMessage> Messages => Set<ChatMessage>();
     public DbSet<Deck> Decks => Set<Deck>();
     public DbSet<DeckCard> DeckCards => Set<DeckCard>();
     public DbSet<Effect> Effects => Set<Effect>();

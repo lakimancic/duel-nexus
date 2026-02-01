@@ -25,7 +25,7 @@ public class EffectActivation
     [ForeignKey(nameof(SourceCardId))]
     public GameCard SourceCard { get; set; } = null!;
 
-    public DateTime ActivatedAt { get; set; }
+    public DateTime ActivatedAt { get; set; } = DateTime.UtcNow;
 
     public bool Resolved { get; set; }
 

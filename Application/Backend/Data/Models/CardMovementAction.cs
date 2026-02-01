@@ -24,5 +24,5 @@ public class CardMovementAction
 
     public CardMovementType MovementType { get; set; }
 
-    public DateTime ExecutedAt { get; set; }
+    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 }

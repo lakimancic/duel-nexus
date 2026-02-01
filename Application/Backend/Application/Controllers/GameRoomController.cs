@@ -62,4 +62,11 @@ public class GameRoomController(IGameRoomService gameRoomService) : ControllerBa
         await _gameRoomService.UpdatePlayerDeckAsync(gameRoomId, playerId, dto.DeckId);
         return Ok();
     }
+
+    [HttpPut("{gameRoomId}/start")]
+    public async Task<IActionResult> StartGameInRoom(Guid gameRoomId)
+    {
+        await _gameRoomService.StartGameFromRoomAsync(gameRoomId);
+        return Ok();
+    }
 }

@@ -23,6 +23,6 @@ public class Turn
 
     public TurnPhase Phase { get; set; }
 
-    public DateTime StartedAt { get; set; }
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? EndedAt { get; set; }
 }
