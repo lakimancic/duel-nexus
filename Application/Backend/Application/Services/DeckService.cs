@@ -47,12 +47,12 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         if (playerCards.Count == 0)
             return;
 
-        var existingDeckCards = await _unitOfWork.DeckCardRepository.GetByDeckId(deckId);
+        var existingDeckCards = await _unitOfWork.DeckCards.GetByDeckId(deckId);
 
         var deckCardsToAdd = playerCards
             .Join(
                 cards,
-                playerCard => playerCard.Id,                 
+                playerCard => playerCard.Id,
                 dto => dto.PlayerCardId,
                 (playerCard,dto) =>
                 {
@@ -77,7 +77,7 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         if (deckCardsToAdd.Count == 0)
             return;
 
-        await _unitOfWork.DeckCardRepository
+        await _unitOfWork.DeckCards
             .AddCardsInDeckAsync(deckId, deckCardsToAdd);
 
         await _unitOfWork.CompleteAsync();
@@ -93,7 +93,7 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
 
     public async Task RemoveCards(Guid id,List<Guid> cardIds)
     {
-        await _unitOfWork.DeckCardRepository.DeleteManyCardAsync(id,cardIds);
+        await _unitOfWork.DeckCards.DeleteManyCardAsync(id,cardIds);
         await _unitOfWork.CompleteAsync();
     }
 }
