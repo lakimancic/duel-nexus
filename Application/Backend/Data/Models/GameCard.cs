@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
-[Index(nameof(PlayerGameId), nameof(CardId), IsUnique = false)]
+[Index(nameof(CardId), nameof(PlayerGameId), IsUnique = false)]
 public class GameCard
 {
     [Key]

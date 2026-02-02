@@ -51,7 +51,7 @@ builder.Services.AddScoped<IEffectService, EffectService>();
 builder.Services.AddScoped<IPlayerCardService, PlayerCardService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
-builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 var mapperConfig = new MapperConfiguration(mc =>
 {

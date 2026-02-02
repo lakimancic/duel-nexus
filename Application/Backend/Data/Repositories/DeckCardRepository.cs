@@ -48,6 +48,7 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
     public Task<List<DeckCard>> GetByDeckId(Guid deckId)
     {
         return _context.Set<DeckCard>()
+            .Include(dc => dc.Card)
             .Where(dc => dc.DeckId == deckId)
             .ToListAsync();
     }

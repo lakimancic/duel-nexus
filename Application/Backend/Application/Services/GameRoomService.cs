@@ -4,6 +4,7 @@ using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using AutoMapper;
 using Backend.Application.DTOs.GameRooms;
+using Backend.Utils.Rand;
 
 namespace Backend.Application.Services;
 
@@ -112,10 +113,21 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
             throw new InvalidOperationException($"Cannot start game from room with status '{gameRoom.Status}'");
         if (gameRoom.Players.Count < 2)
             throw new InvalidOperationException("At least two players are required to start the game");
+        if (gameRoom.Players.Any(p => p.DeckId == null))
+            throw new InvalidOperationException("All players must select a deck before starting the game");
 
-        var game = await _unitOfWork.Games.CreateFromGameRoomAsync(gameRoom);
+        var game = await _unitOfWork.Games.CreateGameFromRoomAsync(gameRoom);
         gameRoom.Status = RoomStatus.Started;
+
+        var playerIndices = RandomExtensions.GenerateUniqueRandomIndices(gameRoom.Players.Count);
+        int indexCounter = 0;
         _unitOfWork.GameRooms.Update(gameRoom);
+        foreach (var grp in gameRoom.Players)
+        {
+            var pg = await _unitOfWork.PlayerGames.CreatePlayerAsync(grp, game, playerIndices[indexCounter++]);
+            var deckCards = await _unitOfWork.DeckCards.GetByDeckId(grp.DeckId!.Value);
+            await _unitOfWork.GameCards.CreateGameCardsAsync(pg, deckCards);
+        }
         await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
         await _unitOfWork.CompleteAsync();
         return game.Id;

@@ -4,7 +4,8 @@ public enum PlaceType
 {
     NormalSummon,
     SpecialSummon,
-    SetMonster,
     ActivateSpell,
-    SetSpellTrap
+    SetSpellTrap,
+    FlipCard,
+    ChangeBattlePosition,
 }

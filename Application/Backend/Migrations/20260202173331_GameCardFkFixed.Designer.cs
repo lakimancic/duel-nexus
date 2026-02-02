@@ -3,6 +3,7 @@ using System;
 using Backend.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace backend.Migrations
 {
     [DbContext(typeof(DuelNexusDbContext))]
-    partial class DuelNexusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260202173331_GameCardFkFixed")]
+    partial class GameCardFkFixed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -334,9 +337,6 @@ namespace backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("CardId")
-                        .HasColumnType("uuid");
-
                     b.Property<int?>("DeckOrder")
                         .HasColumnType("integer");
 
@@ -349,6 +349,9 @@ namespace backend.Migrations
                     b.Property<bool>("IsFaceDown")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("PlayerCardId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("PlayerGameId")
                         .HasColumnType("uuid");
 
@@ -357,9 +360,9 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerGameId");
+                    b.HasIndex("PlayerCardId");
 
-                    b.HasIndex("CardId", "PlayerGameId");
+                    b.HasIndex("PlayerGameId");
 
                     b.ToTable("GameCards");
                 });
@@ -791,9 +794,9 @@ namespace backend.Migrations
 
             modelBuilder.Entity("Backend.Data.Models.GameCard", b =>
                 {
-                    b.HasOne("Backend.Data.Models.Card", "Card")
+                    b.HasOne("Backend.Data.Models.PlayerCard", "PlayerCard")
                         .WithMany()
-                        .HasForeignKey("CardId")
+                        .HasForeignKey("PlayerCardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -803,7 +806,7 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Card");
+                    b.Navigation("PlayerCard");
 
                     b.Navigation("PlayerGame");
                 });
@@ -840,7 +843,7 @@ namespace backend.Migrations
 
             modelBuilder.Entity("Backend.Data.Models.PlayerCard", b =>
                 {
-                    b.HasOne("Backend.Data.Models.Card", "Card")
+                    b.HasOne("Backend.Data.Models.PlayerCard", "Card")
                         .WithMany()
                         .HasForeignKey("CardId")
                         .OnDelete(DeleteBehavior.Cascade)
