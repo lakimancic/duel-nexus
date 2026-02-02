@@ -9,6 +9,7 @@ public class UnitOfWork(DuelNexusDbContext context) : IUnitOfWork
     private readonly DuelNexusDbContext _context = context;
     public IUserRepository Users { get; private set; } = new UserRepository(context);
     public ICardRepository Cards { get; private set; } = new CardRepository(context);
+    public IMessageRepository Messages { get; private set; } = new MessageRepository(context);
     public IDeckRepository Decks { get; private set; } = new DeckRepository(context);
     public IDeckCardRepository DeckCardRepository { get; private set; } = new DeckCardRepository(context);
     public IGameRepository Games { get; private set; } = new GameRepository(context);
