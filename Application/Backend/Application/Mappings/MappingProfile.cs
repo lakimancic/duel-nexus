@@ -7,6 +7,8 @@ using Backend.Application.DTOs.Player;
 using Backend.Application.DTOs.GameRooms;
 using Backend.Application.DTOs.Users;
 using Backend.Application.DTOs.Effects;
+using Backend.Utils.Data;
+using Backend.Application.DTOs.Chat;
 
 namespace Backend.Application.Mappings;
 
@@ -55,6 +57,17 @@ public class MappingProfile : Profile
 
         CreateMap<PlayerCardDto, PlayerCard>().ReverseMap();
         CreateMap<CreatePlayerCardDto, PlayerCard>().ReverseMap();
+
+        CreateMap<ChatMessage, ChatMessageDto>();
+        CreateMap<SendMessageDto, ChatMessage>()
+            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => MessageType.Global));
+        CreateMap<GameRoomMessageDto, ChatMessage>()
+            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => MessageType.GameRoom));
+        CreateMap<PrivateMessageDto, ChatMessage>()
+            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => MessageType.Private));
+
+        CreateMap(typeof(PagedResult<>), typeof(PagedResult<>))
+            .ConvertUsing(typeof(PagedResultConverter<,>));
     }
 
 }
