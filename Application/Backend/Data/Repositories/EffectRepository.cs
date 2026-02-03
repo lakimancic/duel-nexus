@@ -6,5 +6,5 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Data.Repositories;
 
 public class EffectRepository(DuelNexusDbContext context) : Repository<Effect>(context), IEffectRepository
-{   
+{
 }

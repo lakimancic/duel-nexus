@@ -10,9 +10,6 @@ public class EffectActivation
     [Key]
     public Guid Id { get; set; }
 
-    public Guid GameId { get; set; }
-    [ForeignKey(nameof(GameId))]
-    public Game Game { get; set; } = null!;
     public Guid TurnId { get; set; }
     [ForeignKey(nameof(TurnId))]
     public Turn Turn { get; set; } = null!;
