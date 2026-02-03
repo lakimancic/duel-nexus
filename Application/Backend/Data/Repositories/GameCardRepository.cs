@@ -38,4 +38,11 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
     {
         return await _context.GameCards.Where(gc => gc.PlayerGameId == id).ToListAsync();
     }
+
+    public async Task<GameCard?> GetByPlayerIdAndCardIdAsync(Guid playerId, Guid cardId)
+    {
+        return await _context.GameCards
+            .Where(gc => gc.PlayerGameId == playerId && gc.CardId == cardId)
+            .FirstOrDefaultAsync();
+    }
 }

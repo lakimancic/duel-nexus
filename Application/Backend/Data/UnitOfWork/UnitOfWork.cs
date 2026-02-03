@@ -7,6 +7,7 @@ namespace Backend.Data.UnitOfWork;
 public class UnitOfWork(DuelNexusDbContext context) : IUnitOfWork
 {
     private readonly DuelNexusDbContext _context = context;
+    public IAttackRepository Attacks { get; private set; } = new AttackRepository(context);
     public IUserRepository Users { get; private set; } = new UserRepository(context);
     public ICardRepository Cards { get; private set; } = new CardRepository(context);
     public ICardMovementRepository CardMovements { get; private set; } = new CardMovementRepository(context);
@@ -20,7 +21,10 @@ public class UnitOfWork(DuelNexusDbContext context) : IUnitOfWork
     public IGameRoomPlayerRepository GameRoomPlayers { get; private set; } = new GameRoomPlayerRepository(context);
     public ITurnRepository Turns { get; private set; } = new TurnRepository(context);
     public IEffectRepository Effects { get; private set; } = new EffectRepository(context);
+    public IEffectActivationRepository EffectActivations { get; private set; } = new EffectActivationRepository(context);
+    public IEffectTargetRepository EffectTargets { get; private set; } = new EffectTargetRepository(context);
     public IPlayerCardRepository PlayerCards { get; private set; } = new PlayerCardRepository(context);
+    public IPlaceCardRepository PlaceCards { get; private set; } = new PlaceCardRepository(context);
 
 
     public DuelNexusDbContext Context => _context;
