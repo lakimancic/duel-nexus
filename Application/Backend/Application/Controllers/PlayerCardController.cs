@@ -6,7 +6,7 @@ using Backend.Application.DTOs.Player;
 namespace Backend.Application.Controllers;
 
 [ApiController]
-[Route("player-card")]
+[Route("admin/player-cards")]
 public class PlayerCardController(IPlayerCardService playerCardService) : ControllerBase
 {
     private readonly IPlayerCardService _playerCardService = playerCardService;

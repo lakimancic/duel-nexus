@@ -1,11 +1,11 @@
 using Backend.Application.DTOs.Decks;
+using Backend.Utils.Data;
 
 namespace Backend.Application.Services.Interfaces;
 
 public interface IDeckService
 {
-    public Task<List<DeckDto>> GetAllDecks();
-
+    public Task<PagedResult<DeckDto>> GetDecksAsync(int page, int pageSize);
     public Task<DeckDto?> GetDeckById(Guid id);
     public Task<List<DeckDto>?> GetDeckByUserId(Guid id);
     public Task<DeckDto> CreateDeck(DeckDto deck);

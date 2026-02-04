@@ -37,7 +37,7 @@ public class Repository<T>(DuelNexusDbContext context) : IRepository<T>
         _dbSet.Remove(entity);
     }
 
-    public async Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, string includeProperties = "")
+    public async Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, Func<IQueryable<T>, IOrderedQueryable<T>> orderBy, Expression<Func<T, bool>>? filter = null, string includeProperties = "")
     {
         IQueryable<T> query = _dbSet;
 
@@ -49,8 +49,7 @@ public class Repository<T>(DuelNexusDbContext context) : IRepository<T>
 
         var totalCount = await query.CountAsync();
 
-        if (orderBy != null)
-            query = orderBy(query);
+        query = orderBy(query);
 
         var items = await query
             .Skip((pageNumber - 1) * pageSize)

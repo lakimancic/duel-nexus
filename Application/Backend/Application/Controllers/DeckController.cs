@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.Decks;
-using Backend.Data.Models;
 
 namespace Backend.Application.Controllers;
 
 [ApiController]
-[Route("decks")]
+[Route("admin/decks")]
 public class DeckController(IDeckService deckService) : ControllerBase
 {
     private readonly IDeckService _deckService = deckService;
+    private const int MaxPageSize = 30;
 
-    [HttpPost("")]
+    [HttpPost]
     public async Task<IActionResult> CreateDeck([FromBody] DeckDto deck)
     {
         var createdDeck = await _deckService.CreateDeck(deck);
@@ -43,12 +43,11 @@ public class DeckController(IDeckService deckService) : ControllerBase
         return Ok(deck);
     }
 
-    [HttpGet()]
-    public async Task<IActionResult> GetAllDecks()
+    [HttpGet]
+    public async Task<IActionResult> GetCards(int page = 1, int pageSize = 10)
     {
-        var decks = await _deckService.GetAllDecks();
-        return Ok(decks);
+        pageSize = Math.Min(pageSize, MaxPageSize);
+        var cards = await _deckService.GetDecksAsync(page, pageSize);
+        return Ok(cards);
     }
-
-
 }

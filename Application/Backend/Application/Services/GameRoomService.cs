@@ -18,7 +18,10 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
     {
         if (page <= 0)
             return [];
-        var rooms = await _unitOfWork.GameRooms.GetPagedAsync(page, pageSize, gr => status == null || gr.Status == status, includeProperties: "HostUser");
+        var rooms = await _unitOfWork.GameRooms.GetPagedAsync(
+            page, pageSize, q => q.OrderBy(gr => gr.Id),
+            gr => status == null || gr.Status == status, includeProperties: "HostUser"
+        );
         return [.. rooms.Items.Select(gr => _mapper.Map<GameRoom, GameRoomDto>(gr))];
     }
 

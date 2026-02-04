@@ -6,7 +6,7 @@ using Backend.Application.DTOs.Effects;
 namespace Backend.Application.Controllers;
 
 [ApiController]
-[Route("effects")]
+[Route("admin/effects")]
 public class EffectController(IEffectService effectService) : ControllerBase
 {
     private readonly IEffectService _effectService = effectService;
@@ -26,10 +26,10 @@ public class EffectController(IEffectService effectService) : ControllerBase
         return Ok(effect);
     }
 
-    [HttpGet()]
-    public async Task<IActionResult> GetAllEffects()
+    [HttpGet]
+    public async Task<IActionResult> GetEffects(int page = 1, int pageSize = 10)
     {
-        var effects = await _effectService.GetAllEffects();
+        var effects = await _effectService.GetEffectsAsync(page, pageSize);
         return Ok(effects);
     }
 
