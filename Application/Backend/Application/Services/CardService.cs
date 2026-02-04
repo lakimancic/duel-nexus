@@ -4,6 +4,7 @@ using Backend.Application.Services.Interfaces;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
+using Backend.Utils.Data;
 
 namespace Backend.Application.Services;
 
@@ -13,10 +14,10 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     private readonly IMapper _mapper = mapper;
 
 
-    public async Task<List<CardDto>> GetCardsAsync(int page, int pageSize)
+    public async Task<PagedResult<CardDto>> GetCardsAsync(int page, int pageSize)
     {
-        List<Card> cards =  (await _unitOfWork.Cards.GetPagedAsync(page, pageSize)).Items;
-        return _mapper.Map<List<Card>, List<CardDto>>(cards);
+        var cards = await _unitOfWork.Cards.GetPagedAsync(page, pageSize, q => q.OrderBy(c => c.Id));
+        return _mapper.Map<PagedResult<CardDto>>(cards);
     }
 
     public async Task<CardDto?> GetCardById(Guid id)
@@ -44,7 +45,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     public async Task DeleteCard(Guid cardId)
     {
         var card = await _unitOfWork.Cards.GetByIdAsync(cardId)
-            ?? throw new KeyNotFoundException($"Card with ID '{cardId}' not found");
+            ?? throw new KeyNotFoundException($"Card not found");
         _unitOfWork.Cards.Delete(card);
         await _unitOfWork.CompleteAsync();
     }
@@ -52,7 +53,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     public async Task<CardDto?> EditCard(Guid id, CreateCardDto cardDto)
     {
         var existingCard = await _unitOfWork.Cards.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Card with ID '{id}' not found");
+            ?? throw new KeyNotFoundException($"Card not found");
 
         if(cardDto.Type != CardType.Monster)
         {

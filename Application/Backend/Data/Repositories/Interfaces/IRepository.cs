@@ -14,8 +14,8 @@ public interface IRepository<T> where T : class
     Task<PagedResult<T>> GetPagedAsync(
         int pageNumber,
         int pageSize,
+        Func<IQueryable<T>, IOrderedQueryable<T>> orderBy,
         Expression<Func<T, bool>>? filter = null,
-        Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
         string includeProperties = ""
     );
 }

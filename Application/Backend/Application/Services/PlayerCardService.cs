@@ -21,9 +21,9 @@ public class PlayerCardService(IUnitOfWork unitOfWork, IMapper mapper) : IPlayer
 
     public async Task DeletePlayerCard(Guid id)
     {
-        var card = await _unitOfWork.PlayerCards.GetByIdAsync(id) ?? throw new ArgumentException("PlayerCard not found");
+        var card = await _unitOfWork.PlayerCards.GetByIdAsync(id) ?? throw new KeyNotFoundException("PlayerCard not found");
         _unitOfWork.PlayerCards.Delete(card);
-        await _unitOfWork.CompleteAsync();   
+        await _unitOfWork.CompleteAsync();
     }
 
     public async Task<List<PlayerCardDto>> GetAllPlayerCards()
