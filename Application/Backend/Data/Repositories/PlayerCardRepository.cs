@@ -7,8 +7,21 @@ namespace Backend.Data.Repositories;
 
 public class PlayerCardRepository(DuelNexusDbContext context) : Repository<PlayerCard>(context), IPlayerCardRepository
 {
-    public async Task<List<PlayerCard>> GetCardsByDeckId(Guid deckId)
+    public Task<List<PlayerCard>> GetCardsByUserId(Guid userId)
     {
-        return await _context.PlayerCards.Where(p => p.DeckId == deckId).ToListAsync();
+        var cards = _context.Set<PlayerCard>()
+            .Where(pc => pc.UserId == userId)
+            .Include(pc => pc.Card)
+            .ToListAsync();
+        return cards;
+    }
+
+    public async Task<PlayerCard?> GetPlayerCard(Guid userId, Guid cardId)
+    {
+        var card = await _context.Set<PlayerCard>()
+            .Where(pc => pc.UserId == userId && pc.CardId == cardId)
+            .Include(pc => pc.Card)
+            .FirstOrDefaultAsync();
+        return card;
     }
 }

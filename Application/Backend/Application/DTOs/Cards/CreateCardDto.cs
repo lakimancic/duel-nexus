@@ -1,7 +1,6 @@
-using Backend.Application.DTOs.Effects;
 using Backend.Data.Enums;
 
-namespace Backend.Application.DTOs.Decks;
+namespace Backend.Application.DTOs.Cards;
 
 public class CreateCardDto
 {

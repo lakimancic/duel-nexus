@@ -3,12 +3,12 @@ using Backend.Application.DTOs.Auth;
 using Backend.Data.Models;
 using Backend.Data.Enums;
 using Backend.Application.DTOs.Decks;
-using Backend.Application.DTOs.Player;
 using Backend.Application.DTOs.GameRooms;
 using Backend.Application.DTOs.Users;
 using Backend.Application.DTOs.Effects;
 using Backend.Utils.Data;
 using Backend.Application.DTOs.Chat;
+using Backend.Application.DTOs.Cards;
 
 namespace Backend.Application.Mappings;
 
@@ -16,10 +16,13 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<RegisterDto, User>().ReverseMap();
-        CreateMap<User, UserDto>().ReverseMap();
-        CreateMap<User, ShortUserDto>().ReverseMap();
+        // Users
+        CreateMap<RegisterDto, User>();
+        CreateMap<EditUserDto, User>();
+        CreateMap<User, UserDto>();
+        CreateMap<User, ShortUserDto>();
 
+        // Cards
         CreateMap<CreateCardDto, MonsterCard>();
         CreateMap<CreateCardDto, SpellCard>();
         CreateMap<CreateCardDto, TrapCard>();
@@ -38,9 +41,10 @@ public class MappingProfile : Profile
             _ => throw new ArgumentOutOfRangeException(nameof(src.Type))
         });
 
-        CreateMap<InsertDeckCardDto, DeckCard>().ReverseMap();
-
-        CreateMap<DeckDto, Deck>().ReverseMap();
+        // Decks
+        CreateMap<CreateDeckDto, Deck>();
+        CreateMap<Deck, DeckDto>();
+        CreateMap<InsertDeckCardDto, DeckCard>();
 
         CreateMap<GameRoom, GameRoomDto>().ReverseMap();
         CreateMap<GameRoomPlayer, GameRoomPlayerDto>()
@@ -52,11 +56,13 @@ public class MappingProfile : Profile
             opt.MapFrom(src => src.User != null ? src.User.Elo : 0))
         .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
 
-        CreateMap<EffectDto, Effect>().ReverseMap();
-        CreateMap<CreateEffectDto, Effect>().ReverseMap();
+        // Effects
+        CreateMap<CreateEffectDto, Effect>();
+        CreateMap<Effect, EffectDto>();
 
-        CreateMap<PlayerCardDto, PlayerCard>().ReverseMap();
-        CreateMap<CreatePlayerCardDto, PlayerCard>().ReverseMap();
+        // PlayerCards
+        CreateMap<CreatePlayerCardDto, PlayerCard>();
+        CreateMap<PlayerCard, PlayerCardDto>();
 
         CreateMap<ChatMessage, ChatMessageDto>();
         CreateMap<SendMessageDto, ChatMessage>()

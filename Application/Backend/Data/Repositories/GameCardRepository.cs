@@ -19,7 +19,7 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
                 gameCards.Add(new GameCard
                 {
                     PlayerGameId = pg.Id,
-                    CardId = deckCard.Card.CardId,
+                    CardId = deckCard.CardId,
                     Zone = CardZone.Deck
                 });
             }

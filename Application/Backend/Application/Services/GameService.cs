@@ -1,5 +1,5 @@
 using AutoMapper;
-using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Games;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Enums;

@@ -4,15 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Models;
 
-[Index(nameof(DeckId), nameof(CardId), IsUnique = true)]
+[Index(nameof(UserId), nameof(CardId), IsUnique = true)]
 public class PlayerCard
 {
     [Key]
     public Guid Id { get; set; }
 
-    public Guid DeckId { get; set; }
-    [ForeignKey(nameof(DeckId))]
-    public Deck Deck { get; set; } = null!;
+    public Guid UserId { get; set; }
+    [ForeignKey(nameof(UserId))]
+    public User User { get; set; } = null!;
 
     public Guid CardId { get; set; }
     [ForeignKey(nameof(CardId))]

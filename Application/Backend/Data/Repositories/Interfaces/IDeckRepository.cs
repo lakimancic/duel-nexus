@@ -5,4 +5,5 @@ namespace Backend.Data.Repositories.Interfaces;
 public interface IDeckRepository : IRepository<Deck>
 {
     Task<List<Deck>> GetByUserId(Guid userId);
+    Task<Deck?> GetDeckWithUser(Guid id);
 }

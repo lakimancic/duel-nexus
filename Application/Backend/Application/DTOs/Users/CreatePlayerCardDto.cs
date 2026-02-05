@@ -1,8 +1,7 @@
-namespace Backend.Application.DTOs.Player;
+namespace Backend.Application.DTOs.Users;
 
 public class CreatePlayerCardDto
 {
-    public Guid DeckId { get; set; }
     public Guid CardId { get; set; }
     public int Quantity { get; set; }
 }
