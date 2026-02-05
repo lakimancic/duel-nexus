@@ -16,7 +16,7 @@ public class DeckCard
 
     public Guid CardId { get; set; }
     [ForeignKey(nameof(CardId))]
-    public PlayerCard Card { get; set; } = null!;
+    public Card Card { get; set; } = null!;
 
     public int Quantity { get; set; }
 }

@@ -6,8 +6,9 @@ namespace Backend.Application.Services.Interfaces;
 
 public interface IEffectService
 {
-    public Task<PagedResult<EffectDto>> GetEffectsAsync(int page, int pageSize);
-    public Task<EffectDto?> GetEffectById(Guid id);
-    public Task<EffectDto> CreateEffect(CreateEffectDto effect);
-    public Task DeleteEffect(Guid id);
+    Task<PagedResult<EffectDto>> GetEffectsAsync(int page, int pageSize);
+    Task<EffectDto?> GetEffectById(Guid id);
+    Task<EffectDto> CreateEffect(CreateEffectDto effect);
+    Task DeleteEffect(Guid id);
+    Task<EffectDto> EditEffect(Guid id, CreateEffectDto effect);
 }

@@ -1,11 +1,11 @@
-using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Cards;
 using Backend.Utils.Data;
 
 namespace Backend.Application.Services.Interfaces;
 
 public interface ICardService
 {
-    public Task<PagedResult<CardDto>> GetCardsAsync(int page, int pageSize);
+    public Task<PagedResult<CardDto>> GetCards(int page, int pageSize, string? search);
 
     public Task<CardDto?> GetCardById(Guid id);
 

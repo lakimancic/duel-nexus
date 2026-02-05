@@ -1,10 +1,12 @@
+using System.Linq.Expressions;
 using AutoMapper;
-using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Cards;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
+using Backend.Utils.WebApi;
 
 namespace Backend.Application.Services;
 
@@ -14,17 +16,21 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     private readonly IMapper _mapper = mapper;
 
 
-    public async Task<PagedResult<CardDto>> GetCardsAsync(int page, int pageSize)
+    public async Task<PagedResult<CardDto>> GetCards(int page, int pageSize, string? search)
     {
-        var cards = await _unitOfWork.Cards.GetPagedAsync(page, pageSize, q => q.OrderBy(c => c.Id));
+        Expression<Func<Card, bool>>? filter = null;
+        if (search != null)
+            filter = u => u.Name.Contains(search);
+        var cards = await _unitOfWork.Cards.GetPagedAsync(
+            page, pageSize, q => q.OrderBy(c => c.Id), filter
+        );
         return _mapper.Map<PagedResult<CardDto>>(cards);
     }
 
     public async Task<CardDto?> GetCardById(Guid id)
     {
         var card = await _unitOfWork.Cards.GetByIdAsync(id);
-        if(card == null) return null;
-        return _mapper.Map<Card, CardDto>(card);
+        return _mapper.Map<CardDto?>(card);
     }
 
     public async Task<CardDto> CreateCard(CreateCardDto cardDto)
@@ -45,7 +51,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     public async Task DeleteCard(Guid cardId)
     {
         var card = await _unitOfWork.Cards.GetByIdAsync(cardId)
-            ?? throw new KeyNotFoundException($"Card not found");
+            ?? throw new ObjectNotFoundException("Card not found");
         _unitOfWork.Cards.Delete(card);
         await _unitOfWork.CompleteAsync();
     }
@@ -53,7 +59,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
     public async Task<CardDto?> EditCard(Guid id, CreateCardDto cardDto)
     {
         var existingCard = await _unitOfWork.Cards.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Card not found");
+            ?? throw new ObjectNotFoundException("Card not found");
 
         if(cardDto.Type != CardType.Monster)
         {
@@ -63,7 +69,6 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         }
 
         var card = _mapper.Map(cardDto, existingCard);
-
         _unitOfWork.Cards.Update(card);
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Card, CardDto>(card);

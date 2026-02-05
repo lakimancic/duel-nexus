@@ -44,10 +44,10 @@ public class Repository<T>(DuelNexusDbContext context) : IRepository<T>
         if (filter != null)
             query = query.Where(filter);
 
+        var totalCount = await query.CountAsync();
+
         foreach (var includeProperty in includeProperties.Split([','], StringSplitOptions.RemoveEmptyEntries))
             query = query.Include(includeProperty);
-
-        var totalCount = await query.CountAsync();
 
         query = orderBy(query);
 

@@ -1,4 +1,4 @@
-using Backend.Application.DTOs.Decks;
+using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Games;
 
 namespace Backend.Application.Services.Interfaces;

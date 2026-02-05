@@ -16,7 +16,7 @@ public class JwtTokenGenerator(IConfiguration config)
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
-            new("role", user.Role.ToString())
+            new("role", user.Role)
         };
 
         var key = new SymmetricSecurityKey(

@@ -1,6 +1,9 @@
+using System.ComponentModel;
+using System.Reflection;
+
 namespace Backend.Utils.Data;
 
-public static class OrderedEnumExtensions
+public static class EnumExtensions
 {
     public static T Next<T>(this T current) where T : Enum
     {
@@ -21,5 +24,24 @@ public static class OrderedEnumExtensions
         T[] values = (T[])Enum.GetValues(typeof(T));
         int currentIndex = Array.IndexOf(values, current);
         return currentIndex < values.Length - 1;
+    }
+
+    public static string? GetDescription(this Enum current)
+    {
+        var field = current.GetType().GetField(current.ToString());
+        var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
+        return attribute?.Description;
+    }
+
+    public static List<EnumDto> GetNameValues<T>() where T : Enum
+    {
+        return [.. Enum.GetValues(typeof(T))
+            .Cast<T>()
+            .Select(e => new EnumDto
+            {
+                Name = e.ToString(),
+                Value = Convert.ToInt32(e),
+                Description = e.GetDescription()
+            })];
     }
 }

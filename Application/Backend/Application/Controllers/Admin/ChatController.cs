@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.Chat;
 
+namespace Backend.Application.Controllers.Admin;
+
 [ApiController]
 [Route("admin/messages")]
 public class ChatController(IChatService chatService) : ControllerBase
