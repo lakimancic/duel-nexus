@@ -10,7 +10,7 @@ public class GameRoom
     public Guid Id { get; set; }
 
     public bool IsRanked { get; set; }
-    public RoomStatus Status { get; set; }
+    public RoomStatus Status { get; set; } = RoomStatus.Waiting;
 
     public string? JoinCode { get; set; }
 
@@ -18,7 +18,7 @@ public class GameRoom
     [ForeignKey(nameof(HostUserId))]
     public User HostUser { get; set; } = null!;
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<GameRoomPlayer> Players { get; set; } = [];
 }

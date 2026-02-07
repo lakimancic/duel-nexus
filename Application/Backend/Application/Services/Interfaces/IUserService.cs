@@ -1,5 +1,7 @@
 using Backend.Application.DTOs.Auth;
+using Backend.Application.DTOs.Decks;
 using Backend.Application.DTOs.Users;
+using Backend.Data.Models;
 using Backend.Utils.Data;
 
 namespace Backend.Application.Services.Interfaces;
@@ -17,4 +19,5 @@ public interface IUserService
     Task<PlayerCardDto> CreatePlayerCard(Guid userId, CreatePlayerCardDto playerCardDto);
     Task DeletePlayerCard(Guid userId, Guid cardId);
     Task<PlayerCardDto?> EditPlayerCard(Guid id, Guid cardId, EditPlayerCardDto editPlayerCard);
+    Task<List<DeckDto>> GetPlayerDecks(Guid id);
 }

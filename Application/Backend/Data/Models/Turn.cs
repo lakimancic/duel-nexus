@@ -17,11 +17,11 @@ public class Turn
 
     public int TurnNumber { get; set; }
 
-    public Guid ActivePlayerId { get; set; }
+    public Guid? ActivePlayerId { get; set; } = null;
     [ForeignKey(nameof(ActivePlayerId))]
-    public PlayerGame ActivePlayer { get; set; } = null!;
+    public PlayerGame? ActivePlayer { get; set; } = null;
 
-    public TurnPhase Phase { get; set; }
+    public TurnPhase Phase { get; set; } = TurnPhase.Draw;
 
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? EndedAt { get; set; }

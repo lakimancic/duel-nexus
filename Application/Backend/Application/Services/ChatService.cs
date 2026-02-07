@@ -5,6 +5,7 @@ using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
+using Backend.Utils.WebApi;
 using Microsoft.VisualBasic;
 
 namespace Backend.Application.Services;
@@ -17,7 +18,7 @@ public class ChatService(IUnitOfWork unitOfWork, IMapper mapper) : IChatService
     public async Task DeleteMessageAsync(Guid messageId)
     {
         var message = await _unitOfWork.Messages.GetByIdAsync(messageId)
-            ?? throw new KeyNotFoundException($"Message not found");
+            ?? throw new ObjectNotFoundException($"Message not found");
         _unitOfWork.Messages.Delete(message);
         await _unitOfWork.CompleteAsync();
     }

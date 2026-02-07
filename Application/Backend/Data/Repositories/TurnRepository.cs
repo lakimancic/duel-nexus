@@ -16,25 +16,25 @@ public class TurnRepository(DuelNexusDbContext context) : Repository<Turn>(conte
             .FirstOrDefaultAsync();
     }
 
-    public async Task InitializeTurnsForGameAsync(Game game)
+    public async Task<Turn> InitializeTurnsForGameAsync(Game game)
     {
         var firstTurn = new Turn
         {
             Game = game,
             TurnNumber = 1,
-            Phase = TurnPhase.Draw,
         };
         await AddAsync(firstTurn);
+        return firstTurn;
     }
 
-    public Task NextTurnAsync(Turn turn)
+    public async Task<Turn> NextTurnAsync(Turn turn)
     {
         var nextTurn = new Turn
         {
             GameId = turn.GameId,
             TurnNumber = turn.TurnNumber + 1,
-            Phase = TurnPhase.Draw,
         };
-        return AddAsync(nextTurn);
+        await AddAsync(nextTurn);
+        return nextTurn;
     }
 }

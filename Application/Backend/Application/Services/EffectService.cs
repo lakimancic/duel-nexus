@@ -1,5 +1,4 @@
 using AutoMapper;
-using Backend.Application.DTOs.Decks;
 using Backend.Application.DTOs.Effects;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
@@ -32,7 +31,7 @@ public class EffectService(IUnitOfWork unitOfWork, IMapper mapper) : IEffectServ
     public async Task DeleteEffect(Guid id)
     {
         var effectEntity = await _unitOfWork.Effects.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException("Effect not found");
+            ?? throw new ObjectNotFoundException("Effect not found");
         _unitOfWork.Effects.Delete(effectEntity);
         await _unitOfWork.CompleteAsync();
     }

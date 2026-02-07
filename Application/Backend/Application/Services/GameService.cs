@@ -1,12 +1,11 @@
 using AutoMapper;
-using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Games;
 using Backend.Application.Services.Interfaces;
-using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
-using Backend.Domain;
 using Backend.Utils.Data;
+using Backend.Utils.WebApi;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Application.Services;
 
@@ -15,123 +14,382 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
 
-    public async Task ActivateEffectAsync(Guid gameId, Guid playerId, ActivateEffectDto effectDto)
+    public async Task<TurnDto> AddNewGameTurn(Guid id)
     {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        var player = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(playerId, gameId)
-            ?? throw new KeyNotFoundException($"Player with ID '{playerId}' not found in game with ID '{gameId}'");
-        var gameCards = await _unitOfWork.GameCards.GetByPlayerGameIdAsync(player.Id);
-        var gameCard = gameCards.FirstOrDefault(gc => gc.Id == effectDto.CardId)
-            ?? throw new KeyNotFoundException($"Card with ID '{effectDto.CardId}' not found in player's cards");
-        if (gameCard.Zone != CardZone.Hand && gameCard.Zone != CardZone.Field)
-            throw new InvalidOperationException("Can only activate effect cards from hand or from the field");
-        var card = await _unitOfWork.Cards.GetCardWithEffectAsync(effectDto.CardId);
-        if (card!.Effect == null)
-            throw new InvalidOperationException($"Card with ID '{effectDto.CardId}' doesn't have an effect");
+        var game = await _unitOfWork.Games.GetByIdAsync(id)
+            ?? throw new ObjectNotFoundException("Game not found");
 
-        gameCard.Zone = CardZone.Grave;
-        _unitOfWork.GameCards.Update(gameCard);
-        var activation = await _unitOfWork.EffectActivations.ActivateEffectAsync(turn, card.Effect, gameCard);
-        foreach (var targetDto in effectDto.Targets)
+        var current = await _unitOfWork.Turns.GetCurrentTurnAsync(id);
+        Turn turn;
+        if (current == null)
         {
-            activation.Targets.Add(new EffectTarget
-            {
-                Activation = activation,
-                TargetCardId = targetDto.CardId,
-                TargetPlayerId = targetDto.PlayerId
-            });
+            turn = await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
+            await _unitOfWork.CompleteAsync();
         }
-        await _unitOfWork.CompleteAsync();
-    }
-
-    public async Task AttackActionAsync(Guid gameId, Guid playerId, AttackActionDto attack)
-    {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        var player = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(playerId, gameId)
-            ?? throw new KeyNotFoundException($"Player with ID '{playerId}' not found in game with ID '{gameId}'");
-        var gameCards = await _unitOfWork.GameCards.GetByPlayerGameIdAsync(player.Id);
-        var gameCard = gameCards.FirstOrDefault(gc => gc.Id == attack.CardId)
-            ?? throw new KeyNotFoundException($"Card with ID '{attack.CardId}' not found in player's cards");
-        if (gameCard.Zone != CardZone.Field)
-            throw new InvalidOperationException("Can only attack with cards from the field");
-
-        await _unitOfWork.Attacks.AddAsync(new AttackAction
+        else
         {
-            Turn = turn,
-            Attacker = gameCard,
-            DefenderCardId = attack.TargetCardId,
-            DefenderPlayerGameId = attack.TargetPlayerId
-        });
+            turn = await _unitOfWork.Turns.NextTurnAsync(current);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        return _mapper.Map<TurnDto>(turn);
+    }
+
+    public async Task<AttackActionDto> CreateAttackAction(CreateAttackActionDto actionDto)
+    {
+        var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+
+        var attacker = await _unitOfWork.GameCards.GetByWithCardById(actionDto.AttackerCardId)
+            ?? throw new ObjectNotFoundException("Attacker Card not found");
+
+        GameCard? defender = null;
+        if (actionDto.DefenderCardId.HasValue)
+            defender = await _unitOfWork.GameCards.GetByWithCardById(actionDto.DefenderCardId.Value)
+                ?? throw new ObjectNotFoundException("Defender Card not found");
+
+        PlayerGame? defenderPlayer = null;
+        if (actionDto.DefenderPlayerGameId.HasValue)
+            defenderPlayer = await _unitOfWork.PlayerGames.GetByWithUserById(actionDto.DefenderPlayerGameId.Value)
+                ?? throw new ObjectNotFoundException("Defender Player not found");
+
+        var action = _mapper.Map<AttackAction>(actionDto);
+        action.Turn = turn;
+        action.Attacker = attacker;
+        action.Defender = defender;
+        action.DefenderPlayer = defenderPlayer;
+
+        await _unitOfWork.Attacks.AddAsync(action);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<AttackActionDto>(action);
+    }
+
+    public async Task<CardMovementDto> CreateCardMovement(Guid id, CreateCardMovementDto actionDto)
+    {
+        var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        var card = await _unitOfWork.GameCards.GetByWithCardById(actionDto.GameCardId)
+            ?? throw new ObjectNotFoundException("Game Card not found");
+
+        var action = _mapper.Map<CardMovementAction>(actionDto);
+        action.Turn = turn;
+        action.Card = card;
+
+        await _unitOfWork.CardMovements.AddAsync(action);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<CardMovementDto>(action);
+    }
+
+    public async Task<EffectActivationDto> CreateEffectActivation(Guid id, CreateEffectActivationDto actionDto)
+    {
+        var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        var effect = await _unitOfWork.Effects.GetByIdAsync(actionDto.EffectId)
+            ?? throw new ObjectNotFoundException("Effect not found");
+        var card = await _unitOfWork.GameCards.GetByWithCardById(actionDto.SourceCardId)
+            ?? throw new ObjectNotFoundException("Source Card not found");
+
+        var activation = _mapper.Map<EffectActivation>(actionDto);
+        activation.Turn = turn;
+        activation.Effect = effect;
+        activation.SourceCard = card;
+
+        await _unitOfWork.EffectActivations.AddAsync(activation);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<EffectActivationDto>(activation);
+    }
+
+    public async Task<GameDto> CreateGame(CreateGameDto gameDto)
+    {
+        var gameRoom = await _unitOfWork.GameRooms.GetWithHostById(gameDto.RoomId)
+            ?? throw new ObjectNotFoundException("Game Room not found");
+
+        var roomPlayers = await _unitOfWork.GameRoomPlayers.GetByGameRoomId(gameDto.RoomId);
+        if (roomPlayers == null || roomPlayers.Count == 0)
+            throw new BadRequestException("Game room has no players");
+
+        var game = await _unitOfWork.Games.CreateGameFromRoomAsync(gameRoom);
+
+        for (int i = 0; i < roomPlayers.Count; i++)
+        {
+            var grp = roomPlayers[i];
+            if (!grp.DeckId.HasValue)
+                throw new BadRequestException($"Player {grp.UserId} has no deck assigned");
+
+            var pg = await _unitOfWork.PlayerGames.CreatePlayerAsync(grp, game, i);
+            var deckCards = await _unitOfWork.DeckCards.GetByDeckId(grp.DeckId!.Value);
+            await _unitOfWork.GameCards.CreateGameCardsAsync(pg, deckCards);
+        }
+
+        await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
+        await _unitOfWork.CompleteAsync();
+
+        return _mapper.Map<GameDto>(game);
+    }
+
+    public async Task<PlaceCardDto> CreatePlaceAction(Guid id, CreatePlaceActionDto actionDto)
+    {
+        var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        var card = await _unitOfWork.GameCards.GetByWithCardById(actionDto.GameCardId)
+            ?? throw new ObjectNotFoundException("Game card not found");
+
+        var action = _mapper.Map<PlaceCardAction>(actionDto);
+        action.Turn = turn;
+        action.Card = card;
+
+        await _unitOfWork.PlaceCards.AddAsync(action);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<PlaceCardDto>(action);
+    }
+
+    public async Task DeleteAttackAction(Guid actionId)
+    {
+        var action = await _unitOfWork.Attacks.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Attack Action not found");
+        _unitOfWork.Attacks.Delete(action);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task<CardDto> DrawCardAsync(Guid gameId, Guid playerId)
+    public async Task DeleteCardMovement(Guid actionId)
     {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        if (turn.Phase != TurnPhase.Draw)
-            throw new InvalidOperationException($"Cannot draw card during phase '{turn.Phase}'");
-        var player = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(playerId, gameId)
-            ?? throw new KeyNotFoundException($"Player with ID '{playerId}' not found in game with ID '{gameId}'");
-        var gameCards = await _unitOfWork.GameCards.GetByPlayerGameIdAsync(player.Id);
-        if (gameCards.Count(gc => gc.Zone == CardZone.Hand) >= GameConstants.MaxHandSize)
-            throw new InvalidOperationException("Player's hand is full");
-        var deckCard = gameCards.Where(gc => gc.Zone == CardZone.Deck).OrderBy(gc => gc.DeckOrder).FirstOrDefault()
-            ?? throw new InvalidOperationException("No cards left in deck to draw");
-
-        deckCard.Zone = CardZone.Hand;
-        _unitOfWork.GameCards.Update(deckCard);
-        await _unitOfWork.CardMovements.DrawActionAsync(deckCard, turn);
-        var card = await _unitOfWork.Cards.GetByIdAsync(deckCard.CardId)
-            ?? throw new KeyNotFoundException($"Card with ID '{deckCard.CardId}' not found");
-        await _unitOfWork.CompleteAsync();
-        return _mapper.Map<Card, CardDto>(card);
-    }
-
-    public async Task EndGamePhaseAsync(Guid gameId)
-    {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        if (!turn.Phase.HasNext())
-            throw new InvalidOperationException($"Cannot advance phase from '{turn.Phase}'");
-        turn.Phase = turn.Phase.Next();
-        _unitOfWork.Turns.Update(turn);
+        var action = await _unitOfWork.CardMovements.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Card Movement not found");
+        _unitOfWork.CardMovements.Delete(action);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task EndGameTurnAsync(Guid gameId)
+    public async Task DeleteEffectActivation(Guid actionId)
     {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        if (turn.Phase.HasNext())
-            throw new InvalidOperationException($"Cannot end turn during phase '{turn.Phase}'");
-        await _unitOfWork.Turns.NextTurnAsync(turn);
+        var action = await _unitOfWork.EffectActivations.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Effect Activation not found");
+        _unitOfWork.EffectActivations.Delete(action);
         await _unitOfWork.CompleteAsync();
     }
 
-    public async Task PlayCardAsync(Guid gameId, Guid playerId, PlayCardDto playCard)
+    public async Task DeletePlaceAction(Guid actionId)
     {
-        var turn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new InvalidOperationException($"No active turn found for game with ID '{gameId}'");
-        if (turn.Phase != TurnPhase.Main1 && turn.Phase != TurnPhase.Main2)
-            throw new InvalidOperationException($"Cannot draw card during phase '{turn.Phase}'");
-        var player = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(playerId, gameId)
-            ?? throw new KeyNotFoundException($"Player with ID '{playerId}' not found in game with ID '{gameId}'");
-        var gameCards = await _unitOfWork.GameCards.GetByPlayerGameIdAsync(player.Id);
-        var gameCard = gameCards.FirstOrDefault(gc => gc.Id == playCard.CardId)
-            ?? throw new KeyNotFoundException($"Card with ID '{playCard.CardId}' not found in player's cards");
-        if (gameCard.Zone != CardZone.Hand)
-            throw new InvalidOperationException("Can only play cards from hand");
-        if (gameCards.Any(gc => gc.Zone == CardZone.Field && gc.FieldIndex == playCard.FieldIndex))
-            throw new InvalidOperationException($"Field index '{playCard.FieldIndex}' is already occupied");
+        var action = await _unitOfWork.PlaceCards.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Place Action not found");
+        _unitOfWork.PlaceCards.Delete(action);
+        await _unitOfWork.CompleteAsync();
+    }
 
-        await _unitOfWork.PlaceCards.PlayCardActionAsync(
-            gameCard, turn, playCard.FieldIndex, playCard.FaceDown, playCard.DefensePosition, PlaceType.NormalSummon
+    public async Task<AttackActionDto> EditAttackAction(Guid actionId, CreateAttackActionDto actionDto)
+    {
+        var existing = await _unitOfWork.Attacks.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Attack Action not found");
+        var updated = _mapper.Map(actionDto, existing);
+        updated.Turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        updated.Attacker = await _unitOfWork.GameCards.GetByWithCardById(actionDto.AttackerCardId)
+            ?? throw new ObjectNotFoundException("Attacker card not found");
+        updated.Defender = actionDto.DefenderCardId.HasValue ?
+            await _unitOfWork.GameCards.GetByWithCardById(actionDto.DefenderCardId.Value) : null;
+        updated.DefenderPlayer = actionDto.DefenderPlayerGameId.HasValue ?
+            await _unitOfWork.PlayerGames.GetByWithUserById(actionDto.DefenderPlayerGameId.Value) : null;
+
+        _unitOfWork.Attacks.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<AttackActionDto>(updated);
+    }
+
+    public async Task<CardMovementDto> EditCardMovement(Guid actionId, CreateCardMovementDto actionDto)
+    {
+        var existing = await _unitOfWork.CardMovements.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Card Movement not found");
+        var updated = _mapper.Map(actionDto, existing);
+        updated.Turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        updated.Card = await _unitOfWork.GameCards.GetByWithCardById(actionDto.GameCardId)
+            ?? throw new ObjectNotFoundException("Game card not found");
+
+        _unitOfWork.CardMovements.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<CardMovementDto>(updated);
+    }
+
+    public async Task<EffectActivationDto> EditEffectActivation(Guid actionId, CreateEffectActivationDto actionDto)
+    {
+        var existing = await _unitOfWork.EffectActivations.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Effect Activation not found");
+        var updated = _mapper.Map(actionDto, existing);
+        updated.Turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        updated.Effect = await _unitOfWork.Effects.GetByIdAsync(actionDto.EffectId)
+            ?? throw new ObjectNotFoundException("Effect not found");
+        updated.SourceCard = await _unitOfWork.GameCards.GetByWithCardById(actionDto.SourceCardId)
+            ?? throw new ObjectNotFoundException("Source card not found");
+
+        _unitOfWork.EffectActivations.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<EffectActivationDto>(updated);
+    }
+
+    public async Task<GameDto> EditGame(Guid id, EditGameDto gameDto)
+    {
+        var existing = await _unitOfWork.Games.GetByIdAsync(id)
+            ?? throw new ObjectNotFoundException("Game not found");
+
+        var game = _mapper.Map(gameDto, existing);
+        _unitOfWork.Games.Update(game);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<GameDto>(game);
+    }
+
+    public async Task<GameCardDto> EditGameCard(Guid cardId, EditGameCardDto gameCardDto)
+    {
+        var existing = await _unitOfWork.GameCards.GetByIdAsync(cardId)
+            ?? throw new ObjectNotFoundException("Game Card not found");
+
+        var updated = _mapper.Map(gameCardDto, existing);
+        _unitOfWork.GameCards.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<GameCardDto>(updated);
+    }
+
+    public async Task<TurnDto> EditGameTurn(Guid turnId, EditTurnDto turnDto)
+    {
+        var existing = await _unitOfWork.Turns.GetByIdAsync(turnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+
+        var updated = _mapper.Map(turnDto, existing);
+        _unitOfWork.Turns.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<TurnDto>(updated);
+    }
+
+    public async Task<PlaceCardDto> EditPlaceAction(Guid actionId, CreatePlaceActionDto actionDto)
+    {
+        var existing = await _unitOfWork.PlaceCards.GetByIdAsync(actionId)
+            ?? throw new ObjectNotFoundException("Place Action not found");
+        var updated = _mapper.Map(actionDto, existing);
+        updated.Turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+        updated.Card = await _unitOfWork.GameCards.GetByWithCardById(actionDto.GameCardId)
+            ?? throw new ObjectNotFoundException("Game card not found");
+
+        _unitOfWork.PlaceCards.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<PlaceCardDto>(updated);
+    }
+
+    public async Task<PlayerGameDto> EditPlayerGame(Guid id, Guid userId, EditPlayerGameDto playerGameDto)
+    {
+        var pg = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, id)
+            ?? throw new ObjectNotFoundException("Player Game not found");
+
+        var updated = _mapper.Map(playerGameDto, pg);
+        _unitOfWork.PlayerGames.Update(updated);
+        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<PlayerGameDto>(updated);
+    }
+
+    public async Task<AttackActionDto?> GetAttackAction(Guid actionId)
+    {
+        var action = await _unitOfWork.Attacks.GetByIdWithIncludesAsync(actionId);
+        return _mapper.Map<AttackActionDto?>(action);
+    }
+
+    public async Task<PagedResult<AttackActionDto>> GetAttackActions(Guid id, int page, int pageSize)
+    {
+        var actions = await _unitOfWork.Attacks.GetPagedAsync(
+            page, pageSize, q => q.OrderByDescending(a => a.ExecutedAt), a => a.Turn.GameId == id,
+            includeProperties: "Turn,Attacker.Card,Defender.Card,DefenderPlayer.User"
         );
-        gameCard.Zone = CardZone.Field;
-        _unitOfWork.GameCards.Update(gameCard);
-        await _unitOfWork.CompleteAsync();
+        return _mapper.Map<PagedResult<AttackActionDto>>(actions);
+    }
+
+    public async Task<CardMovementDto?> GetCardMovement(Guid actionId)
+    {
+        var action = await _unitOfWork.CardMovements.GetByIdWithIncludesAsync(actionId);
+        return _mapper.Map<CardMovementDto?>(action);
+    }
+
+    public async Task<PagedResult<CardMovementDto>> GetCardMovements(Guid id, int page, int pageSize)
+    {
+        var actions = await _unitOfWork.CardMovements.GetPagedAsync(
+            page, pageSize, q => q.OrderByDescending(a => a.ExecutedAt), a => a.Turn.GameId == id,
+            includeProperties: "Turn,Card.Card");
+        return _mapper.Map<PagedResult<CardMovementDto>>(actions);
+    }
+
+    public async Task<EffectActivationDto?> GetEffectActivation(Guid actionId)
+    {
+        var action = await _unitOfWork.EffectActivations.GetByIdWithIncludesAsync(actionId);
+        return _mapper.Map<EffectActivationDto?>(action);
+    }
+
+    public async Task<PagedResult<EffectActivationDto>> GetEffectActivations(Guid id, int page, int pageSize)
+    {
+        var actions = await _unitOfWork.EffectActivations.GetPagedAsync(
+            page, pageSize, q => q.OrderByDescending(a => a.ActivatedAt), a => a.Turn.GameId == id,
+            includeProperties: "Turn,SourceCard.Card"
+        );
+        return _mapper.Map<PagedResult<EffectActivationDto>>(actions);
+    }
+
+    public async Task<GameDto?> GetGameById(Guid id)
+    {
+        var game = await _unitOfWork.Games.GetByIdAsync(id);
+        return _mapper.Map<GameDto?>(game);
+    }
+
+    public async Task<GameCardDto?> GetGameCard(Guid cardId)
+    {
+        var card = await _unitOfWork.GameCards.GetByWithCardById(cardId);
+        return _mapper.Map<GameCardDto?>(card);
+    }
+
+    public async Task<List<GameCardDto>> GetGameCards(Guid id)
+    {
+        var cards = await _unitOfWork.GameCards.GetByGameIdWithCardAsync(id);
+        return _mapper.Map<List<GameCardDto>>(cards);
+    }
+
+    public async Task<PlayerGameDto> GetGamePlayer(Guid id, Guid userId)
+    {
+        var pg = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, id)
+            ?? throw new ObjectNotFoundException("Player Game not found");
+        return _mapper.Map<PlayerGameDto>(pg);
+    }
+
+    public async Task<List<PlayerGameDto>> GetGamePlayers(Guid id)
+    {
+        var players = await _unitOfWork.PlayerGames.GetByGameIdWithUserAsync(id);
+        return _mapper.Map<List<PlayerGameDto>>(players);
+    }
+
+    public async Task<PagedResult<GameDto>> GetGames(int page, int pageSize)
+    {
+        var games = await _unitOfWork.Games.GetPagedAsync(page, pageSize, q => q.OrderByDescending(g => g.StartedAt));
+        return _mapper.Map<PagedResult<GameDto>>(games);
+    }
+
+    public async Task<TurnDto?> GetGameTurn(Guid turnId)
+    {
+        var turn = await _unitOfWork.Turns.GetByIdAsync(turnId);
+        return _mapper.Map<TurnDto?>(turn);
+    }
+
+    public async Task<PagedResult<TurnDto>> GetGameTurns(Guid id, int page, int pageSize)
+    {
+        var turns = await _unitOfWork.Turns.GetPagedAsync(page, pageSize, q => q.OrderBy(t => t.TurnNumber), t => t.GameId == id);
+        return _mapper.Map<PagedResult<TurnDto>>(turns);
+    }
+
+    public async Task<PlaceCardDto?> GetPlaceAction(Guid actionId)
+    {
+        var action = await _unitOfWork.PlaceCards.GetByIdWithIncludesAsync(actionId);
+        return _mapper.Map<PlaceCardDto?>(action);
+    }
+
+    public async Task<PagedResult<PlaceCardDto>> GetPlaceActions(Guid id, int page, int pageSize)
+    {
+        var actions = await _unitOfWork.PlaceCards.GetPagedAsync(
+            page, pageSize, q => q.OrderByDescending(a => a.ExecutedAt), a => a.Turn.GameId == id,
+            includeProperties: "Turn,Card.Card"
+        );
+        return _mapper.Map<PagedResult<PlaceCardDto>>(actions);
     }
 }

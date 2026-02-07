@@ -31,18 +31,22 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
             gameCards[i].DeckOrder = i;
         }
 
-        return _context.Set<GameCard>().AddRangeAsync(gameCards);
+        return _dbSet.AddRangeAsync(gameCards);
     }
 
-    public async Task<List<GameCard>> GetByPlayerGameIdAsync(Guid id)
+    public async Task<GameCard?> GetByWithCardById(Guid id)
     {
-        return await _context.GameCards.Where(gc => gc.PlayerGameId == id).ToListAsync();
-    }
-
-    public async Task<GameCard?> GetByPlayerIdAndCardIdAsync(Guid playerId, Guid cardId)
-    {
-        return await _context.GameCards
-            .Where(gc => gc.PlayerGameId == playerId && gc.CardId == cardId)
+        return await _dbSet
+            .Where(gc => gc.Id == id)
+            .Include(gc => gc.Card)
             .FirstOrDefaultAsync();
+    }
+
+    public Task<List<GameCard>> GetByGameIdWithCardAsync(Guid gameId)
+    {
+        return _dbSet
+            .Where(gc => gc.PlayerGame.GameId == gameId)
+            .Include(gc => gc.Card)
+            .ToListAsync();
     }
 }

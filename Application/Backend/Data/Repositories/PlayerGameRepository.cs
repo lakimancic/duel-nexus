@@ -12,7 +12,6 @@ public class PlayerGameRepository(DuelNexusDbContext context) : Repository<Playe
         var playerGame = new PlayerGame
         {
             UserId = grp.UserId,
-            DeckId = grp.DeckId!.Value,
             Game = game,
             Index = index,
         };
@@ -22,8 +21,24 @@ public class PlayerGameRepository(DuelNexusDbContext context) : Repository<Playe
 
     public Task<PlayerGame?> GetByUserIdAndGameIdAsync(Guid userId, Guid gameId)
     {
-        return _context.PlayerGames
+        return _dbSet
             .Where(pg => pg.UserId == userId && pg.GameId == gameId)
             .FirstOrDefaultAsync();
+    }
+
+    public Task<PlayerGame?> GetByWithUserById(Guid id)
+    {
+        return _dbSet
+            .Where(pg => pg.Id == id)
+            .Include(pg => pg.User)
+            .FirstOrDefaultAsync();
+    }
+
+    public Task<List<PlayerGame>> GetByGameIdWithUserAsync(Guid gameId)
+    {
+        return _dbSet
+            .Where(pg => pg.GameId == gameId)
+            .Include(pg => pg.User)
+            .ToListAsync();
     }
 }

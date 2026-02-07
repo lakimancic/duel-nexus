@@ -29,7 +29,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
 
     public async Task<CardDto?> GetCardById(Guid id)
     {
-        var card = await _unitOfWork.Cards.GetByIdAsync(id);
+        var card = await _unitOfWork.Cards.GetCardWithEffectAsync(id);
         return _mapper.Map<CardDto?>(card);
     }
 

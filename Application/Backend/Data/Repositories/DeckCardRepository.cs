@@ -13,7 +13,7 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
     {
         var cardIds = cardsWithQuantity.Select(c => c.CardId).ToList();
 
-        var existingCards = await _context.Set<DeckCard>()
+        var existingCards = await _dbSet
             .Where(dc => dc.DeckId == deckId && cardIds.Contains(dc.CardId))
             .ToDictionaryAsync(dc => dc.CardId, dc => dc);
 
@@ -33,7 +33,7 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
 
     public async Task DeleteManyCardAsync(Guid id, List<Guid> cardIds)
     {
-        var deletedCount = await _context.Set<DeckCard>()
+        var deletedCount = await _dbSet
             .Where(c => c.DeckId == id && cardIds.Contains(c.CardId))
             .ExecuteDeleteAsync();
 
@@ -43,7 +43,7 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
 
     public Task<List<DeckCard>> GetByDeckId(Guid deckId)
     {
-        return _context.Set<DeckCard>()
+        return _dbSet
             .Where(dc => dc.DeckId == deckId)
             .Include(dc => dc.Card)
             .ToListAsync();

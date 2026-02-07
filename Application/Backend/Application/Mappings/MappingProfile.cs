@@ -9,6 +9,7 @@ using Backend.Application.DTOs.Effects;
 using Backend.Utils.Data;
 using Backend.Application.DTOs.Chat;
 using Backend.Application.DTOs.Cards;
+using Backend.Application.DTOs.Games;
 
 namespace Backend.Application.Mappings;
 
@@ -46,16 +47,6 @@ public class MappingProfile : Profile
         CreateMap<Deck, DeckDto>();
         CreateMap<InsertDeckCardDto, DeckCard>();
 
-        CreateMap<GameRoom, GameRoomDto>().ReverseMap();
-        CreateMap<GameRoomPlayer, GameRoomPlayerDto>()
-        .ForMember(dest => dest.Id, opt =>
-            opt.MapFrom(src => src.User != null ? src.User.Id : Guid.Empty))
-        .ForMember(dest => dest.Username, opt =>
-            opt.MapFrom(src => src.User != null ? src.User.Username : string.Empty))
-        .ForMember(dest => dest.Elo, opt =>
-            opt.MapFrom(src => src.User != null ? src.User.Elo : 0))
-        .ForMember(dest => dest.IsReady, opt => opt.MapFrom(src => src.IsReady));
-
         // Effects
         CreateMap<CreateEffectDto, Effect>();
         CreateMap<Effect, EffectDto>();
@@ -72,8 +63,39 @@ public class MappingProfile : Profile
         CreateMap<PrivateMessageDto, ChatMessage>()
             .ForMember(dest => dest.Type, opt => opt.MapFrom(src => MessageType.Private));
 
+        // GameRooms
+        CreateMap<CreateGameRoomDto, GameRoom>();
+        CreateMap<EditGameRoomDto, GameRoom>();
+        CreateMap<GameRoom, GameRoomDto>();
+
+        CreateMap<GameRoomPlayer, GameRoomPlayerDto>();
+
+
         CreateMap(typeof(PagedResult<>), typeof(PagedResult<>))
             .ConvertUsing(typeof(PagedResultConverter<,>));
+
+        // Games
+        CreateMap<Game, GameDto>();
+        CreateMap<PlayerGame, PlayerGameDto>();
+        CreateMap<GameCard, GameCardDto>();
+
+        CreateMap<Turn, TurnDto>();
+        CreateMap<Turn, ShortTurnDto>();
+
+        CreateMap<CreateAttackActionDto, AttackAction>();
+        CreateMap<AttackAction, AttackActionDto>();
+
+        CreateMap<CreateCardMovementDto, CardMovementAction>();
+        CreateMap<CardMovementAction, CardMovementDto>();
+
+        CreateMap<CreatePlaceActionDto, PlaceCardAction>();
+        CreateMap<PlaceCardAction, PlaceCardDto>();
+
+        CreateMap<CreateEffectActivationDto, EffectActivation>();
+        CreateMap<EffectActivation, EffectActivationDto>();
+
+        CreateMap<EditGameCardDto, GameCard>();
+        CreateMap<EditTurnDto, Turn>();
     }
 
 }

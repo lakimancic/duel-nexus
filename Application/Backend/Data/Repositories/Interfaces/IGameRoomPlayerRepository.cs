@@ -4,5 +4,6 @@ namespace Backend.Data.Repositories.Interfaces;
 
 public interface IGameRoomPlayerRepository : IRepository<GameRoomPlayer>
 {
-    Task<GameRoomPlayer?> GetByGameRoomIdAndPlayerIdAsync(Guid gameRoomId, Guid playerId);
+    Task<List<GameRoomPlayer>> GetByGameRoomId(Guid id);
+    Task<GameRoomPlayer?> GetByRoomAndUserId(Guid id, Guid userId);
 }
