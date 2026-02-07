@@ -32,8 +32,8 @@ public class UsersController(IUserService userService) : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(Guid id, [FromBody] EditUserDto userDto)
     {
-        await _userService.EditUser(id, userDto);
-        return Ok();
+        var updatedUser = await _userService.EditUser(id, userDto);
+        return Ok(updatedUser);
     }
 
     [HttpDelete("{id}")]
@@ -75,5 +75,12 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         await _userService.DeletePlayerCard(id, cardId);
         return Ok(new { message = "Player Card deleted successfully" });
+    }
+
+    [HttpGet("{id}/decks")]
+    public async Task<IActionResult> GetPlayerDecks(Guid id)
+    {
+        var decks = await _userService.GetPlayerDecks(id);
+        return Ok(decks);
     }
 }

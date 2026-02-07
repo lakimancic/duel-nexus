@@ -2,6 +2,7 @@ using Backend.Data.Context;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Repositories;
 
@@ -17,5 +18,14 @@ public class CardMovementRepository(DuelNexusDbContext context) : Repository<Car
         };
 
         return AddAsync(action);
+    }
+
+    public Task<CardMovementAction?> GetByIdWithIncludesAsync(Guid id)
+    {
+        return _dbSet
+            .Where(a => a.Id == id)
+            .Include(a => a.Turn)
+            .Include(a => a.Card).ThenInclude(gc => gc.Card)
+            .FirstOrDefaultAsync();
     }
 }

@@ -8,6 +8,7 @@ using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
 using Backend.Utils.Security;
 using Backend.Utils.WebApi;
+using Backend.Application.DTOs.Decks;
 
 namespace Backend.Application.Services;
 
@@ -127,5 +128,11 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
         await _unitOfWork.CompleteAsync();
         return result;
 
+    }
+
+    public async Task<List<DeckDto>> GetPlayerDecks(Guid id)
+    {
+        var decks = await _unitOfWork.Decks.GetByUserId(id);
+        return _mapper.Map<List<DeckDto>>(decks);
     }
 }

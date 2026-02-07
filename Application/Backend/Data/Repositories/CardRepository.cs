@@ -9,7 +9,7 @@ public class CardRepository(DuelNexusDbContext context) : Repository<Card>(conte
 {
     public async Task<Card?> GetCardWithEffectAsync(Guid id)
     {
-        var card = await _context.Set<Card>()
+        var card = await _dbSet
             .Where(c => c.Id == id)
             .Include(c => c.Effect)
             .FirstOrDefaultAsync();

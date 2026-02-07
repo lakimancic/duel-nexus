@@ -7,8 +7,20 @@ namespace Backend.Data.Repositories;
 
 public class GameRoomPlayerRepository(DuelNexusDbContext context) : Repository<GameRoomPlayer>(context), IGameRoomPlayerRepository
 {
-    public async Task<GameRoomPlayer?> GetByGameRoomIdAndPlayerIdAsync(Guid gameRoomId, Guid playerId)
+    public async Task<List<GameRoomPlayer>> GetByGameRoomId(Guid id)
     {
-        return await _dbSet.FirstOrDefaultAsync(grp => grp.GameRoomId == gameRoomId && grp.UserId == playerId);
+        return await _dbSet
+            .Where(grp => grp.GameRoomId == id)
+            .Include(grp => grp.Deck)
+            .Include(grp => grp.User)
+            .ToListAsync();
+    }
+
+    public async Task<GameRoomPlayer?> GetByRoomAndUserId(Guid id, Guid userId)
+    {
+        return await _dbSet
+            .Where(grp => grp.UserId == id && grp.UserId == userId)
+            .Include(grp => grp.User)
+            .FirstOrDefaultAsync();
     }
 }

@@ -20,10 +20,6 @@ public class PlayerGame
     [ForeignKey(nameof(UserId))]
     public User User { get; set; } = null!;
 
-    public Guid DeckId { get; set; }
-    [ForeignKey(nameof(DeckId))]
-    public Deck DeckTemplate { get; set; } = null!;
-
     public int LifePoints { get; set; } = 8000;
 
     public ICollection<GameCard> Cards { get; set; } = [];

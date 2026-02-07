@@ -46,7 +46,7 @@ public class EffectsController(IEffectService effectService) : ControllerBase
     public async Task<IActionResult> DeleteEffect(Guid id)
     {
         await _effectService.DeleteEffect(id);
-        return Ok();
+        return Ok(new { message = "Effect deleted successfully" });
     }
 
     [HttpGet("types")]

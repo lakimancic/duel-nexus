@@ -2,7 +2,10 @@ namespace Backend.Application.DTOs.Games;
 
 public class AttackActionDto
 {
-    public Guid CardId { get; set; }
-    public Guid? TargetCardId { get; set; }
-    public Guid? TargetPlayerId { get; set; }
+    public Guid Id { get; set; }
+    public ShortTurnDto Turn { get; set; } = null!;
+    public GameCardDto Attacker { get; set; } = null!;
+    public GameCardDto? Defender { get; set; }
+    public PlayerGameDto? DefenderPlayer { get; set; }
+    public DateTime ExecutedAt { get; set; }
 }

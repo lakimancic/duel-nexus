@@ -5,7 +5,7 @@ namespace Backend.Application.DTOs.Effects;
 public class EffectDto
 {
     public Guid Id { get; set; }
-    public string Type { get; set; } = null!;
+    public EffectType Type { get; set; }
 
     public int? Affects { get; set; }
     public int? Points { get; set; }

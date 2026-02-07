@@ -12,5 +12,4 @@ public class GameRoomDto
     public Guid HostUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public ShortUserDto HostUser { get; set; } = null!;
-    public List<GameRoomPlayerDto> Players { get; set; } = [];
 }

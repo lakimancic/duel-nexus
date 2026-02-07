@@ -31,7 +31,7 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
     public async Task<DeckDto> CreateDeck(CreateDeckDto deck)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(deck.UserId)
-            ?? throw new KeyNotFoundException("User not found");
+            ?? throw new ObjectNotFoundException("User not found");
 
         var deckEntity = _mapper.Map<Deck>(deck);
         deckEntity.User = user;
@@ -43,7 +43,7 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
     public async Task AddCards(Guid deckId, List<InsertDeckCardDto> cards)
     {
         var deck = await _unitOfWork.Decks.GetByIdAsync(deckId)
-            ?? throw new KeyNotFoundException("Deck not found");
+            ?? throw new ObjectNotFoundException("Deck not found");
 
         var playerCards = await _unitOfWork.PlayerCards.GetCardsByUserId(deck.UserId);
 
@@ -58,8 +58,8 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         var deckCardsToAdd = playerCards
             .Join(
                 cards,
-                playerCard => playerCard.Id,
-                dto => dto.PlayerCardId,
+                playerCard => playerCard.CardId,
+                dto => dto.CardId,
                 (playerCard,dto) =>
                 {
                     var alreadyInDeck = existingDeckCards

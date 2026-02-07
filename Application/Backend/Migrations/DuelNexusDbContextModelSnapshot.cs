@@ -455,9 +455,6 @@ namespace backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("DeckId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("GameId")
                         .HasColumnType("uuid");
 
@@ -471,8 +468,6 @@ namespace backend.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DeckId");
 
                     b.HasIndex("UserId");
 
@@ -488,7 +483,7 @@ namespace backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ActivePlayerId")
+                    b.Property<Guid?>("ActivePlayerId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("EndedAt")
@@ -846,12 +841,6 @@ namespace backend.Migrations
 
             modelBuilder.Entity("Backend.Data.Models.PlayerGame", b =>
                 {
-                    b.HasOne("Backend.Data.Models.Deck", "DeckTemplate")
-                        .WithMany()
-                        .HasForeignKey("DeckId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Backend.Data.Models.Game", "Game")
                         .WithMany("Players")
                         .HasForeignKey("GameId")
@@ -864,8 +853,6 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DeckTemplate");
-
                     b.Navigation("Game");
 
                     b.Navigation("User");
@@ -875,9 +862,7 @@ namespace backend.Migrations
                 {
                     b.HasOne("Backend.Data.Models.PlayerGame", "ActivePlayer")
                         .WithMany()
-                        .HasForeignKey("ActivePlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("ActivePlayerId");
 
                     b.HasOne("Backend.Data.Models.Game", "Game")
                         .WithMany("Turns")

@@ -19,7 +19,7 @@ public class GameCard
     [ForeignKey(nameof(CardId))]
     public Card Card { get; set; } = null!;
 
-    public CardZone Zone { get; set; }
+    public CardZone Zone { get; set; } = CardZone.Deck;
 
     public int? DeckOrder { get; set; }
 

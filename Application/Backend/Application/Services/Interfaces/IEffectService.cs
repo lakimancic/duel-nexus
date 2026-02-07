@@ -1,4 +1,3 @@
-using Backend.Application.DTOs.Decks;
 using Backend.Application.DTOs.Effects;
 using Backend.Utils.Data;
 

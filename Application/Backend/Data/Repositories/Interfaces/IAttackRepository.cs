@@ -4,4 +4,5 @@ namespace Backend.Data.Repositories.Interfaces;
 
 public interface IAttackRepository : IRepository<AttackAction>
 {
+	Task<AttackAction?> GetByIdWithIncludesAsync(Guid id);
 }
