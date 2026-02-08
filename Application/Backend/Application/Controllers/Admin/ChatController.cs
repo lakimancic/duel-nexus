@@ -56,6 +56,13 @@ public class ChatController(IChatService chatService) : ControllerBase
         return Ok();
     }
 
+    [HttpPut("{messageId}")]
+    public async Task<IActionResult> UpdateMessage(Guid messageId, [FromBody] EditMessageDto message)
+    {
+        var updatedMessage = await _chatService.EditMessageAsync(messageId, message);
+        return Ok(updatedMessage);
+    }
+
     [HttpDelete("{messageId}")]
     public async Task<IActionResult> DeleteMessage(Guid messageId)
     {

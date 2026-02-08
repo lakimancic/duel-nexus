@@ -6,6 +6,7 @@ public class ExceptionHandler
 {
     public static IActionResult HandleException(Exception ex)
     {
+        Console.Error.WriteLine(ex.Message);
         return ex switch
         {
             ObjectNotFoundException => new NotFoundObjectResult(new { error = ex.Message }),

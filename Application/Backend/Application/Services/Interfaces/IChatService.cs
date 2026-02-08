@@ -8,8 +8,9 @@ public interface IChatService
     Task<PagedResult<ChatMessageDto>> GetPrivateMessagesAsync(Guid userId1, Guid userId2, int page, int pageSize);
     Task<PagedResult<ChatMessageDto>> GetGameRoomMessagesAsync(Guid gameRoomId, int page, int pageSize);
     Task<PagedResult<ChatMessageDto>> GetGlobalMessagesAsync(int page, int pageSize);
-    Task SendMessageAsync(SendMessageDto message);
-    Task SendGameRoomMessageAsync(GameRoomMessageDto message);
-    Task SendPrivateMessageAsync(PrivateMessageDto message);
+    Task<ChatMessageDto> SendMessageAsync(SendMessageDto message);
+    Task<ChatMessageDto> SendGameRoomMessageAsync(GameRoomMessageDto message);
+    Task<ChatMessageDto> SendPrivateMessageAsync(PrivateMessageDto message);
     Task DeleteMessageAsync(Guid messageId);
+    Task<ChatMessageDto> EditMessageAsync(Guid messageId, EditMessageDto message);
 }

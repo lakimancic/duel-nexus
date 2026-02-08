@@ -35,6 +35,11 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
 
     public async Task<CardDto> CreateCard(CreateCardDto cardDto)
     {
+        Effect? effect = null;
+        if (cardDto.EffectId.HasValue)
+            effect = await _unitOfWork.Effects.GetByIdAsync(cardDto.EffectId.Value)
+                ?? throw new ObjectNotFoundException("Effect not found");
+
         if(cardDto.Type != CardType.Monster)
         {
             cardDto.Attack = 0;
@@ -43,6 +48,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         }
 
         Card card = _mapper.Map<CreateCardDto, Card>(cardDto);
+        card.Effect = effect;
         await _unitOfWork.Cards.AddAsync(card);
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Card, CardDto>(card);
@@ -61,6 +67,11 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         var existingCard = await _unitOfWork.Cards.GetByIdAsync(id)
             ?? throw new ObjectNotFoundException("Card not found");
 
+        Effect? effect = null;
+        if (cardDto.EffectId.HasValue)
+            effect = await _unitOfWork.Effects.GetByIdAsync(cardDto.EffectId.Value)
+                ?? throw new ObjectNotFoundException("Effect not found");
+
         if(cardDto.Type != CardType.Monster)
         {
             cardDto.Attack = 0;
@@ -69,6 +80,7 @@ public class CardService(IUnitOfWork unitOfWork, IMapper mapper) : ICardService
         }
 
         var card = _mapper.Map(cardDto, existingCard);
+        card.Effect = effect;
         _unitOfWork.Cards.Update(card);
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<Card, CardDto>(card);
