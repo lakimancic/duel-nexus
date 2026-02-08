@@ -7,7 +7,6 @@ namespace Backend.Application.Services.Interfaces;
 public interface IDeckService
 {
     Task<PagedResult<DeckDto>> GetDecks(int page, int pageSize, string? search);
-    Task<DeckDto?> GetDeckById(Guid id);
     Task<DeckDto?> GetDeckWithUser(Guid id);
     Task<List<DeckDto>?> GetDeckByUserId(Guid id);
     Task<DeckDto> CreateDeck(CreateDeckDto deck);

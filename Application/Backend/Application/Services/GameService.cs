@@ -5,7 +5,6 @@ using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
 using Backend.Utils.WebApi;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Application.Services;
 

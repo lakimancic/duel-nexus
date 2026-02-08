@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using AutoMapper;
-using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Decks;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
@@ -15,12 +14,6 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
-
-    public async Task<DeckDto?> GetDeckById(Guid id)
-    {
-        var deck = await _unitOfWork.Decks.GetByIdAsync(id);
-        return _mapper.Map<DeckDto?>(deck);
-    }
 
     public async Task<List<DeckDto>?> GetDeckByUserId(Guid userId)
     {

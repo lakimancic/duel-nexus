@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services.Interfaces;
 using Backend.Application.DTOs.Games;
+using Backend.Utils.Data;
+using Backend.Data.Enums;
 
 namespace Backend.Application.Controllers.Admin;
 
@@ -264,5 +266,29 @@ public class GamesController(IGameService gameService) : ControllerBase
     {
         await _gameService.DeletePlaceAction(actionId);
         return Ok(new { message = "Place Action deleted successfully" });
+    }
+
+    [HttpGet("movement-types")]
+    public IActionResult GetMovementTypes()
+    {
+        return Ok(EnumExtensions.GetNameValues<CardMovementType>());
+    }
+
+    [HttpGet("card-zones")]
+    public IActionResult GetCardZones()
+    {
+        return Ok(EnumExtensions.GetNameValues<CardZone>());
+    }
+
+    [HttpGet("place-types")]
+    public IActionResult GetPlaceTypes()
+    {
+        return Ok(EnumExtensions.GetNameValues<PlaceType>());
+    }
+
+    [HttpGet("turn-phases")]
+    public IActionResult GetTurnPhases()
+    {
+        return Ok(EnumExtensions.GetNameValues<TurnPhase>());
     }
 }

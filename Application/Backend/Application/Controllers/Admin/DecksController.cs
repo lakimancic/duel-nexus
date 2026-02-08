@@ -29,7 +29,7 @@ public class DecksController(IDeckService deckService) : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetDeck(Guid id)
     {
-        var deck = await _deckService.GetDeckById(id);
+        var deck = await _deckService.GetDeckWithUser(id);
         if (deck == null)
             return NotFound(new { error = "Deck not found"});
         return Ok(deck);

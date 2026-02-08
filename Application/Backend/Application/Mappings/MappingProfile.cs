@@ -46,6 +46,7 @@ public class MappingProfile : Profile
         CreateMap<CreateDeckDto, Deck>();
         CreateMap<Deck, DeckDto>();
         CreateMap<InsertDeckCardDto, DeckCard>();
+        CreateMap<DeckCard, DeckCardDto>();
 
         // Effects
         CreateMap<CreateEffectDto, Effect>();
