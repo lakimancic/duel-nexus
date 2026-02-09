@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import Logo from "../../../assets/images/logo.png";
-import ButtonBackground from "../../../assets/images/btnBackground.png";
+import Logo from "@/assets/images/logo.png";
+import ButtonBackground from "@/assets/images/btnBackground.png";
 
 const WelcomePage = () => {
   const navigate = useNavigate();

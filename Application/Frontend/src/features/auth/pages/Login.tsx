@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { FaArrowRight } from "react-icons/fa";
-import Logo from "../../../assets/images/logo.png";
+import Logo from "@/assets/images/logo.png";
 
 const loginSchema = z.object({
   email: z.email().min(1, "Email is required"),
