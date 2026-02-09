@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useAuthStore } from "../../features/auth/store/auth.store";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 export const httpClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -12,3 +12,5 @@ httpClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+export const backImageUrl = (url: string) => `${import.meta.env.VITE_API_BASE_URL}/admin/cards/image/${url}`;

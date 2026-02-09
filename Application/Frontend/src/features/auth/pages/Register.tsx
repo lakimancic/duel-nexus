@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { FaArrowRight } from "react-icons/fa";
-import Logo from "../../../assets/images/logo.png";
+import Logo from "@/assets/images/logo.png";
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
