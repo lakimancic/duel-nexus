@@ -18,7 +18,7 @@ export const gameRoomApi = {
 
     addPlayerToRoom:(roomId:string,userId:string) => httpClient.post<GameRoomUserDto>(`/admin/game-rooms/${roomId}/players`,{userId}),
     
-    editDeckInGameRoom:(roomId:string, userId:string,deckId:string) => httpClient.put(`/admin/game-rooms/${roomId}/players/${userId}`,{deckId}) ,
+    editDeckInGameRoom:(roomId:string, userId:string,deckId:string) => httpClient.put<GameRoomUserDto>(`/admin/game-rooms/${roomId}/players/${userId}`,{deckId}) ,
     
     removePlayerFromRoom: (roomId:string, userId:string) => httpClient.delete<InformativeResult>(`/admin/game-rooms/${roomId}/player/${userId}`),
 

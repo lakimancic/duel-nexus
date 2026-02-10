@@ -29,6 +29,6 @@ export interface GameRoomUserDto
 {
     id:string,
     user:SerachUserDto,
-    deck:DeckDto,
+    deck?:DeckDto,
     isReady:boolean
 }
