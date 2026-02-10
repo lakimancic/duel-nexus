@@ -4,3 +4,8 @@ export interface PagedResult<T> {
   pageSize: number;
   totalCount: number;
 }
+
+export interface InformativeResult{
+  message?:string,
+  error?:string
+}
