@@ -63,7 +63,7 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
         return _mapper.Map<AttackActionDto>(action);
     }
 
-    public async Task<CardMovementDto> CreateCardMovement(Guid id, CreateCardMovementDto actionDto)
+    public async Task<CardMovementDto> CreateCardMovement(CreateCardMovementDto actionDto)
     {
         var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
             ?? throw new ObjectNotFoundException("Turn not found");
@@ -79,7 +79,7 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
         return _mapper.Map<CardMovementDto>(action);
     }
 
-    public async Task<EffectActivationDto> CreateEffectActivation(Guid id, CreateEffectActivationDto actionDto)
+    public async Task<EffectActivationDto> CreateEffectActivation(CreateEffectActivationDto actionDto)
     {
         var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
             ?? throw new ObjectNotFoundException("Turn not found");
@@ -126,7 +126,7 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
         return _mapper.Map<GameDto>(game);
     }
 
-    public async Task<PlaceCardDto> CreatePlaceAction(Guid id, CreatePlaceActionDto actionDto)
+    public async Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto)
     {
         var turn = await _unitOfWork.Turns.GetByIdAsync(actionDto.TurnId)
             ?? throw new ObjectNotFoundException("Turn not found");

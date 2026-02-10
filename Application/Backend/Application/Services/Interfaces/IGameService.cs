@@ -9,10 +9,10 @@ public interface IGameService
 {
     Task<TurnDto> AddNewGameTurn(Guid id);
     Task<AttackActionDto> CreateAttackAction(CreateAttackActionDto actionDto);
-    Task<CardMovementDto> CreateCardMovement(Guid id, CreateCardMovementDto actionDto);
-    Task<EffectActivationDto> CreateEffectActivation(Guid id, CreateEffectActivationDto actionDto);
+    Task<CardMovementDto> CreateCardMovement(CreateCardMovementDto actionDto);
+    Task<EffectActivationDto> CreateEffectActivation(CreateEffectActivationDto actionDto);
     Task<GameDto> CreateGame(CreateGameDto gameDto);
-    Task<PlaceCardDto> CreatePlaceAction(Guid id, CreatePlaceActionDto actionDto);
+    Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto);
     Task DeleteAttackAction(Guid actionId);
     Task DeleteCardMovement(Guid actionId);
     Task DeleteEffectActivation(Guid actionId);
