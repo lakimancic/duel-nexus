@@ -71,7 +71,7 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
         var gameRoomPlayer = await _unitOfWork.GameRoomPlayers.GetByRoomAndUserId(id, userId)
             ?? throw new ObjectNotFoundException("Game Room Player not found");
         var deck = await _unitOfWork.Decks.GetByIdAsync(deckId)
-            ?? throw new ObjectNotFoundException("Game Room Player not found");
+            ?? throw new ObjectNotFoundException("Deck not found");
 
         gameRoomPlayer.DeckId = deckId;
         gameRoomPlayer.Deck = deck;

@@ -19,7 +19,7 @@ public class GameRoomPlayerRepository(DuelNexusDbContext context) : Repository<G
     public async Task<GameRoomPlayer?> GetByRoomAndUserId(Guid id, Guid userId)
     {
         return await _dbSet
-            .Where(grp => grp.UserId == id && grp.UserId == userId)
+            .Where(grp => grp.GameRoomId == id && grp.UserId == userId)
             .Include(grp => grp.User)
             .FirstOrDefaultAsync();
     }
