@@ -79,7 +79,11 @@ public class MappingProfile : Profile
 
         // Games
         CreateMap<Game, GameDto>();
+        CreateMap<Game,EditGameDto>();
+        CreateMap<EditGameDto, Game>();
         CreateMap<PlayerGame, PlayerGameDto>();
+        CreateMap<PlayerGame, EditPlayerGameDto>();
+        CreateMap<EditPlayerGameDto, PlayerGame>();
         CreateMap<GameCard, GameCardDto>();
 
         CreateMap<Turn, TurnDto>();
@@ -95,7 +99,13 @@ public class MappingProfile : Profile
         CreateMap<PlaceCardAction, PlaceCardDto>();
 
         CreateMap<CreateEffectActivationDto, EffectActivation>();
-        CreateMap<EffectActivation, EffectActivationDto>();
+        
+        CreateMap<EffectActivation, EffectActivationDto>()
+        .ForMember(dest => dest.SourceCardId, opt => opt.MapFrom(src => src.SourceCardId));
+
+        CreateMap<EffectActivationDto, EffectActivation>()
+        .ForMember(dest => dest.SourceCardId, opt => opt.MapFrom(src => src.SourceCardId));
+
 
         CreateMap<EditGameCardDto, GameCard>();
         CreateMap<EditTurnDto, Turn>();

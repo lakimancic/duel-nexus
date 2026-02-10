@@ -165,9 +165,9 @@ public class GamesController(IGameService gameService) : ControllerBase
     }
 
     [HttpPost("card-movements")]
-    public async Task<IActionResult> CreateCardMovement(Guid id, [FromBody] CreateCardMovementDto actionDto)
+    public async Task<IActionResult> CreateCardMovement([FromBody] CreateCardMovementDto actionDto)
     {
-        var newAction = await _gameService.CreateCardMovement(id, actionDto);
+        var newAction = await _gameService.CreateCardMovement(actionDto);
         return Ok(newAction);
     }
 
@@ -202,9 +202,9 @@ public class GamesController(IGameService gameService) : ControllerBase
     }
 
     [HttpPost("effect-activations")]
-    public async Task<IActionResult> CreateEffectActivation(Guid id, [FromBody] CreateEffectActivationDto actionDto)
+    public async Task<IActionResult> CreateEffectActivation([FromBody] CreateEffectActivationDto actionDto)
     {
-        var newAction = await _gameService.CreateEffectActivation(id, actionDto);
+        var newAction = await _gameService.CreateEffectActivation(actionDto);
         return Ok(newAction);
     }
 
@@ -239,9 +239,9 @@ public class GamesController(IGameService gameService) : ControllerBase
     }
 
     [HttpPost("place-actions")]
-    public async Task<IActionResult> CreatePlaceAction(Guid id, [FromBody] CreatePlaceActionDto actionDto)
+    public async Task<IActionResult> CreatePlaceAction([FromBody] CreatePlaceActionDto actionDto)
     {
-        var newAction = await _gameService.CreatePlaceAction(id, actionDto);
+        var newAction = await _gameService.CreatePlaceAction(actionDto);
         return Ok(newAction);
     }
 
