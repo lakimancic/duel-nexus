@@ -100,11 +100,9 @@ public class MappingProfile : Profile
 
         CreateMap<CreateEffectActivationDto, EffectActivation>();
         
-        CreateMap<EffectActivation, EffectActivationDto>()
-        .ForMember(dest => dest.SourceCardId, opt => opt.MapFrom(src => src.SourceCardId));
+        CreateMap<EffectActivation, EffectActivationDto>();
 
-        CreateMap<EffectActivationDto, EffectActivation>()
-        .ForMember(dest => dest.SourceCardId, opt => opt.MapFrom(src => src.SourceCardId));
+        CreateMap<EffectActivationDto, EffectActivation>();
 
 
         CreateMap<EditGameCardDto, GameCard>();
