@@ -1,12 +1,12 @@
 import { httpClient } from "@/shared/api/httpClient";
-import type { InformativeResult, PagedResult } from "@/shared/types/result.types";
+import type { InformativeResult, PagedResult, Query } from "@/shared/types/result.types";
 import type { CreateGameRoomDto, EditGameRoomDto, GameRoomDto, GameRoomUserDto } from "../types/game-room.types";
 import type { EnumDto } from "@/shared/types/enum.types";
 import type { SerachUserDto } from "../types/users.types";
 
 export const gameRoomApi = {
 
-    getGameRooms:()=>httpClient.get<PagedResult<GameRoomDto>>('/admin/game-rooms'),
+    getGameRooms:(params?: Query)=>httpClient.get<PagedResult<GameRoomDto>>('/admin/game-rooms',{params}),
 
     createGameRoom:(dto:CreateGameRoomDto)=>httpClient.post<CreateGameRoomDto>('/admin/game-rooms',dto),
 

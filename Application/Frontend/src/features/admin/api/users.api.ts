@@ -2,13 +2,14 @@ import { httpClient } from "@/shared/api/httpClient";
 import type {
   InformativeResult,
   PagedResult,
+  Query,
 } from "@/shared/types/result.types";
 import type { UpdateUserDto, UserDto } from "../types/users.types";
 import type { EnumDto } from "@/shared/types/enum.types";
 import type { CreatePlayerCardDto, PlayerCardDto } from "../types/card.types";
 
 export const usersApi = {
-  getUsers: () => httpClient.get<PagedResult<UserDto>>("/admin/users"),
+  getUsers: (params?: Query) => httpClient.get<PagedResult<UserDto>>("/admin/users", {params}),
 
   getUserById: (id: string) => httpClient.get<UserDto>(`/admin/users/${id}`),
 
@@ -20,8 +21,8 @@ export const usersApi = {
 
   getRoles: () => httpClient.get<EnumDto>("/admin/users/roles"),
 
-  getUserCards: (id: string) =>
-    httpClient.get<PagedResult<PlayerCardDto>>(`/admin/users/${id}/cards`),
+  getUserCards: (id: string, params?: Query) =>
+    httpClient.get<PagedResult<PlayerCardDto>>(`/admin/users/${id}/cards`, {params}),
 
   createUserCard: (id: string, dto: CreatePlayerCardDto) =>
     httpClient.post<PlayerCardDto>(`/admin/users/${id}/cards`, dto),
