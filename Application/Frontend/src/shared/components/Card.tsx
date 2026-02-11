@@ -1,10 +1,23 @@
-import type { CardProps } from "./card.types";
 import SpellCard from "@/assets/images/spell_card.png";
 import TrapCard from "@/assets/images/trap_card.png";
 import MonsterCard from "@/assets/images/monster_card.png";
 // import EffectCard from "@/assets/images/effect_card.png";
 import CardBack from "@/assets/images/card_back.png";
 import { FaStar } from "react-icons/fa";
+import type { ComponentProps } from "react";
+
+
+export interface CardProps extends ComponentProps<"img"> {
+  name: string;
+  description: string;
+  type: number;
+
+  attack?: number;
+  defense?: number;
+  level?: number;
+
+  hidden: boolean;
+};
 
 const Card: React.FC<CardProps> = ({
   name,
@@ -43,18 +56,18 @@ const Card: React.FC<CardProps> = ({
           >
             {description}
           </p>
-          {attack && defense && (
+          {attack !== undefined && defense !== undefined && (
             <p className="text-[70%] font-bold absolute bottom-[6.5%] right-[10%] flex gap-3">
               <span>ATK/{attack}</span>
               <span>DEF/{defense}</span>
             </p>
           )}
           {level && (
-            <div className="absolute top-[12.3%] text-[60%] right-[12%] flex gap-1">
+            <div className="absolute top-[12.3%] text-[60%] right-[12%] flex gap-[0.5em]">
               {Array.from({ length: level }).map((_, i) => (
                 <FaStar
                   key={i}
-                  className="bg-red-500 rounded-full text-yellow-300 size-3.5 p-[1%]"
+                  className="bg-red-500 rounded-full text-yellow-300 size-[1.4em] p-[0.1em] aspect-square"
                 />
               ))}
             </div>

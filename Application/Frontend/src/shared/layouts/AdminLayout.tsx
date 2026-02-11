@@ -1,10 +1,13 @@
 import { Link, Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import Logo from "@/assets/images/logo.png";
+import { useAdminEnums } from "../enums/useEnums";
 
 export const AdminLayout = () => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const role = useAuthStore(state => state.role);
+
+  useAdminEnums();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -22,7 +25,7 @@ export const AdminLayout = () => {
           <Link to="/lobby">
             <img src={Logo} alt="logo" className="h-25 m-3" />
           </Link>
-          <h1 className="text-3xl font-bold mb-5 text-purple-200 [text-shadow:0_0_0.8rem_#bb00ff]">
+          <h1 className="text-3xl font-bold text-purple-200 [text-shadow:0_0_0.8rem_#bb00ff]">
             Admin Dashboard
           </h1>
         </header>

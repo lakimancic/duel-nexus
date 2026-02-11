@@ -7,8 +7,8 @@ export interface CardDto {
   description: string;
   type: number;
 
-  effectId:number,
-  effect?:EffectDto
+  effectId: number;
+  effect?: EffectDto;
 
   attack?: number;
   defense?: number;
@@ -26,15 +26,13 @@ export interface CreateCardDto {
   level?: number;
 }
 
-export interface PlayerCardDto
-{
-  id:string,
-  card:CardDto,
-  quantity:number
+export interface PlayerCardDto {
+  id: string;
+  card: CardDto;
+  quantity: number;
 }
 
-export interface CreatePlayerCardDto
-{
-  cardId:string,
-  quantity:number
+export interface CreatePlayerCardDto {
+  cardId: string;
+  quantity: number;
 }

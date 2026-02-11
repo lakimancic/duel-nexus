@@ -1,10 +1,9 @@
 import { httpClient } from "@/shared/api/httpClient";
 import type { CardDto, CreateCardDto } from "../types/card.types";
-import type { EnumDto } from "@/shared/types/enum.types";
-import type { PagedResult } from "@/shared/types/result.types";
+import type { PagedResult, SearchQuery } from "@/shared/types/result.types";
 
 export const cardsApi = {
-  getCards: (params?: { page?: number; pageSize?: number; search?: string }) =>
+  getCards: (params?: SearchQuery) =>
     httpClient.get<PagedResult<CardDto>>("/admin/cards", {
       params,
     }),
@@ -19,8 +18,6 @@ export const cardsApi = {
 
   deleteCard: (id: string) => httpClient.delete(`/admin/cards/${id}`),
 
-  getTypes: () => httpClient.get<EnumDto[]>("/admin/cards/types"),
-
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -33,6 +30,4 @@ export const cardsApi = {
       },
     );
   },
-
-  getImageUrl: (fileName: string) => `/admin/cards/image/${fileName}`,
 };

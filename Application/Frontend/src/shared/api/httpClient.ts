@@ -13,4 +13,4 @@ httpClient.interceptors.request.use((config) => {
   return config;
 });
 
-export const backImageUrl = (url: string) => `${import.meta.env.VITE_API_BASE_URL}/admin/cards/image/${url}`;
+export const getImageUrl = (url: string) => `${import.meta.env.VITE_API_BASE_URL}/admin/cards/image/${url}`;

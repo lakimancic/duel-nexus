@@ -5,7 +5,16 @@ export interface PagedResult<T> {
   totalCount: number;
 }
 
-export interface InformativeResult{
-  message?:string,
-  error?:string
+export interface InformativeResult {
+  message?: string;
+  error?: string;
+}
+
+export interface Query {
+  page: number;
+  pageSize: number;
+}
+
+export interface SearchQuery extends Query {
+  search?: string;
 }

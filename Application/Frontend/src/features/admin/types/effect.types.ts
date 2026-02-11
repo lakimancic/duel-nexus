@@ -1,20 +1,23 @@
-export interface EffectDto
-{
-    id:string,
-    Type:number,
-    Affects:number,
-    Points:number,
-    Turns:number,
-    RequiresTarget:boolean
-    TargetsPlayer:boolean
+export interface EffectDto {
+  id: string;
+  type: number;
+  affects?: number;
+  points?: number;
+  turns?: number;
+  requiresTarget: boolean;
+  targetsPlayer: boolean;
 }
 
-export interface CreateEffectDto
-{
-    Type:number,
-    Affects:number,
-    Points:number,
-    Turns:number,
-    RequiresTarget:boolean
-    TargetsPlayer:boolean
+export interface CreateEffectDto {
+  type: number;
+  affects?: number;
+  points?: number;
+  turns?: number;
+  requiresTarget: boolean;
+  targetsPlayer: boolean;
+}
+
+export interface EffectsQuery {
+  page: number;
+  pageSize: number;
 }

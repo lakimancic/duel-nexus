@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { FaArrowRight } from "react-icons/fa";
 import Logo from "@/assets/images/logo.png";
+import type { ErrorMessage } from "@/shared/types/error.types";
+import { AxiosError } from "axios";
 
 const loginSchema = z.object({
   email: z.email().min(1, "Email is required"),
@@ -20,6 +22,8 @@ const LoginPage = () => {
   const {
     register,
     handleSubmit,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -30,8 +34,15 @@ const LoginPage = () => {
       await login(data);
       navigate("/lobby");
     } catch (err) {
-      console.error(err);
-      alert("Invalid credentials");
+      if (err instanceof AxiosError) {
+        const errObject = err.response?.data as ErrorMessage;
+        setError("root", {
+          type: "server",
+          message: errObject.error,
+        });
+      } else {
+        console.error(err);
+      }
     }
   };
 
@@ -43,11 +54,16 @@ const LoginPage = () => {
         className="relative flex flex-col gap-2 w-120 bg-[#4b1812]/80 text-white p-8 items-center pt-30 rounded-xl"
       >
         <img src={Logo} alt="logo" className="absolute -top-30 w-[90%]" />
-        <h1 className="text-2xl font-bold mb-5 text-amber-200 [text-shadow:0_0_0.8rem_#e26807]">
+        <h1 className="text-2xl font-bold mb-2 text-amber-200 [text-shadow:0_0_0.8rem_#e26807]">
           Log-In to your account
         </h1>
+        {errors.root && (
+          <span className="text-red-500 text-sm font-bold mb-4">
+            {errors.root.message}
+          </span>
+        )}
         <input
-          {...register("email")}
+          {...register("email", { onChange: () => clearErrors("root") })}
           placeholder="Email"
           className="p-2 w-full rounded border border-amber-300 placeholder:text-amber-200/50 text-amber-300 outline-none"
         />
@@ -56,7 +72,7 @@ const LoginPage = () => {
         )}
 
         <input
-          {...register("password")}
+          {...register("password", { onChange: () => clearErrors("root") })}
           type="password"
           placeholder="Password"
           className="p-2 mt-5 w-full rounded border border-amber-300 placeholder:text-amber-200/50 text-amber-300 outline-none"
