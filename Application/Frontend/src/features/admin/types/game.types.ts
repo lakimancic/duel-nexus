@@ -112,13 +112,22 @@ export interface GameCardMovementsDto
     executedAt:string
 }
 
-// export interface CreateGameEffectActivationDto
-// {
-//     turnId:string,
-//     effectId:string,
-//     sourceCardId:string,
-//     resolved:boolean
-// }
+export interface CreateGameEffectActivationDto
+{
+    turnId:string,
+    effectId:string,
+    sourceCardId:string,
+    resolved:boolean
+}
+
+export interface EffectActivationDto
+{
+    id:string,
+    turn:TurnInAttackDto,
+    effectId:string,
+    sourceCardId:string,
+    resolved:boolean
+}
 
 export interface CreateGamePlaceAction
 {

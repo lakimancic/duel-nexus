@@ -2,10 +2,12 @@ import { httpClient } from "@/shared/api/httpClient";
 import type {
   CreateGameAction,
   CreateGameCardMovementsDto,
+  CreateGameEffectActivationDto,
   CreateGamePlaceAction,
   EditGameDto,
   EditPlayerGame,
   EditTurnInGame,
+  EffectActivationDto,
   GameActionDto,
   GameCardDto,
   GameCardMovementsDto,
@@ -15,11 +17,11 @@ import type {
   PlayerGames,
   TurnInGame,
 } from "../types/game.types";
-import type { PagedResult } from "@/shared/types/result.types";
+import type { PagedResult, Query } from "@/shared/types/result.types";
 import type { EnumDto } from "@/shared/types/enum.types";
 
 export const gameApi = {
-  getGames: () => httpClient.get<PagedResult<GameDto>>("/admin/games"),
+  getGames: (params?: Query) => httpClient.get<PagedResult<GameDto>>("/admin/games", {params}),
 
   getGamesById: (id: string) => httpClient.get(`/admin/games/${id}`),
 
@@ -38,8 +40,8 @@ export const gameApi = {
   editPlayerGame: (id: string, userId: string, dto: EditPlayerGame) =>
     httpClient.put<OnePlayerGames>(`/admin/games/${id}/players/${userId}`, dto),
 
-  getGamesTurns: (id: string) =>
-    httpClient.get<PagedResult<TurnInGame>>(`/admin/games/${id}/turns`),
+  getGamesTurns: (id: string, params?: Query) =>
+    httpClient.get<PagedResult<TurnInGame>>(`/admin/games/${id}/turns`,{params}),
 
   getGamesTurnById: (roomId: string, turnId: string) =>
     httpClient.get<TurnInGame>(`/admin/games/${roomId}/turns/${turnId}`),
@@ -59,9 +61,9 @@ export const gameApi = {
   editGameCard: (cardId: string) =>
     httpClient.delete<GameCardDto>(`/admin/games/cards/${cardId}`),
 
-  getGameActions: (id: string) =>
+  getGameActions: (id: string, params?: Query) =>
     httpClient.get<PagedResult<GameActionDto>>(
-      `/admin/games/${id}/attack-actions`,
+      `/admin/games/${id}/attack-actions`, {params}
     ),
 
   getGameActionById: (actionId: string) =>
@@ -76,9 +78,9 @@ export const gameApi = {
   deleteGameAction: (id: string) =>
     httpClient.delete(`/admin/games/attack-actions/${id}`),
 
-  getGameCardMovements: (id: string) =>
+  getGameCardMovements: (id: string, params?: Query) =>
     httpClient.get<PagedResult<GameCardMovementsDto>>(
-      `/admin/games/${id}/card-movements`,
+      `/admin/games/${id}/card-movements`, {params}
     ),
 
   getGameCardMovementById: (id: string) =>
@@ -96,19 +98,20 @@ export const gameApi = {
   deleteGameCardMovement: (id: string) =>
     httpClient.delete(`/admin/games/card-movement/${id}`),
 
-  // getGameEffectActivations:(id:string) => httpClient.get<PagedResult<>>(`/admin/games/${id}/effect-activations`),
+  getGameEffectActivations:(id:string, params?: Query) => 
+    httpClient.get<PagedResult<EffectActivationDto>>(`/admin/games/${id}/effect-activations`, {params}),
 
-  // getGameEffectActivationById:(id:string) => httpClient.get<>(`/admin/games/effect-activations/${id}`),
+  getGameEffectActivationById:(id:string) => httpClient.get<EffectActivationDto>(`/admin/games/effect-activations/${id}`),
 
-  // createGameEffectActivation:(dto:CreateGameEffectActivationDto) => httpClient.post<>(`/admin/games/effect-activations`,dto),
+  createGameEffectActivation:(dto:CreateGameEffectActivationDto) => httpClient.post<EffectActivationDto>(`/admin/games/effect-activations`,dto),
 
-  // editGameEffectActivation:(id:string,dto:CreateGameEffectActivationDto) => httpClient.put<>(`/admin/games/effect-activations/${id}`,dto),
+  editGameEffectActivation:(id:string,dto:CreateGameEffectActivationDto) => httpClient.put<EffectActivationDto>(`/admin/games/effect-activations/${id}`,dto),
 
-  // deleteGameEffectActivations:(id:string) => httpClient.delete(`/admin/games/effect-activations/${id}`)
+  deleteGameEffectActivations:(id:string) => httpClient.delete(`/admin/games/effect-activations/${id}`),
 
-  getGamePlaceActions: (id: string) =>
+  getGamePlaceActions: (id: string, params?: Query) =>
     httpClient.get<PagedResult<GamePlaceActionDto>>(
-      `/admin/games/${id}/place-actions`,
+      `/admin/games/${id}/place-actions`, {params}
     ),
 
   getGamePlaceActionById: (actionId: string) =>

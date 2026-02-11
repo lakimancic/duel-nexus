@@ -1,5 +1,5 @@
 import { httpClient } from "@/shared/api/httpClient";
-import type { PagedResult } from "@/shared/types/result.types";
+import type { PagedResult, Query } from "@/shared/types/result.types";
 import type {
   SendMessageDto,
   MessageDto,
@@ -10,14 +10,14 @@ import type {
 } from "../types/message.types";
 
 export const messagesApi = {
-  getMessages: () => httpClient.get<PagedResult<MessageDto>>("/admin/messages"),
+  getMessages: (params?: Query) => httpClient.get<PagedResult<MessageDto>>("/admin/messages", {params}),
 
-  getMessageByGameRoomId: (id: number) =>
-    httpClient.get<PagedResult<MessageDto>>(`/admin/messages/game-room/${id}`),
+  getMessageByGameRoomId: (id: number, params?: Query) =>
+    httpClient.get<PagedResult<MessageDto>>(`/admin/messages/game-room/${id}`, {params}),
 
-  getPrivateMessage: (userId1: string, userId2: string) =>
+  getPrivateMessage: (userId1: string, userId2: string, params?: Query) =>
     httpClient.get<PagedResult<MessageDto>>(
-      `/admin/message/private/${userId1}/${userId2}`,
+      `/admin/message/private/${userId1}/${userId2}`, {params}
     ),
 
   sendMessage: (dto: SendMessageDto) => httpClient.post("/admin/messages", dto),

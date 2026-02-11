@@ -1,6 +1,7 @@
 import type {
   InformativeResult,
   PagedResult,
+  SearchQuery,
 } from "@/shared/types/result.types";
 import type {
   AddCardInDeckDto,
@@ -11,7 +12,7 @@ import type {
 import { httpClient } from "@/shared/api/httpClient";
 
 export const decksApi = {
-  getDecks: () => httpClient.get<PagedResult<DeckDto>>("/admin/decks"),
+  getDecks: (params?: SearchQuery) => httpClient.get<PagedResult<DeckDto>>("/admin/decks",{params}),
 
   getDeckById: (id: number) => httpClient.get<DeckDto>(`/admin/decks/${id}`),
 
