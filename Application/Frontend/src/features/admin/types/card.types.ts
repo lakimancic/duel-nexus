@@ -7,8 +7,8 @@ export interface CardDto {
   description: string;
   type: number;
 
-  effectId: number;
-  effect?: EffectDto;
+  effectId: string|null;
+  effect: EffectDto|null;
 
   attack?: number;
   defense?: number;

@@ -8,6 +8,7 @@ import Spinner from "@/shared/components/Spinner";
 import Card from "@/shared/components/Card";
 import { useCardTypesStore } from "@/shared/enums/cardTypes.store";
 import { getImageUrl } from "@/shared/api/httpClient";
+import MiniEffects from "../effects/MiniEffects";
 
 const cardSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -29,6 +30,7 @@ const cardSchema = z.object({
     z.number().int().min(0, "Type is required"),
   ),
   image: z.string().min(1, "Image is required"),
+  effectId: z.string().optional(),
 });
 
 type CardForm = z.infer<typeof cardSchema>;
@@ -60,6 +62,7 @@ const CardModal = ({
       attack: undefined,
       defense: undefined,
       type: -1,
+      effectId: undefined,
     },
   });
 
@@ -75,6 +78,7 @@ const CardModal = ({
         type: data.type ?? "",
         image: data.image ?? "",
         level: typeof data.level === "number" ? data.level : undefined,
+        effectId: data.effectId ?? "",
       });
     } else {
       reset({
@@ -83,19 +87,15 @@ const CardModal = ({
         attack: undefined,
         defense: undefined,
         type: 0,
+        effectId: "",
       });
     }
   }, [data, cardId, reset]);
 
-  // Handler for image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // TODO: Call API to upload image and get URL
-    // Example: const url = await uploadImageApi(file);
-    // setValue('image', url);
-    // For now, just set the file name as a placeholder
-    // Remove this line when implementing real upload
+
     setValue("image", file.name);
   };
 
@@ -163,65 +163,37 @@ const CardModal = ({
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-indigo-200">Image</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="cursor-pointer block w-fit text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-violet-700 file:text-white hover:file:bg-violet-800"
-                    />
-                    {watch("image") ? (
-                      <span className="text-green-300 font-semibold text-sm">
-                        {watch("image")}
-                      </span>
-                    ) : (
-                      <span className="text-pink-400 font-semibold">
-                        No image
-                      </span>
-                    )}
-                  </div>
-                </div>
-              <div className="flex flex-row gap-4 items-end w-full">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="font-semibold text-indigo-200">Level</label>
+                <label className="font-semibold text-indigo-200">Image</label>
+                <div className="flex items-center gap-3">
                   <input
-                    type="number"
-                    {...register("level", { valueAsNumber: true })}
-                    className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="cursor-pointer block w-fit text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-violet-700 file:text-white hover:file:bg-violet-800"
                   />
-                  {errors.level && (
-                    <span className="text-pink-400 text-xs font-semibold mt-1">
-                      {(errors.level as any).message}
+                  {watch("image") ? (
+                    <span className="text-green-300 font-semibold text-sm">
+                      {watch("image")}
+                    </span>
+                  ) : (
+                    <span className="text-pink-400 font-semibold">
+                      No image
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="font-semibold text-indigo-200">Attack</label>
-                  <input
-                    type="number"
-                    {...register("attack", { valueAsNumber: true })}
-                    className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                  />
-                  {errors.attack && (
-                    <span className="text-pink-400 text-xs font-semibold mt-1">
-                      {(errors.attack as any).message}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="font-semibold text-indigo-200">Defense</label>
-                  <input
-                    type="number"
-                    {...register("defense", { valueAsNumber: true })}
-                    className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                  />
-                  {errors.defense && (
-                    <span className="text-pink-400 text-xs font-semibold mt-1">
-                      {(errors.defense as any).message}
-                    </span>
-                  )}
-                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold text-indigo-200">Effect</label>
+                <MiniEffects
+                  value={watch("effectId")}
+                  onChange={(id) => setValue("effectId", id)}
+                  className="w-full"
+                />
+                {errors.effectId && (
+                  <span className="text-pink-400 text-xs font-semibold mt-1">
+                    {errors.effectId.message}
+                  </span>
+                )}
               </div>
               <div className="flex flex-row gap-4 mt-7 justify-start items-center">
                 <button
@@ -251,24 +223,58 @@ const CardModal = ({
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center min-w-65 max-w-[320px]">
+            <div className="flex flex-col items-center justify-center min-w-65 gap-4 max-w-[320px]">
               <Card
                 name={watch("name")}
                 description={watch("description")}
                 type={watch("type")}
-                attack={
-                  Number.isNaN(watch("attack")) ? undefined : watch("attack")
-                }
-                defense={
-                  Number.isNaN(watch("defense")) ? undefined : watch("defense")
-                }
-                level={
-                  Number.isNaN(watch("level")) ? undefined : watch("level")
-                }
+                attack={watch("attack")}
+                defense={watch("defense")}
+                level={watch("level")}
+                hasEffect={watch("effectId") ? true : false}
                 hidden={false}
-                className="text-[1rem] text-black"
+                className="text-[1.1rem] text-black"
                 src={getImageUrl(watch("image"))}
               />
+              <div className="flex flex-col gap-1 w-full">
+                <label className="font-semibold text-indigo-200">Level</label>
+                <input
+                  type="number"
+                  {...register("level", { valueAsNumber: true })}
+                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                />
+                {errors.level && (
+                  <span className="text-pink-400 text-xs font-semibold mt-1">
+                    {(errors.level as any).message}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1 w-full">
+                <label className="font-semibold text-indigo-200">Attack</label>
+                <input
+                  type="number"
+                  {...register("attack", { valueAsNumber: true })}
+                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                />
+                {errors.attack && (
+                  <span className="text-pink-400 text-xs font-semibold mt-1">
+                    {(errors.attack as any).message}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1 w-full">
+                <label className="font-semibold text-indigo-200">Defense</label>
+                <input
+                  type="number"
+                  {...register("defense", { valueAsNumber: true })}
+                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                />
+                {errors.defense && (
+                  <span className="text-pink-400 text-xs font-semibold mt-1">
+                    {(errors.defense as any).message}
+                  </span>
+                )}
+              </div>
             </div>
           </form>
         )}
