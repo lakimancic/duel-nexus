@@ -12,6 +12,7 @@ const CardItem = ({
   <div onClick={onClick}>
     <Card
       {...card}
+      hasEffect={card.effectId !== null}
       hidden={false}
       src={getImageUrl(card.image)}
       className="text-[0.7rem] cursor-pointer"

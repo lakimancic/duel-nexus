@@ -1,7 +1,7 @@
 import SpellCard from "@/assets/images/spell_card.png";
 import TrapCard from "@/assets/images/trap_card.png";
 import MonsterCard from "@/assets/images/monster_card.png";
-// import EffectCard from "@/assets/images/effect_card.png";
+import EffectCard from "@/assets/images/effect_card.png";
 import CardBack from "@/assets/images/card_back.png";
 import { FaStar } from "react-icons/fa";
 import type { ComponentProps } from "react";
@@ -16,6 +16,7 @@ export interface CardProps extends ComponentProps<"img"> {
   defense?: number;
   level?: number;
 
+  hasEffect: boolean;
   hidden: boolean;
 };
 
@@ -27,11 +28,12 @@ const Card: React.FC<CardProps> = ({
   defense,
   level,
   src,
+  hasEffect,
   hidden,
   className,
   ...props
 }) => {
-  const bgUrl = hidden ? CardBack : [MonsterCard, SpellCard, TrapCard][type];
+  const bgUrl = hidden ? CardBack : [hasEffect ? EffectCard : MonsterCard, SpellCard, TrapCard][type];
 
   return (
     <div
