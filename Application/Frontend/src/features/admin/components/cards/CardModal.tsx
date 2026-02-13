@@ -9,6 +9,9 @@ import Card from "@/shared/components/Card";
 import { useCardTypesStore } from "@/shared/enums/cardTypes.store";
 import { getImageUrl } from "@/shared/api/httpClient";
 import MiniEffects from "../effects/MiniEffects";
+import { cardsApi } from "../../api/cards.api";
+import { AxiosError } from "axios";
+import type { ErrorMessage } from "@/shared/types/error.types";
 
 const cardSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -53,6 +56,7 @@ const CardModal = ({
     reset,
     watch,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<CardForm>({
     resolver: zodResolver(cardSchema) as any,
@@ -67,6 +71,25 @@ const CardModal = ({
   });
 
   const cardTypes = useCardTypesStore((state) => state.items);
+
+  const selectedTypeVal = watch("type");
+  const selectedCardType = cardTypes.find(
+    (t) => t.value === Number(selectedTypeVal),
+  );
+  const isMonster = selectedCardType?.name === "Monster";
+  const selectedEffectId = watch("effectId");
+
+  useEffect(() => {
+    if (!isMonster && selectedCardType) {
+      setValue("attack", undefined);
+      setValue("defense", undefined);
+      setValue("level", undefined);
+    } else if (data) {
+      setValue("attack", data.attack);
+      setValue("defense", data.defense);
+      setValue("level", data.level);
+    }
+  }, [isMonster, selectedCardType, setValue, data]);
 
   useEffect(() => {
     if (data) {
@@ -96,7 +119,20 @@ const CardModal = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setValue("image", file.name);
+    try {
+      const result = await cardsApi.uploadImage(file);
+      setValue("image", result.data.fileName);
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        const errObject = err.response?.data as ErrorMessage;
+        setError("root", {
+          type: "server",
+          message: errObject.error,
+        });
+      } else {
+        console.error(err);
+      }
+    }
   };
 
   const onSubmit: SubmitHandler<CardForm> = (values) => {
@@ -184,17 +220,39 @@ const CardModal = ({
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-semibold text-indigo-200">Effect</label>
+
                 <MiniEffects
                   value={watch("effectId")}
                   onChange={(id) => setValue("effectId", id)}
                   className="w-full"
                 />
+
+                {selectedEffectId && (
+                  <div className="flex items-center justify-between bg-indigo-950/60 border border-violet-400 rounded-lg px-3 py-2 text-sm">
+                    <span className="text-indigo-200 truncate">
+                      Selected effect ID:{" "}
+                      <span className="font-mono text-green-300">
+                        {selectedEffectId}
+                      </span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setValue("effectId", undefined)}
+                      className="cursor-pointer text-pink-400 hover:text-pink-300 font-semibold transition"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+
                 {errors.effectId && (
                   <span className="text-pink-400 text-xs font-semibold mt-1">
                     {errors.effectId.message}
                   </span>
                 )}
               </div>
+
               <div className="flex flex-row gap-4 mt-7 justify-start items-center">
                 <button
                   type="submit"
@@ -231,50 +289,60 @@ const CardModal = ({
                 attack={watch("attack")}
                 defense={watch("defense")}
                 level={watch("level")}
-                hasEffect={watch("effectId") ? true : false}
+                hasEffect={!!watch("effectId")}
                 hidden={false}
                 className="text-[1.1rem] text-black"
                 src={getImageUrl(watch("image"))}
               />
-              <div className="flex flex-col gap-1 w-full">
-                <label className="font-semibold text-indigo-200">Level</label>
-                <input
-                  type="number"
-                  {...register("level", { valueAsNumber: true })}
-                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                />
-                {errors.level && (
-                  <span className="text-pink-400 text-xs font-semibold mt-1">
-                    {(errors.level as any).message}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-1 w-full">
-                <label className="font-semibold text-indigo-200">Attack</label>
-                <input
-                  type="number"
-                  {...register("attack", { valueAsNumber: true })}
-                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                />
-                {errors.attack && (
-                  <span className="text-pink-400 text-xs font-semibold mt-1">
-                    {(errors.attack as any).message}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-1 w-full">
-                <label className="font-semibold text-indigo-200">Defense</label>
-                <input
-                  type="number"
-                  {...register("defense", { valueAsNumber: true })}
-                  className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                />
-                {errors.defense && (
-                  <span className="text-pink-400 text-xs font-semibold mt-1">
-                    {(errors.defense as any).message}
-                  </span>
-                )}
-              </div>
+              {isMonster && (
+                <>
+                  <div className="flex flex-col gap-1 w-full">
+                    <label className="font-semibold text-indigo-200">
+                      Level
+                    </label>
+                    <input
+                      type="number"
+                      {...register("level", { valueAsNumber: true })}
+                      className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                    />
+                    {errors.level && (
+                      <span className="text-pink-400 text-xs font-semibold mt-1">
+                        {(errors.level as any).message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 w-full">
+                    <label className="font-semibold text-indigo-200">
+                      Attack
+                    </label>
+                    <input
+                      type="number"
+                      {...register("attack", { valueAsNumber: true })}
+                      className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                    />
+                    {errors.attack && (
+                      <span className="text-pink-400 text-xs font-semibold mt-1">
+                        {(errors.attack as any).message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 w-full">
+                    <label className="font-semibold text-indigo-200">
+                      Defense
+                    </label>
+                    <input
+                      type="number"
+                      {...register("defense", { valueAsNumber: true })}
+                      className="p-2 w-full rounded-lg border border-violet-400 bg-indigo-950/60 placeholder:text-violet-300/60 text-violet-200 outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                    />
+                    {errors.defense && (
+                      <span className="text-pink-400 text-xs font-semibold mt-1">
+                        {(errors.defense as any).message}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </form>
         )}
