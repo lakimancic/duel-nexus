@@ -8,7 +8,7 @@ export interface GameRoomDto
     status:number,
     joinCode?:string,
     hostUserId:SerachUserDto,
-    createdAt:Date
+    createdAt:string
 }
 
 export interface CreateGameRoomDto
@@ -22,7 +22,7 @@ export interface EditGameRoomDto
   isRanked: boolean,
   status: number,
   joinCode: string,
-  createdAt: Date
+  createdAt: string
 }
 
 export interface GameRoomUserDto
