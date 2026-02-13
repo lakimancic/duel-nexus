@@ -4,8 +4,8 @@ import type { SerachUserDto } from "./users.types"
 export interface GameDto
 {
     id: string,
-    startedAt: Date,
-    finishedAt?: Date,
+    startedAt: string,
+    finishedAt?: string,
     roomId: string
 }
 

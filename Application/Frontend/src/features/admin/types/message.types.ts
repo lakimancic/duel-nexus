@@ -6,7 +6,7 @@ export interface MessageDto
     receiverId:string,
     gameRoomId:string,
     content:string,
-    sentAt:Date
+    sentAt:string
 }
 
 export interface SendMessageDto
@@ -38,5 +38,5 @@ export interface EditedMessageDto
 {
     contetn:string,
     sender:string,
-    sentAt:Date
+    sentAt:string
 }
