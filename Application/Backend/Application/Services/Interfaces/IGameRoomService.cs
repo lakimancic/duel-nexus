@@ -13,4 +13,5 @@ public interface IGameRoomService
     Task<GameRoomDto?> GetGameRoomById(Guid id);
     Task<List<GameRoomPlayerDto>> GetGameRoomPlayers(Guid id);
     Task<PagedResult<GameRoomDto>> GetRooms(int page, int pageSize);
+    Task<bool> UserExistsInRoom(Guid id, Guid userId);
 }

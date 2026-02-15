@@ -8,6 +8,7 @@ import RegisterPage from "@/features/auth/pages/Register";
 import { AdminLayout } from "@/shared/layouts/AdminLayout";
 import AdminDashboard from "@/features/admin/pages/AdminDashboard";
 import AdminCards from "@/features/admin/pages/AdminCards";
+import LobbyPage from "@/features/lobby/pages/Lobby";
 
 export const router = createBrowserRouter([
   {
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
       },
       {
         element: <ProtectedLayout />,
-        children: [{ path: "/lobby", element: <div>Lobby</div> }],
+        children: [{ path: "/lobby", element: <LobbyPage /> }],
       },
       {
         element: <AdminLayout />,

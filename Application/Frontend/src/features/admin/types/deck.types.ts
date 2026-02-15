@@ -1,26 +1,23 @@
-import type { SerachUserDto } from "./users.types"
+import type { SearchUserDto } from "./users.types";
 
 export interface DeckDto {
-    id:string,
-    user?:SerachUserDto,
-    name:string,
-    isCompleted:true
+  id: string;
+  user?: SearchUserDto;
+  name: string;
+  isCompleted: true;
 }
 
-export interface CreateDeckDto
-{
-    userId:number,
-    name:number
+export interface CreateDeckDto {
+  userId: number;
+  name: number;
 }
 
-export interface AddCardInDeckDto
-{
-    userId:number,
-    quantity:number
+export interface AddCardInDeckDto {
+  userId: number;
+  quantity: number;
 }
 
-export interface EditDeckDto
-{
-    name:string,
-    isComplete:boolean
+export interface EditDeckDto {
+  name: string;
+  isComplete: boolean;
 }

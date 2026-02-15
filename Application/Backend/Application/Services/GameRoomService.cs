@@ -99,5 +99,9 @@ public class GameRoomService(IUnitOfWork unitOfWork, IMapper mapper) : IGameRoom
         return _mapper.Map<PagedResult<GameRoomDto>>(rooms);
     }
 
-
+    public async Task<bool> UserExistsInRoom(Guid id, Guid userId)
+    {
+        var gameRoomPlayer = await _unitOfWork.GameRoomPlayers.GetByRoomAndUserId(id, userId);
+        return gameRoomPlayer != null;
+    }
 }
