@@ -14,6 +14,7 @@ public class JwtTokenGenerator(IConfiguration config)
     {
         var claims = new List<Claim>
         {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new("role", user.Role.ToString())

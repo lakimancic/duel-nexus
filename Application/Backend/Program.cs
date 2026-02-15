@@ -29,6 +29,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!))
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.Value!.Contains("/gameHub", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddControllers(options =>
@@ -85,11 +103,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GameHub>("/gameHub");
 
 app.Run();
