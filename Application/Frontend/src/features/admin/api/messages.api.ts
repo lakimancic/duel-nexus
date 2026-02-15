@@ -1,26 +1,29 @@
 import { httpClient } from "@/shared/api/httpClient";
 import type { PagedResult, Query } from "@/shared/types/result.types";
 import type {
-  SendMessageDto,
-  MessageDto,
-  SendGameRoomMessageDto,
-  SendPrivateMessageDto,
   EditMessageDto,
   EditedMessageDto,
+  SendGameRoomMessageDto,
+  SendPrivateMessageDto,
 } from "../types/message.types";
+import type { MessageDto } from "@/shared/types/message.types";
 
 export const messagesApi = {
-  getMessages: (params?: Query) => httpClient.get<PagedResult<MessageDto>>("/admin/messages", {params}),
+  getMessages: (params?: Query) =>
+    httpClient.get<PagedResult<MessageDto>>("/admin/messages", { params }),
 
   getMessageByGameRoomId: (id: number, params?: Query) =>
-    httpClient.get<PagedResult<MessageDto>>(`/admin/messages/game-room/${id}`, {params}),
+    httpClient.get<PagedResult<MessageDto>>(`/admin/messages/game-room/${id}`, {
+      params,
+    }),
 
   getPrivateMessage: (userId1: string, userId2: string, params?: Query) =>
     httpClient.get<PagedResult<MessageDto>>(
-      `/admin/message/private/${userId1}/${userId2}`, {params}
+      `/admin/message/private/${userId1}/${userId2}`,
+      { params },
     ),
 
-  sendMessage: (dto: SendMessageDto) => httpClient.post("/admin/messages", dto),
+  sendMessage: (dto: EditMessageDto) => httpClient.post("/admin/messages", dto),
 
   sendGameRoomMessage: (dto: SendGameRoomMessageDto) =>
     httpClient.post("/admin/messages/game-room", dto),
