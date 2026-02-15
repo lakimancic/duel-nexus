@@ -135,4 +135,10 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
         var decks = await _unitOfWork.Decks.GetByUserId(id);
         return _mapper.Map<List<DeckDto>>(decks);
     }
+
+    public async Task<ShortUserDto?> GetShortUserById(Guid id)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id);
+        return _mapper.Map<ShortUserDto?>(user);
+    }
 }

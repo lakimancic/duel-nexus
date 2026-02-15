@@ -1,6 +1,7 @@
 import { HubConnection } from "@microsoft/signalr";
 import { createConnection } from "./connection";
 import type { MessageDto } from "../types/message.types";
+import type { ShortUserDto } from "../types/user.types";
 
 class GameHubClient {
   private connection: HubConnection;
@@ -19,6 +20,24 @@ class GameHubClient {
     if (this.connection.state !== "Disconnected") {
       await this.connection.stop();
     }
+  }
+
+  // ========== Connections subscriptions ==========
+
+  onUserConnected(handler: (user: ShortUserDto|null) => void) {
+    this.connection.on("users:connected", handler);
+  }
+
+  onUserDisconnected(handler: (userId: string|null) => void) {
+    this.connection.on("users:disconnected", handler);
+  }
+
+  offUserConnected(handler: (...args: any[]) => void) {
+    this.connection.off("users:connected", handler);
+  }
+
+  offUserDisconnected(handler: (...args: any[]) => void) {
+    this.connection.off("users:disconnected", handler);
   }
 
   // ========== Chat methods / subscriptions ==========

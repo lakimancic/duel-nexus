@@ -14,4 +14,11 @@ public class UserRepository(DuelNexusDbContext context) : Repository<User>(conte
 
     public async Task<bool> ExistsAsync(string email) =>
         await _dbSet.AnyAsync(u => u.Email == email);
+
+    public async Task<List<User>> GetBySetIds(List<Guid> onlineUserIds)
+    {
+        return await _dbSet
+            .Where(u => onlineUserIds.Contains(u.Id))
+            .ToListAsync();
+    }
 }

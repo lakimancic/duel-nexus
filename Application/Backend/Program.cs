@@ -70,6 +70,8 @@ builder.Services.AddScoped<IEffectService, EffectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IConnectionService, ConnectionService>();
+builder.Services.AddSingleton<ConnectionTracker>();
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 

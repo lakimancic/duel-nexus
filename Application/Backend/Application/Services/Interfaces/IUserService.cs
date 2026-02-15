@@ -13,6 +13,7 @@ public interface IUserService
     Task<UserDto?> LoginAsync(LoginDto loginDto);
     Task<PagedResult<UserDto>> GetUsers(int page, int pageSize, string? search);
     Task<UserDto?> GetUserById(Guid id);
+    Task<ShortUserDto?> GetShortUserById(Guid id);
     Task<UserDto> EditUser(Guid id, EditUserDto userDto);
     Task DeleteUser(Guid id);
     Task<PagedResult<PlayerCardDto>> GetPlayerCards(Guid id, int page, int pageSize, string? search);
