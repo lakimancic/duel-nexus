@@ -48,4 +48,12 @@ public class DeckCardRepository(DuelNexusDbContext context) : Repository<DeckCar
             .Include(dc => dc.Card)
             .ToListAsync();
     }
+
+    public Task<DeckCard?> GetByDeckAndCardId(Guid deckId, Guid cardId)
+    {
+        return _dbSet
+            .Where(dc => dc.DeckId == deckId && dc.CardId == cardId)
+            .Include(dc => dc.Card)
+            .FirstOrDefaultAsync();
+    }
 }

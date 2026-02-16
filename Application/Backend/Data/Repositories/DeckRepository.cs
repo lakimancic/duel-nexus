@@ -9,7 +9,10 @@ public class DeckRepository(DuelNexusDbContext context) : Repository<Deck>(conte
 {
     public Task<List<Deck>> GetByUserId(Guid userId)
     {
-        return _context.Set<Deck>().Where(d => d.UserId == userId).ToListAsync();
+        return _context.Set<Deck>()
+            .Where(d => d.UserId == userId)
+            .Include(d => d.User)
+            .ToListAsync();
     }
 
     public async Task<Deck?> GetDeckWithUser(Guid id)

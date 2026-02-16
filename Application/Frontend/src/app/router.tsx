@@ -11,6 +11,7 @@ import AdminCards from "@/features/admin/pages/AdminCards";
 import LobbyPage from "@/features/lobby/pages/Lobby";
 import FriendlyPage from "@/features/friendly/pages/Friendly";
 import GameRoomPage from "@/features/friendly/pages/GameRoom";
+import DeckEditorPage from "@/features/decks/pages/DeckEditor";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
         element: <ProtectedLayout />,
         children: [
           { path: "/lobby", element: <LobbyPage /> },
+          { path: "/decks", element: <DeckEditorPage /> },
           { path: "/friendly", element: <FriendlyPage /> },
           { path: "/game-room/:roomId", element: <GameRoomPage /> },
         ],

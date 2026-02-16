@@ -1,6 +1,7 @@
 import Chat from "@/shared/components/Chat";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaComments, FaUserCircle } from "react-icons/fa";
 import Logo from "@/assets/images/logo.png";
 import ButtonBackground from "@/assets/images/btnBackground.png";
 import { useGlobalChat } from "../hooks/useGlobalChat";
@@ -29,6 +30,25 @@ const LobbyPage = () => {
 
   return (
     <div className="h-screen w-full relative flex justify-center items-center">
+      <div className="absolute top-4 right-5 z-10 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate("/decks")}
+          className="rounded-full border border-amber-300/50 bg-[#4b1812]/75 p-2 text-amber-200 hover:text-white hover:border-amber-200 transition-colors cursor-pointer"
+          title="Deck Editor"
+        >
+          <FaUserCircle className="size-6" />
+        </button>
+        <button
+          type="button"
+          disabled
+          className="rounded-full border border-white/30 bg-[#091b33]/70 p-2 text-white/55 cursor-not-allowed"
+          title="Private Messages (Coming soon)"
+        >
+          <FaComments className="size-6" />
+        </button>
+      </div>
+
       <div className="flex-5 flex flex-col justify-center items-center relative h-full">
         <img src={Logo} alt="logo" className="w-[75%]" />
         <div className="relative cursor-pointer group" onClick={() => {}}>

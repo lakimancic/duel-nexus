@@ -9,6 +9,8 @@ using Backend.Utils.Data;
 using Backend.Utils.Security;
 using Backend.Utils.WebApi;
 using Backend.Application.DTOs.Decks;
+using Backend.Data.Enums;
+using Backend.Domain;
 
 namespace Backend.Application.Services;
 
@@ -54,6 +56,9 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
         var passwordHash = _passwordHasher.Hash(user.Password);
         user.Password = passwordHash;
         await _unitOfWork.Users.AddAsync(user);
+
+        await SeedInitialPlayerCards(user);
+
         await _unitOfWork.CompleteAsync();
         return _mapper.Map<User, UserDto>(user);
     }
@@ -105,6 +110,12 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
         return _mapper.Map<PlayerCard, PlayerCardDto>(playerCard);
     }
 
+    public async Task<List<PlayerCardDto>> GetAllPlayerCards(Guid id)
+    {
+        var cards = await _unitOfWork.PlayerCards.GetCardsByUserId(id);
+        return _mapper.Map<List<PlayerCardDto>>(cards);
+    }
+
     public async Task DeletePlayerCard(Guid userId, Guid cardId)
     {
         var playerCard = await _unitOfWork.PlayerCards.GetPlayerCard(userId, cardId)
@@ -140,5 +151,56 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         return _mapper.Map<ShortUserDto?>(user);
+    }
+
+    private async Task SeedInitialPlayerCards(User user)
+    {
+        var allCards = await _unitOfWork.Cards.GetAllAsync();
+        if (allCards.Count == 0)
+            return;
+
+        var monsters = allCards.Where(card => card.Type == CardType.Monster).ToList();
+        var spells = allCards.Where(card => card.Type == CardType.Spell).ToList();
+        var traps = allCards.Where(card => card.Type == CardType.Trap).ToList();
+
+        var quantityByCardId = new Dictionary<Guid, int>();
+        for (var i = 0; i < 50; i++)
+        {
+            var selectedCard = PickRandomStarterCard(allCards, monsters, spells, traps);
+            if (!quantityByCardId.TryAdd(selectedCard.Id, 1))
+                quantityByCardId[selectedCard.Id]++;
+        }
+
+        foreach (var (cardId, quantity) in quantityByCardId)
+        {
+            await _unitOfWork.PlayerCards.AddAsync(new PlayerCard
+            {
+                User = user,
+                UserId = user.Id,
+                CardId = cardId,
+                Quantity = quantity
+            });
+        }
+    }
+
+    private static Card PickRandomStarterCard(
+        List<Card> allCards,
+        List<Card> monsters,
+        List<Card> spells,
+        List<Card> traps
+    )
+    {
+        var roll = Random.Shared.NextDouble();
+        var pool = roll switch
+        {
+            < 0.5 => monsters,
+            < 0.75 => spells,
+            _ => traps
+        };
+
+        if (pool.Count == 0)
+            pool = allCards;
+
+        return pool[Random.Shared.Next(pool.Count)];
     }
 }
