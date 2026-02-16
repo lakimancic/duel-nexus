@@ -17,6 +17,7 @@ public interface IUserService
     Task<UserDto> EditUser(Guid id, EditUserDto userDto);
     Task DeleteUser(Guid id);
     Task<PagedResult<PlayerCardDto>> GetPlayerCards(Guid id, int page, int pageSize, string? search);
+    Task<List<PlayerCardDto>> GetAllPlayerCards(Guid id);
     Task<PlayerCardDto> CreatePlayerCard(Guid userId, CreatePlayerCardDto playerCardDto);
     Task DeletePlayerCard(Guid userId, Guid cardId);
     Task<PlayerCardDto?> EditPlayerCard(Guid id, Guid cardId, EditPlayerCardDto editPlayerCard);
