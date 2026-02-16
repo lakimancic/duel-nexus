@@ -39,6 +39,6 @@ public partial class GameHub
             Content = content
         });
 
-        await Clients.Group(gameRoomId.ToString()).SendAsync("chat:game-room:recv", message);
+        await Clients.Group(GetGameRoomGroupName(gameRoomId)).SendAsync("chat:game-room:recv", message);
     }
 }

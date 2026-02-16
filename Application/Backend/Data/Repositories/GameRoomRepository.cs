@@ -14,4 +14,16 @@ public class GameRoomRepository(DuelNexusDbContext context) : Repository<GameRoo
             .Include(gr => gr.HostUser)
             .FirstOrDefaultAsync();
     }
+
+    public Task<GameRoom?> GetFriendlyWaitingByJoinCode(string joinCode)
+    {
+        return _dbSet
+            .Where(gr =>
+                !gr.IsRanked &&
+                gr.Status == Backend.Data.Enums.RoomStatus.Waiting &&
+                gr.JoinCode != null &&
+                gr.JoinCode == joinCode)
+            .Include(gr => gr.HostUser)
+            .FirstOrDefaultAsync();
+    }
 }

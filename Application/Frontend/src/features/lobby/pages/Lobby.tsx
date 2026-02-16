@@ -1,5 +1,6 @@
 import Chat from "@/shared/components/Chat";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Logo from "@/assets/images/logo.png";
 import ButtonBackground from "@/assets/images/btnBackground.png";
 import { useGlobalChat } from "../hooks/useGlobalChat";
@@ -13,6 +14,7 @@ const tabValues = [
 ];
 
 const LobbyPage = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<TabValues>("global");
   const {
     messages,
@@ -30,21 +32,24 @@ const LobbyPage = () => {
       <div className="flex-5 flex flex-col justify-center items-center relative h-full">
         <img src={Logo} alt="logo" className="w-[75%]" />
         <div className="relative cursor-pointer group" onClick={() => {}}>
-          <img src={ButtonBackground} alt="button-bg" className="h-50" />
+          <img src={ButtonBackground} alt="button-bg" className="h-45" />
           <p
-            className="absolute top-[50%] translate-y-[-40%] left-0 text-white text-center text-3xl font-bold w-full
-            [text-shadow:0_0_1rem_#5a3485] group-hover:text-4xl transition-all duration-500"
+            className="absolute top-[50%] translate-y-[-40%] left-0 text-white text-center text-2xl font-bold w-full
+            [text-shadow:0_0_1rem_#5a3485] group-hover:text-3xl transition-all duration-500"
           >
             PLAY RANKED
           </p>
         </div>
-        <div className="relative cursor-pointer group" onClick={() => {}}>
-          <img src={ButtonBackground} alt="button-bg" className="h-50" />
+        <div
+          className="relative cursor-pointer group"
+          onClick={() => navigate("/friendly")}
+        >
+          <img src={ButtonBackground} alt="button-bg" className="h-45" />
           <p
-            className="absolute top-[50%] translate-y-[-40%] left-0 text-white text-center text-3xl font-bold w-full
-            [text-shadow:0_0_1rem_#5a3485] group-hover:text-4xl transition-all duration-500"
+            className="absolute top-[50%] translate-y-[-40%] left-0 text-white text-center text-2xl font-bold w-full
+            [text-shadow:0_0_1rem_#5a3485] group-hover:text-3xl transition-all duration-500"
           >
-            CREATE FRIENDLY
+            PLAY FRIENDLY
           </p>
         </div>
       </div>

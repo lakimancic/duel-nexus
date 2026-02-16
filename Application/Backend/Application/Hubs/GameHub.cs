@@ -17,6 +17,7 @@ public partial class GameHub(
     protected readonly IGameRoomService Rooms = gameRoomService;
     protected readonly IUserService Users = userService;
     protected readonly IConnectionService Connections = connectionService;
+    public static string GetGameRoomGroupName(Guid gameRoomId) => $"game-room:{gameRoomId}";
 
     private Guid GetUserId()
     {

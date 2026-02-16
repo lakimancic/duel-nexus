@@ -9,6 +9,7 @@ public interface IDeckService
     Task<PagedResult<DeckDto>> GetDecks(int page, int pageSize, string? search);
     Task<DeckDto?> GetDeckWithUser(Guid id);
     Task<List<DeckDto>?> GetDeckByUserId(Guid id);
+    Task<List<DeckDto>> GetCompleteDecksByUserId(Guid id);
     Task<DeckDto> CreateDeck(CreateDeckDto deck);
     Task DeleteDeck(Guid id);
     Task AddCards(Guid deckId, List<InsertDeckCardDto> cards);
