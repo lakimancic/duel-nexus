@@ -8,12 +8,12 @@ public partial class GameHub
         var userId = GetUserId();
         if (!await Rooms.UserExistsInRoom(gameRoomId, userId))
             return;
-        await Groups.AddToGroupAsync(Context.ConnectionId, gameRoomId.ToString());
+        await Groups.AddToGroupAsync(Context.ConnectionId, GetGameRoomGroupName(gameRoomId));
     }
 
     [HubMethodName("game-room:leave")]
     public async Task LeaveGameRoom(Guid gameRoomId)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, gameRoomId.ToString());
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetGameRoomGroupName(gameRoomId));
     }
 }

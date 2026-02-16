@@ -9,6 +9,8 @@ import { AdminLayout } from "@/shared/layouts/AdminLayout";
 import AdminDashboard from "@/features/admin/pages/AdminDashboard";
 import AdminCards from "@/features/admin/pages/AdminCards";
 import LobbyPage from "@/features/lobby/pages/Lobby";
+import FriendlyPage from "@/features/friendly/pages/Friendly";
+import GameRoomPage from "@/features/friendly/pages/GameRoom";
 
 export const router = createBrowserRouter([
   {
@@ -24,7 +26,11 @@ export const router = createBrowserRouter([
       },
       {
         element: <ProtectedLayout />,
-        children: [{ path: "/lobby", element: <LobbyPage /> }],
+        children: [
+          { path: "/lobby", element: <LobbyPage /> },
+          { path: "/friendly", element: <FriendlyPage /> },
+          { path: "/game-room/:roomId", element: <GameRoomPage /> },
+        ],
       },
       {
         element: <AdminLayout />,

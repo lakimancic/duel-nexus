@@ -21,6 +21,13 @@ public class DeckService(IUnitOfWork unitOfWork, IMapper mapper) : IDeckService
         return _mapper.Map<List<Deck>, List<DeckDto>>(decks);
     }
 
+    public async Task<List<DeckDto>> GetCompleteDecksByUserId(Guid userId)
+    {
+        var decks = await _unitOfWork.Decks.GetByUserId(userId);
+        var completeDecks = decks.Where(deck => deck.IsComplete).ToList();
+        return _mapper.Map<List<DeckDto>>(completeDecks);
+    }
+
     public async Task<DeckDto> CreateDeck(CreateDeckDto deck)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(deck.UserId)
