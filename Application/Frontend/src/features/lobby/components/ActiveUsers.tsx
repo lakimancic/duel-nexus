@@ -3,9 +3,11 @@ import type { ShortUserDto } from "@/shared/types/user.types";
 interface ActiveUsersProps {
   users: ShortUserDto[];
   isLoading: boolean;
+  currentUserId?: string | null;
+  onUserClick?: (user: ShortUserDto) => void;
 }
 
-const ActiveUsers = ({ users, isLoading }: ActiveUsersProps) => {
+const ActiveUsers = ({ users, isLoading, currentUserId, onUserClick }: ActiveUsersProps) => {
   return (
     <div className="h-full w-full text-white flex flex-col">
       <div className="px-4 pt-4 pb-2 text-sm text-white/70">
@@ -23,13 +25,17 @@ const ActiveUsers = ({ users, isLoading }: ActiveUsersProps) => {
           </p>
         )}
         {users.map((user) => (
-          <div
+          <button
             key={user.id}
-            className="rounded-lg border border-white/20 bg-black/20 px-3 py-2 flex items-center gap-3"
+            type="button"
+            onClick={() => onUserClick?.(user)}
+            disabled={!onUserClick || user.id === currentUserId}
+            className="w-full rounded-lg border border-white/20 bg-black/20 px-3 py-2 flex items-center gap-3 text-left
+            disabled:cursor-default disabled:opacity-80 enabled:hover:bg-black/30 enabled:cursor-pointer transition-colors"
           >
             <span className="h-2.5 w-2.5 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.8)]" />
             <span className="text-sm font-medium">{user.username}</span>
-          </div>
+          </button>
         ))}
       </div>
     </div>

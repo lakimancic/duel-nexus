@@ -29,23 +29,27 @@ export const useActiveUsers = () => {
   useEffect(() => {
     let disposed = false;
 
-    const fetchActiveUsers = async () => {
-      setIsLoading(true);
+    const fetchActiveUsers = async (showLoader = true) => {
+      if (showLoader) setIsLoading(true);
       try {
         const response = await connectionApi.getOnlineUsers();
         if (disposed) return;
         setActiveUsers(sortUsers(response.data));
       } finally {
-        if (!disposed) setIsLoading(false);
+        if (!disposed && showLoader) setIsLoading(false);
       }
     };
 
     void fetchActiveUsers();
+    const delayedSync = window.setTimeout(() => {
+      void fetchActiveUsers(false);
+    }, 1200);
     gameHub.onUserConnected(addUser);
     gameHub.onUserDisconnected(removeUser);
 
     return () => {
       disposed = true;
+      window.clearTimeout(delayedSync);
       gameHub.offUserConnected(addUser);
       gameHub.offUserDisconnected(removeUser);
     };

@@ -60,6 +60,12 @@ class GameHubClient {
     );
   }
 
+  sendPrivateChat(receiverId: string, content: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("chat:private:send", receiverId, content)
+    );
+  }
+
   onGlobalChat(handler: (msg: MessageDto) => void) {
     this.connection.on("chat:global:recv", handler);
   }
@@ -68,12 +74,20 @@ class GameHubClient {
     this.connection.on("chat:game-room:recv", handler);
   }
 
+  onPrivateChat(handler: (msg: MessageDto) => void) {
+    this.connection.on("chat:private:recv", handler);
+  }
+
   offGlobalChat(handler: (...args: any[]) => void) {
     this.connection.off("chat:global:recv", handler);
   }
 
   offGameRoomChat(handler: (...args: any[]) => void) {
     this.connection.off("chat:game-room:recv", handler);
+  }
+
+  offPrivateChat(handler: (...args: any[]) => void) {
+    this.connection.off("chat:private:recv", handler);
   }
 
   // ========== Game room methods / subscriptions ==========

@@ -1,10 +1,12 @@
 using AutoMapper;
 using Backend.Application.DTOs.Chat;
+using Backend.Application.DTOs.Users;
 using Backend.Application.Services.Interfaces;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
 using Backend.Utils.WebApi;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Application.Services;
 
@@ -52,8 +54,54 @@ public class ChatService(IUnitOfWork unitOfWork, IMapper mapper) : IChatService
     {
         var messages = await _unitOfWork.Messages.GetPagedAsync(
             page, pageSize, q => q.OrderByDescending(m => m.SentAt),
-            msg => msg.ReceiverId == userId1 || msg.ReceiverId == userId2, "Sender");
+            msg =>
+                (
+                    (msg.SenderId == userId1 && msg.ReceiverId == userId2) ||
+                    (msg.SenderId == userId2 && msg.ReceiverId == userId1)
+                ) && msg.Type == Data.Enums.MessageType.Private,
+            "Sender"
+        );
         return _mapper.Map<PagedResult<ChatMessageDto>>(messages);
+    }
+
+    public async Task<List<PrivateConversationDto>> GetPrivateConversationsAsync(Guid userId)
+    {
+        var privateMessages = await _unitOfWork.Context.Messages
+            .Where(msg =>
+                msg.Type == Data.Enums.MessageType.Private &&
+                (msg.SenderId == userId || msg.ReceiverId == userId)
+            )
+            .OrderByDescending(msg => msg.SentAt)
+            .ToListAsync();
+
+        if (privateMessages.Count == 0)
+            return [];
+
+        var latestMessagesByUser = new Dictionary<Guid, ChatMessage>();
+        foreach (var message in privateMessages)
+        {
+            var targetUserId = message.SenderId == userId ? message.ReceiverId : message.SenderId;
+            if (targetUserId == null || latestMessagesByUser.ContainsKey(targetUserId.Value))
+                continue;
+
+            latestMessagesByUser[targetUserId.Value] = message;
+        }
+
+        var users = await _unitOfWork.Users.GetBySetIds(latestMessagesByUser.Keys
+            .ToList());
+
+        var userById = users.ToDictionary(user => user.Id);
+
+        return latestMessagesByUser
+            .Where(pair => userById.ContainsKey(pair.Key))
+            .Select(pair => new PrivateConversationDto
+            {
+                User = _mapper.Map<ShortUserDto>(userById[pair.Key]),
+                LastMessageContent = pair.Value.Content,
+                LastMessageSentAt = pair.Value.SentAt
+            })
+            .OrderByDescending(msg => msg.LastMessageSentAt)
+            .ToList();
     }
 
     public async Task<ChatMessageDto> SendGameRoomMessageAsync(GameRoomMessageDto message)
