@@ -6,6 +6,7 @@ namespace Backend.Application.Services.Interfaces;
 public interface IChatService
 {
     Task<PagedResult<ChatMessageDto>> GetPrivateMessagesAsync(Guid userId1, Guid userId2, int page, int pageSize);
+    Task<List<PrivateConversationDto>> GetPrivateConversationsAsync(Guid userId);
     Task<PagedResult<ChatMessageDto>> GetGameRoomMessagesAsync(Guid gameRoomId, int page, int pageSize);
     Task<PagedResult<ChatMessageDto>> GetGlobalMessagesAsync(int page, int pageSize);
     Task<ChatMessageDto> SendMessageAsync(SendMessageDto message);

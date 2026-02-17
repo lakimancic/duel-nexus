@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { MessageDto } from "@/shared/types/message.types";
+import type { ShortUserDto } from "@/shared/types/user.types";
 
 interface ChatProps {
   messages: MessageDto[];
@@ -9,6 +10,8 @@ interface ChatProps {
   canSeeMore: boolean;
   onSend: (content: string) => Promise<void>;
   onSeeMore: () => Promise<void>;
+  onSenderClick?: (sender: ShortUserDto) => void;
+  canSenderClick?: (sender: ShortUserDto) => boolean;
 }
 
 const formatTime = (isoDate: string) => {
@@ -25,6 +28,8 @@ const Chat = ({
   canSeeMore,
   onSend,
   onSeeMore,
+  onSenderClick,
+  canSenderClick,
 }: ChatProps) => {
   const [content, setContent] = useState("");
 
@@ -70,7 +75,17 @@ const Chat = ({
         {chatMessages.map((message) => (
           <div key={message.key} className="rounded-lg border border-white/20 bg-black/20 px-3 py-2">
             <div className="flex items-center justify-between gap-3 text-xs text-white/65">
-              <span className="font-semibold text-amber-200">{message.sender.username}</span>
+              {onSenderClick && (canSenderClick ? canSenderClick(message.sender) : true) ? (
+                <button
+                  type="button"
+                  onClick={() => onSenderClick(message.sender)}
+                  className="font-semibold text-amber-200 hover:text-amber-100 underline-offset-2 hover:underline cursor-pointer"
+                >
+                  {message.sender.username}
+                </button>
+              ) : (
+                <span className="font-semibold text-amber-200">{message.sender.username}</span>
+              )}
               <span>{formatTime(message.sentAt)}</span>
             </div>
             <p className="mt-1 wrap-break-word text-sm">{message.content}</p>
