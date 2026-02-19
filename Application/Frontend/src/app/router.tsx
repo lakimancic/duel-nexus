@@ -13,6 +13,7 @@ import PrivateMessagesPage from "@/features/lobby/pages/PrivateMessages";
 import FriendlyPage from "@/features/friendly/pages/Friendly";
 import GameRoomPage from "@/features/friendly/pages/GameRoom";
 import DeckEditorPage from "@/features/decks/pages/DeckEditor";
+import GamePage from "@/features/game/pages/Game";
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: "/decks", element: <DeckEditorPage /> },
           { path: "/friendly", element: <FriendlyPage /> },
           { path: "/game-room/:roomId", element: <GameRoomPage /> },
+          { path: "/game", element: <GamePage /> },
         ],
       },
       {

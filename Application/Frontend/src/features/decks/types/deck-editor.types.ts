@@ -1,16 +1,5 @@
+import type { CardDto } from "@/shared/types/card.types";
 import type { ShortUserDto } from "@/shared/types/user.types";
-
-export interface CardDto {
-  id: string;
-  name: string;
-  image: string;
-  description: string;
-  type: number;
-  effectId: string | null;
-  attack?: number;
-  defense?: number;
-  level?: number;
-}
 
 export interface PlayerCardDto {
   id: string;
