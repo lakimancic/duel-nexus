@@ -12,9 +12,9 @@ export interface CardProps extends ComponentProps<"img"> {
   description: string;
   type: number;
 
-  attack?: number;
-  defense?: number;
-  level?: number;
+  attack: number|null;
+  defense: number|null;
+  level: number|null;
 
   hasEffect: boolean;
   hidden: boolean;
@@ -58,7 +58,7 @@ const Card: React.FC<CardProps> = ({
           >
             {description}
           </p>
-          {attack !== undefined && defense !== undefined && (
+          {attack !== null && defense !== null && (
             <p className="text-[70%] font-bold absolute bottom-[6.5%] right-[10%] flex gap-3">
               <span>ATK/{attack}</span>
               <span>DEF/{defense}</span>
