@@ -7,4 +7,7 @@ export const enumsApi = {
 
   cardTypes: () =>
     httpClient.get<EnumDto[]>("/admin/cards/types"),
+
+  cardZones: () =>
+    httpClient.get<EnumDto[]>("/admin/games/card-zones"),
 };

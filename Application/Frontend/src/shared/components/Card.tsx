@@ -31,6 +31,7 @@ const Card: React.FC<CardProps> = ({
   hasEffect,
   hidden,
   className,
+  style,
   ...props
 }) => {
   const bgUrl = hidden ? CardBack : [hasEffect ? EffectCard : MonsterCard, SpellCard, TrapCard][type];
@@ -38,20 +39,18 @@ const Card: React.FC<CardProps> = ({
   return (
     <div
       className={`relative aspect-120/174 bg-center bg-cover select-none h-[25em] ${className ?? ""}`}
-      style={
-        {
-          backgroundImage: `url(${bgUrl})`,
-        } as React.CSSProperties
-      }
+      style={{ backgroundImage: `url(${bgUrl})`, ...style }}
       {...props}
     >
       {!hidden && (
         <>
-          <img
-            src={src}
-            alt="card-image"
-            className="w-[75%] absolute left-[12.5%] top-[18.5%]"
-          />
+          {src ? (
+            <img
+              src={src}
+              alt="card-image"
+              className="w-[75%] absolute left-[12.5%] top-[18.5%]"
+            />
+          ) : null}
           <h1 className="font-bold absolute top-[4.8%] left-[9.6%]">{name}</h1>
           <p
             className={`absolute text-[65%] italic text-justify top-[75.5%] left-[10%] w-[80%] text-wrap`}
