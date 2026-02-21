@@ -11,6 +11,10 @@ interface BoardProps {
   cards: GameCardDto[];
   viewerPlayerId?: string;
   onHoverCardChange?: (card: CardDto | null) => void;
+  onDeckClick?: (playerId: string) => void;
+  onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
+  isDeckClickable?: (playerId: string) => boolean;
+  isFieldClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
 }
 
 interface Metrics {
@@ -201,15 +205,23 @@ const getPlayerCoordinates = (
 };
 
 const CardField = ({
+  playerId,
+  fieldIndex,
   card,
   fieldSize,
   viewerPlayerId,
   onHoverCardChange,
+  onFieldClick,
+  isClickable,
 }: {
+  playerId: string;
+  fieldIndex: number;
   card: GameCardDto | null;
   fieldSize: number;
   viewerPlayerId?: string;
   onHoverCardChange?: (card: CardDto | null) => void;
+  onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
+  isClickable?: boolean;
 }) => {
   const innerGap = Math.max(3, Math.floor(fieldSize * 0.06));
   const verticalRectWidth = Math.max(14, Math.floor(fieldSize * 0.58));
@@ -226,13 +238,14 @@ const CardField = ({
 
   return (
     <div
-      className="relative rounded-md border border-white/25 bg-black/20"
+      className={`relative rounded-md border bg-black/20 ${isClickable ? "border-cyan-200/55" : "border-white/25"}`}
       style={{ width: `${fieldSize}px`, height: `${fieldSize}px` }}
       onMouseEnter={() => {
         if (!onHoverCardChange) return;
         onHoverCardChange(canPreview ? card?.card ?? null : null);
       }}
       onMouseLeave={() => onHoverCardChange?.(null)}
+      onClick={() => onFieldClick?.(playerId, fieldIndex, card)}
     >
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div
@@ -271,7 +284,15 @@ const CardField = ({
   );
 };
 
-const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
+const Board = ({
+  cards,
+  viewerPlayerId,
+  onHoverCardChange,
+  onDeckClick,
+  onFieldClick,
+  isDeckClickable,
+  isFieldClickable,
+}: BoardProps) => {
   const loadCardZones = useCardZonesStore((s) => s.load);
   const cardZones = useCardZonesStore((s) => s.items);
 
@@ -291,6 +312,14 @@ const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
       })?.value ?? null,
     [cardZones]
   );
+  const graveyardZoneValue = useMemo(
+    () =>
+      cardZones.find((zone) => {
+        const name = zone.name.toLowerCase();
+        return name.includes("grave") || name.includes("cemetery");
+      })?.value ?? 3,
+    [cardZones]
+  );
 
   const fieldCards = useMemo(
     () =>
@@ -308,10 +337,15 @@ const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
       }),
     [cards, deckZoneValue]
   );
+  const graveyardCards = useMemo(
+    () => cards.filter((card) => card.zone === graveyardZoneValue),
+    [cards, graveyardZoneValue]
+  );
 
   const playerIds = useMemo(() => Array.from(new Set(cards.map((card) => card.playerId))), [cards]);
   const playerFieldMap = useMemo(() => createPlayerFieldMap(fieldCards), [fieldCards]);
   const playerDeckMap = useMemo(() => createPlayerCardsMap(deckCards), [deckCards]);
+  const playerGraveyardMap = useMemo(() => createPlayerCardsMap(graveyardCards), [graveyardCards]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const [boardSize, setBoardSize] = useState({ width: 1200, height: 800 });
@@ -352,6 +386,7 @@ const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
       <div className="pointer-events-none absolute inset-0 backdrop-blur-[3px]" />
       <div className="relative h-full w-full">
         {playerIds.map((playerId, index) => {
+          const topGraveyardCard = playerGraveyardMap[playerId]?.[0] ?? null;
           const position = getPlayerCoordinates(
             playerIds.length,
             index,
@@ -378,10 +413,18 @@ const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
                   {Array.from({ length: 10 }).map((_, fieldIndex) => (
                     <CardField
                       key={`${playerId}-${fieldIndex}`}
+                      playerId={playerId}
+                      fieldIndex={fieldIndex}
                       card={playerFieldMap[playerId]?.[fieldIndex] ?? null}
                       fieldSize={metrics.field}
                       viewerPlayerId={viewerPlayerId}
                       onHoverCardChange={onHoverCardChange}
+                      onFieldClick={onFieldClick}
+                      isClickable={isFieldClickable?.(
+                        playerId,
+                        fieldIndex,
+                        playerFieldMap[playerId]?.[fieldIndex] ?? null
+                      )}
                     />
                   ))}
                 </div>
@@ -390,16 +433,49 @@ const Board = ({ cards, viewerPlayerId, onHoverCardChange }: BoardProps) => {
                   <div
                     className="grid place-items-center rounded-md border border-white/30 bg-black/25 text-white/45"
                     style={{ width: `${metrics.deckWidth}px`, height: `${metrics.deckHeight}px` }}
+                    onMouseEnter={() => {
+                      if (!onHoverCardChange) return;
+                      const canPreview = Boolean(
+                        topGraveyardCard?.card &&
+                        (topGraveyardCard.playerId === viewerPlayerId || !topGraveyardCard.isFaceDown)
+                      );
+                      onHoverCardChange(canPreview ? topGraveyardCard?.card ?? null : null);
+                    }}
+                    onMouseLeave={() => onHoverCardChange?.(null)}
                   >
-                    <FaSkull className="size-[42%]" />
+                    {topGraveyardCard?.card ? (
+                      <Card
+                        name={topGraveyardCard.card.name}
+                        description={topGraveyardCard.card.description}
+                        type={topGraveyardCard.card.type}
+                        attack={topGraveyardCard.card.attack}
+                        defense={topGraveyardCard.card.defense}
+                        level={topGraveyardCard.card.level}
+                        src={topGraveyardCard.card.image}
+                        hasEffect={Boolean(topGraveyardCard.card.effectId)}
+                        hidden={topGraveyardCard.isFaceDown}
+                        className={`${topGraveyardCard.defensePosition ? "rotate-90" : ""} text-black`}
+                        style={{
+                          width: `${metrics.deckWidth}px`,
+                          height: `${metrics.deckHeight}px`,
+                          fontSize: `${Math.max(4, Math.floor(metrics.deckHeight * 0.07))}px`,
+                        }}
+                        draggable={false}
+                      />
+                    ) : (
+                      <FaSkull className="size-[42%]" />
+                    )}
                   </div>
-                  <div
+                  <button
+                    type="button"
                     className="rounded-md border border-white/30 bg-center bg-cover"
                     style={{
                       width: `${metrics.deckWidth}px`,
                       height: `${metrics.deckHeight}px`,
                       backgroundImage: `url(${CardBack})`,
+                      cursor: isDeckClickable?.(playerId) ? "pointer" : "default",
                     }}
+                    onClick={() => onDeckClick?.(playerId)}
                   />
                 </div>
               </div>
