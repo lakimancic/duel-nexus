@@ -1,6 +1,10 @@
 using AutoMapper;
+using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Games;
 using Backend.Application.Services.Interfaces;
+using Backend.Data.Enums;
+using Backend.Domain.Commands;
+using Backend.Domain.Engine;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Utils.Data;
@@ -8,10 +12,11 @@ using Backend.Utils.WebApi;
 
 namespace Backend.Application.Services;
 
-public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
+public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gameEngine) : IGameService
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
+    private readonly IGameEngine _gameEngine = gameEngine;
 
     public async Task<TurnDto> AddNewGameTurn(Guid id)
     {
@@ -121,9 +126,30 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
         }
 
         await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
+        await _gameEngine.InitializeGameAsync(game);
         await _unitOfWork.CompleteAsync();
 
         return _mapper.Map<GameDto>(game);
+    }
+
+    public async Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId)
+    {
+        var drawResult = await _gameEngine.ExecuteCommandAsync(gameId, userId, new DrawActionCommand());
+        var viewerState = await _gameEngine.GetGameStateAsync(gameId, userId);
+        var drawnCard = viewerState.Cards.FirstOrDefault(card => card.Id == drawResult.DrawnCard.Id)
+            ?? throw new ObjectNotFoundException("Drawn card not found in game state");
+
+        return new DrawActionResultDto
+        {
+            GameId = drawResult.Game.Id,
+            RoomId = drawResult.Game.RoomId,
+            PlayerGameId = drawResult.Player.Id,
+            TurnId = drawResult.Turn.Id,
+            DrawsInTurn = drawResult.DrawsInTurn,
+            TurnEnded = drawResult.TurnEnded,
+            NextActivePlayerId = drawResult.NextActivePlayerId,
+            DrawnCard = MapCardForViewer(drawnCard, viewerState.Viewer.Id),
+        };
     }
 
     public async Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto)
@@ -346,6 +372,20 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
         return _mapper.Map<List<GameCardDto>>(cards);
     }
 
+    public async Task<GameStateDto> GetGameState(Guid gameId, Guid userId)
+    {
+        var state = await _gameEngine.GetGameStateAsync(gameId, userId);
+
+        return new GameStateDto
+        {
+            GameId = state.Game.Id,
+            ViewerPlayerId = state.Viewer.Id,
+            CurrentTurn = _mapper.Map<TurnDto>(state.CurrentTurn),
+            Players = state.Players.Select(player => _mapper.Map<PlayerGameDto>(player)).ToList(),
+            Cards = state.Cards.Select(card => MapCardForViewer(card, state.Viewer.Id)).ToList(),
+        };
+    }
+
     public async Task<PlayerGameDto> GetGamePlayer(Guid id, Guid userId)
     {
         var pg = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, id)
@@ -390,5 +430,31 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper) : IGameService
             includeProperties: "Turn,Card.Card"
         );
         return _mapper.Map<PagedResult<PlaceCardDto>>(actions);
+    }
+
+    public Task<bool> UserExistsInGame(Guid gameId, Guid userId)
+    {
+        return _gameEngine.UserExistsInGameAsync(gameId, userId);
+    }
+
+    private GameCardDto MapCardForViewer(GameCard card, Guid viewerPlayerGameId)
+    {
+        var isOwner = card.PlayerGameId == viewerPlayerGameId;
+        var shouldHideCardData =
+            (card.Zone == CardZone.Hand && !isOwner) ||
+            card.Zone == CardZone.Deck ||
+            (card.Zone == CardZone.Field && card.IsFaceDown && !isOwner);
+
+        return new GameCardDto
+        {
+            Id = card.Id,
+            Zone = card.Zone,
+            DeckOrder = card.DeckOrder,
+            IsFaceDown = card.IsFaceDown,
+            FieldIndex = card.FieldIndex,
+            DefensePosition = card.DefensePosition,
+            PlayerGameId = card.PlayerGameId,
+            Card = shouldHideCardData ? null : _mapper.Map<CardDto>(card.Card),
+        };
     }
 }

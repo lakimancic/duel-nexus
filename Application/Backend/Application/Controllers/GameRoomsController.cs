@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Backend.Application.DTOs.GameRooms;
+using Backend.Application.DTOs.Games;
 using Backend.Application.Services.Interfaces;
 using Backend.Utils.WebApi;
 using Microsoft.AspNetCore.Authorization;
@@ -100,6 +101,14 @@ public class GameRoomsController(
     {
         var userId = GetUserId();
         var gameId = await _gameRoomService.StartRoomGame(id, userId);
+
+        await _hubContext.Clients.Group(GameHub.GetGameRoomGroupName(id))
+            .SendAsync("game-room:game:started", new GameStartedEventDto
+            {
+                RoomId = id,
+                GameId = gameId,
+            });
+
         return Ok(new { gameId });
     }
 

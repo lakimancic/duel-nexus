@@ -42,6 +42,31 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
             .FirstOrDefaultAsync();
     }
 
+    public Task<int> CountByPlayerAndZoneAsync(Guid playerGameId, CardZone zone)
+    {
+        return _dbSet
+            .Where(card => card.PlayerGameId == playerGameId && card.Zone == zone)
+            .CountAsync();
+    }
+
+    public Task<GameCard?> GetTopDeckCardByPlayerWithCardAsync(Guid playerGameId)
+    {
+        return _dbSet
+            .Where(card => card.PlayerGameId == playerGameId && card.Zone == CardZone.Deck)
+            .OrderBy(card => card.DeckOrder)
+            .Include(card => card.Card)
+            .FirstOrDefaultAsync();
+    }
+
+    public Task<List<GameCard>> GetTopDeckCardsByPlayerAsync(Guid playerGameId, int take)
+    {
+        return _dbSet
+            .Where(card => card.PlayerGameId == playerGameId && card.Zone == CardZone.Deck)
+            .OrderBy(card => card.DeckOrder)
+            .Take(take)
+            .ToListAsync();
+    }
+
     public Task<List<GameCard>> GetByGameIdWithCardAsync(Guid gameId)
     {
         return _dbSet

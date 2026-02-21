@@ -6,6 +6,7 @@ public interface IPlayerGameRepository : IRepository<PlayerGame>
 {
     Task<PlayerGame> CreatePlayerAsync(GameRoomPlayer grp, Game game, int index);
     Task<PlayerGame?> GetByUserIdAndGameIdAsync(Guid userId, Guid gameId);
+    Task<List<PlayerGame>> GetByGameIdOrderedAsync(Guid gameId);
     Task<PlayerGame?> GetByWithUserById(Guid id);
     Task<List<PlayerGame>> GetByGameIdWithUserAsync(Guid gameId);
 }

@@ -12,6 +12,7 @@ public interface IGameService
     Task<CardMovementDto> CreateCardMovement(CreateCardMovementDto actionDto);
     Task<EffectActivationDto> CreateEffectActivation(CreateEffectActivationDto actionDto);
     Task<GameDto> CreateGame(CreateGameDto gameDto);
+    Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId);
     Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto);
     Task DeleteAttackAction(Guid actionId);
     Task DeleteCardMovement(Guid actionId);
@@ -34,6 +35,7 @@ public interface IGameService
     Task<GameDto?> GetGameById(Guid id);
     Task<GameCardDto?> GetGameCard(Guid cardId);
     Task<List<GameCardDto>> GetGameCards(Guid id);
+    Task<GameStateDto> GetGameState(Guid gameId, Guid userId);
     Task<PlayerGameDto> GetGamePlayer(Guid id, Guid userId);
     Task<List<PlayerGameDto>> GetGamePlayers(Guid id);
     Task<PagedResult<GameDto>> GetGames(int page, int pageSize);
@@ -41,4 +43,5 @@ public interface IGameService
     Task<PagedResult<TurnDto>> GetGameTurns(Guid id, int page, int pageSize);
     Task<PlaceCardDto?> GetPlaceAction(Guid actionId);
     Task<PagedResult<PlaceCardDto>> GetPlaceActions(Guid id, int page, int pageSize);
+    Task<bool> UserExistsInGame(Guid gameId, Guid userId);
 }

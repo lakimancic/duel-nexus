@@ -8,6 +8,16 @@ namespace Backend.Data.Repositories;
 
 public class CardMovementRepository(DuelNexusDbContext context) : Repository<CardMovementAction>(context), ICardMovementRepository
 {
+    public Task<int> CountDrawsInTurnByPlayerAsync(Guid turnId, Guid playerGameId)
+    {
+        return _dbSet
+            .Where(action =>
+                action.TurnId == turnId &&
+                action.MovementType == CardMovementType.Draw &&
+                action.Card.PlayerGameId == playerGameId)
+            .CountAsync();
+    }
+
     public Task DrawActionAsync(GameCard gameCard, Turn turn)
     {
         var action = new CardMovementAction
