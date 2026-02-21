@@ -129,7 +129,7 @@ export const gameApi = {
     httpClient.delete(`/admin/games/place-actions/${id}`),
 
   getMovementType: () => httpClient.get<EnumDto>("/admin/games/movement-types"),
-  getZoneype: () => httpClient.get<EnumDto>("/admin/games/card-zones"),
+  getZoneType: () => httpClient.get<EnumDto>("/admin/games/card-zones"),
   getPlaceType: () => httpClient.get<EnumDto>("/admin/games/place-types"),
   getTurnPhaseType: () => httpClient.get<EnumDto>("/admin/games/turn-phase"),
 };
