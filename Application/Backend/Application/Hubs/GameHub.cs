@@ -9,15 +9,18 @@ using Microsoft.AspNetCore.SignalR;
 public partial class GameHub(
     IChatService chatService,
     IGameRoomService gameRoomService,
+    IGameService gameService,
     IUserService userService,
     IConnectionService connectionService
     ) : Hub
 {
     protected readonly IChatService Chat = chatService;
     protected readonly IGameRoomService Rooms = gameRoomService;
+    protected readonly IGameService Games = gameService;
     protected readonly IUserService Users = userService;
     protected readonly IConnectionService Connections = connectionService;
     public static string GetGameRoomGroupName(Guid gameRoomId) => $"game-room:{gameRoomId}";
+    public static string GetGameGroupName(Guid gameId) => $"game:{gameId}";
 
     private Guid GetUserId()
     {

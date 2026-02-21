@@ -22,5 +22,7 @@ public class PlayerGame
 
     public int LifePoints { get; set; } = 8000;
 
+    public bool TurnEnded { get; set; } = false;
+
     public ICollection<GameCard> Cards { get; set; } = [];
 }

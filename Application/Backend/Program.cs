@@ -8,6 +8,7 @@ using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
+using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,6 +71,7 @@ builder.Services.AddScoped<IEffectService, EffectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IGameEngine, GameEngine>();
 builder.Services.AddScoped<IConnectionService, ConnectionService>();
 builder.Services.AddSingleton<ConnectionTracker>();
 
