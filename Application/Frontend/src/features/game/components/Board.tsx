@@ -1,20 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Card from "@/shared/components/Card";
 import type { GameCardDto } from "@/features/game/types/game.types";
-import CardBack from "@/assets/images/card_back.png";
-import { FaSkull } from "react-icons/fa";
 import { useCardZonesStore } from "@/shared/enums/cardZones.store";
-import DeckFan from "./DeckFan";
 import type { CardDto } from "@/shared/types/card.types";
+import Field from "./Field";
+import Deck from "./Deck";
+import Graveyard from "./Graveyard";
+import Hand from "./Hand";
 
 interface BoardProps {
   cards: GameCardDto[];
   viewerPlayerId?: string;
+  hoveredCard?: CardDto | null;
   onHoverCardChange?: (card: CardDto | null) => void;
   onDeckClick?: (playerId: string) => void;
   onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
+  onGraveyardClick?: (playerId: string) => void;
+  onHandCardClick?: (card: GameCardDto) => void;
   isDeckClickable?: (playerId: string) => boolean;
   isFieldClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
+  isGraveyardClickable?: (playerId: string) => boolean;
+  isHandCardClickable?: (card: GameCardDto) => boolean;
+  selectedHandCardId?: string | null;
 }
 
 interface Metrics {
@@ -33,7 +40,6 @@ interface Metrics {
 
 const MIN_FIELD = 30;
 const MAX_FIELD = 110;
-const CARD_RATIO = 120 / 174;
 const OVERLAP_SAFETY_FACTOR = 1.08;
 
 const createPlayerFieldMap = (cards: GameCardDto[]) =>
@@ -204,94 +210,20 @@ const getPlayerCoordinates = (
   };
 };
 
-const CardField = ({
-  playerId,
-  fieldIndex,
-  card,
-  fieldSize,
-  viewerPlayerId,
-  onHoverCardChange,
-  onFieldClick,
-  isClickable,
-}: {
-  playerId: string;
-  fieldIndex: number;
-  card: GameCardDto | null;
-  fieldSize: number;
-  viewerPlayerId?: string;
-  onHoverCardChange?: (card: CardDto | null) => void;
-  onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
-  isClickable?: boolean;
-}) => {
-  const innerGap = Math.max(3, Math.floor(fieldSize * 0.06));
-  const verticalRectWidth = Math.max(14, Math.floor(fieldSize * 0.58));
-  const verticalRectHeight = Math.max(18, Math.floor(fieldSize * 0.84));
-  const horizontalRectWidth = verticalRectHeight;
-  const horizontalRectHeight = verticalRectWidth;
-
-  const cardHeight = Math.floor(fieldSize * 0.92);
-  const cardWidth = Math.floor(cardHeight * CARD_RATIO);
-  const cardFontSize = Math.max(4, Math.floor(cardHeight * 0.075));
-  const canPreview = Boolean(
-    card?.card && (card.playerId === viewerPlayerId || !card.isFaceDown)
-  );
-
-  return (
-    <div
-      className={`relative rounded-md border bg-black/20 ${isClickable ? "border-cyan-200/55" : "border-white/25"}`}
-      style={{ width: `${fieldSize}px`, height: `${fieldSize}px` }}
-      onMouseEnter={() => {
-        if (!onHoverCardChange) return;
-        onHoverCardChange(canPreview ? card?.card ?? null : null);
-      }}
-      onMouseLeave={() => onHoverCardChange?.(null)}
-      onClick={() => onFieldClick?.(playerId, fieldIndex, card)}
-    >
-      <div className="pointer-events-none absolute inset-0 grid place-items-center">
-        <div
-          className={`absolute rounded-sm border ${card?.defensePosition ? "border-white/20" : "border-cyan-200/55"}`}
-          style={{ width: `${verticalRectWidth}px`, height: `${verticalRectHeight}px` }}
-        />
-        <div
-          className={`absolute rounded-sm border ${card?.defensePosition ? "border-cyan-200/55" : "border-white/20"}`}
-          style={{ width: `${horizontalRectWidth}px`, height: `${horizontalRectHeight}px` }}
-        />
-      </div>
-
-      {card?.card ? (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ padding: `${innerGap}px` }}>
-          <Card
-            name={card.card.name}
-            description={card.card.description}
-            type={card.card.type}
-            attack={card.card.attack}
-            defense={card.card.defense}
-            level={card.card.level}
-            src={card.card.image}
-            hasEffect={Boolean(card.card.effectId)}
-            hidden={card.isFaceDown}
-            className={`${card.defensePosition ? "rotate-90" : ""} text-black`}
-            style={{
-              width: `${cardWidth}px`,
-              height: `${cardHeight}px`,
-              fontSize: `${cardFontSize}px`,
-            }}
-            draggable={false}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
 const Board = ({
   cards,
   viewerPlayerId,
+  hoveredCard,
   onHoverCardChange,
   onDeckClick,
   onFieldClick,
+  onGraveyardClick,
+  onHandCardClick,
   isDeckClickable,
   isFieldClickable,
+  isGraveyardClickable,
+  isHandCardClickable,
+  selectedHandCardId,
 }: BoardProps) => {
   const loadCardZones = useCardZonesStore((s) => s.load);
   const cardZones = useCardZonesStore((s) => s.items);
@@ -300,8 +232,8 @@ const Board = ({
     void loadCardZones();
   }, [loadCardZones]);
 
-  const deckZoneValue = useMemo(
-    () => cardZones.find((zone) => zone.name.toLowerCase().includes("deck"))?.value ?? null,
+  const handZoneValue = useMemo(
+    () => cardZones.find((zone) => zone.name.toLowerCase().includes("hand"))?.value ?? null,
     [cardZones]
   );
   const fieldZoneValue = useMemo(
@@ -329,13 +261,13 @@ const Board = ({
       ),
     [cards, fieldZoneValue]
   );
-  const deckCards = useMemo(
+  const handCards = useMemo(
     () =>
       cards.filter((card) => {
-        if (deckZoneValue !== null) return card.zone === deckZoneValue;
+        if (handZoneValue !== null) return card.zone === handZoneValue;
         return card.fieldIndex === null;
       }),
-    [cards, deckZoneValue]
+    [cards, handZoneValue]
   );
   const graveyardCards = useMemo(
     () => cards.filter((card) => card.zone === graveyardZoneValue),
@@ -344,7 +276,7 @@ const Board = ({
 
   const playerIds = useMemo(() => Array.from(new Set(cards.map((card) => card.playerId))), [cards]);
   const playerFieldMap = useMemo(() => createPlayerFieldMap(fieldCards), [fieldCards]);
-  const playerDeckMap = useMemo(() => createPlayerCardsMap(deckCards), [deckCards]);
+  const playerHandMap = useMemo(() => createPlayerCardsMap(handCards), [handCards]);
   const playerGraveyardMap = useMemo(() => createPlayerCardsMap(graveyardCards), [graveyardCards]);
 
   const boardRef = useRef<HTMLDivElement>(null);
@@ -406,99 +338,78 @@ const Board = ({
               }}
             >
               <div className="flex items-center" style={{ gap: `${metrics.sideGap}px` }}>
-                <div
-                  className="grid grid-cols-5 rounded-xl border border-white/20 bg-black/30 p-2"
-                  style={{ gap: `${metrics.gap}px` }}
-                >
-                  {Array.from({ length: 10 }).map((_, fieldIndex) => (
-                    <CardField
-                      key={`${playerId}-${fieldIndex}`}
-                      playerId={playerId}
-                      fieldIndex={fieldIndex}
-                      card={playerFieldMap[playerId]?.[fieldIndex] ?? null}
-                      fieldSize={metrics.field}
-                      viewerPlayerId={viewerPlayerId}
-                      onHoverCardChange={onHoverCardChange}
-                      onFieldClick={onFieldClick}
-                      isClickable={isFieldClickable?.(
-                        playerId,
-                        fieldIndex,
-                        playerFieldMap[playerId]?.[fieldIndex] ?? null
-                      )}
-                    />
-                  ))}
-                </div>
+                <Field
+                  playerId={playerId}
+                  fieldCards={playerFieldMap[playerId]}
+                  fieldSize={metrics.field}
+                  gap={metrics.gap}
+                  viewerPlayerId={viewerPlayerId}
+                  onHoverCardChange={onHoverCardChange}
+                  onFieldClick={onFieldClick}
+                  isFieldClickable={isFieldClickable}
+                />
 
                 <div className="flex flex-col" style={{ gap: `${metrics.gap}px` }}>
-                  <div
-                    className="grid place-items-center rounded-md border border-white/30 bg-black/25 text-white/45"
-                    style={{ width: `${metrics.deckWidth}px`, height: `${metrics.deckHeight}px` }}
-                    onMouseEnter={() => {
-                      if (!onHoverCardChange) return;
-                      const canPreview = Boolean(
-                        topGraveyardCard?.card &&
-                        (topGraveyardCard.playerId === viewerPlayerId || !topGraveyardCard.isFaceDown)
-                      );
-                      onHoverCardChange(canPreview ? topGraveyardCard?.card ?? null : null);
-                    }}
-                    onMouseLeave={() => onHoverCardChange?.(null)}
-                  >
-                    {topGraveyardCard?.card ? (
-                      <Card
-                        name={topGraveyardCard.card.name}
-                        description={topGraveyardCard.card.description}
-                        type={topGraveyardCard.card.type}
-                        attack={topGraveyardCard.card.attack}
-                        defense={topGraveyardCard.card.defense}
-                        level={topGraveyardCard.card.level}
-                        src={topGraveyardCard.card.image}
-                        hasEffect={Boolean(topGraveyardCard.card.effectId)}
-                        hidden={topGraveyardCard.isFaceDown}
-                        className={`${topGraveyardCard.defensePosition ? "rotate-90" : ""} text-black`}
-                        style={{
-                          width: `${metrics.deckWidth}px`,
-                          height: `${metrics.deckHeight}px`,
-                          fontSize: `${Math.max(4, Math.floor(metrics.deckHeight * 0.07))}px`,
-                        }}
-                        draggable={false}
-                      />
-                    ) : (
-                      <FaSkull className="size-[42%]" />
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded-md border border-white/30 bg-center bg-cover"
-                    style={{
-                      width: `${metrics.deckWidth}px`,
-                      height: `${metrics.deckHeight}px`,
-                      backgroundImage: `url(${CardBack})`,
-                      cursor: isDeckClickable?.(playerId) ? "pointer" : "default",
-                    }}
-                    onClick={() => onDeckClick?.(playerId)}
+                  <Graveyard
+                    playerId={playerId}
+                    topGraveyardCard={topGraveyardCard}
+                    deckWidth={metrics.deckWidth}
+                    deckHeight={metrics.deckHeight}
+                    viewerPlayerId={viewerPlayerId}
+                    onHoverCardChange={onHoverCardChange}
+                    onGraveyardClick={onGraveyardClick}
+                    isGraveyardClickable={isGraveyardClickable}
+                  />
+                  <Deck
+                    playerId={playerId}
+                    deckWidth={metrics.deckWidth}
+                    deckHeight={metrics.deckHeight}
+                    onDeckClick={onDeckClick}
+                    isDeckClickable={isDeckClickable}
                   />
                 </div>
               </div>
 
-              <div
-                className="absolute left-1/2"
-                style={{
-                  top: `${metrics.zoneHeight + Math.max(14, metrics.field * 0.22)}px`,
-                  transform: "translateX(-50%)",
-                }}
-              >
-                <DeckFan
-                  cards={playerDeckMap[playerId] ?? []}
-                  fieldSize={metrics.field}
-                  hideCards={viewerPlayerId !== undefined && viewerPlayerId !== playerId}
-                  viewerPlayerId={viewerPlayerId}
-                  onHoverCardChange={onHoverCardChange}
-                />
-              </div>
+              <Hand
+                playerId={playerId}
+                cards={playerHandMap[playerId] ?? []}
+                fieldSize={metrics.field}
+                zoneHeight={metrics.zoneHeight}
+                viewerPlayerId={viewerPlayerId}
+                onHoverCardChange={onHoverCardChange}
+                onHandCardClick={onHandCardClick}
+                isHandCardClickable={isHandCardClickable}
+                selectedHandCardId={selectedHandCardId}
+              />
             </section>
           );
         })}
       </div>
+
+      <aside className="absolute right-3 bottom-3 z-20 w-[300px] rounded-xl border border-white/20 bg-black/45 p-2">
+        <div className="flex min-h-[250px] items-center justify-center rounded border border-white/20 bg-black/35 p-2">
+          {hoveredCard ? (
+            <Card
+              name={hoveredCard.name}
+              description={hoveredCard.description}
+              type={hoveredCard.type}
+              attack={hoveredCard.attack}
+              defense={hoveredCard.defense}
+              level={hoveredCard.level}
+              src={hoveredCard.image}
+              hasEffect={Boolean(hoveredCard.effectId)}
+              hidden={false}
+              className="text-black"
+              style={{ width: "100%", maxWidth: "280px", height: "auto", maxHeight: "95%" }}
+              draggable={false}
+            />
+          ) : (
+            <p className="text-center text-sm text-white/55 px-4">
+              Hover a visible card to preview it here.
+            </p>
+          )}
+        </div>
+      </aside>
     </div>
   );
 };

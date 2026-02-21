@@ -5,15 +5,35 @@ import {
   type GameCardDto,
   type GameTurnStatus,
 } from "@/features/game/types/game.types";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CardDto } from "@/shared/types/card.types";
-import Card from "@/shared/components/Card";
 
 const ZONE_FIELD = 0;
 const ZONE_DECK = 2;
 const ZONE_GRAVEYARD = 3;
-const ZONE_HAND = 4;
+const ZONE_HAND = 1;
 const VIEWER_PLAYER_ID = "Player-1";
+const TOP_ROW_MAX_INDEX = 4;
+const CARD_TYPE_MONSTER = 0;
+const CARD_TYPE_SPELL = 1;
+const CARD_TYPE_TRAP = 2;
+const TURN_ANNOUNCEMENT_DURATION_MS = 1000;
+
+const PHASE_LABELS: Record<number, string> = {
+  [TurnPhase.Draw]: "Draw",
+  [TurnPhase.Main1]: "Main1",
+  [TurnPhase.Battle]: "Battle",
+  [TurnPhase.Main2]: "Main2",
+  [TurnPhase.End]: "End",
+};
+
+const PHASE_COLOR_CLASSES: Record<number, string> = {
+  [TurnPhase.Draw]: "text-cyan-300 drop-shadow-[0_0_18px_rgba(34,211,238,0.95)]",
+  [TurnPhase.Main1]: "text-lime-300 drop-shadow-[0_0_18px_rgba(190,242,100,0.95)]",
+  [TurnPhase.Battle]: "text-rose-400 drop-shadow-[0_0_18px_rgba(251,113,133,0.95)]",
+  [TurnPhase.Main2]: "text-fuchsia-400 drop-shadow-[0_0_18px_rgba(232,121,249,0.95)]",
+  [TurnPhase.End]: "text-yellow-300 drop-shadow-[0_0_18px_rgba(253,224,71,0.95)]",
+};
 
 const demoCards: GameCardDto[] = [
   {
@@ -90,7 +110,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_DECK,
+    zone: ZONE_HAND,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -108,7 +128,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_DECK,
+    zone: ZONE_HAND,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -126,7 +146,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_DECK,
+    zone: ZONE_HAND,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -144,7 +164,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_DECK,
+    zone: ZONE_HAND,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -162,7 +182,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_DECK,
+    zone: ZONE_HAND,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -180,7 +200,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_HAND,
+    zone: ZONE_DECK,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -198,7 +218,7 @@ const demoCards: GameCardDto[] = [
   },
   {
     playerId: "Player-1",
-    zone: ZONE_HAND,
+    zone: ZONE_DECK,
     isFaceDown: false,
     fieldIndex: null,
     defensePosition: false,
@@ -273,29 +293,73 @@ const demoCards: GameCardDto[] = [
 const GamePage = () => {
   const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
   const [gameCards, setGameCards] = useState<GameCardDto[]>(demoCards);
-  const [pendingDrawCard, setPendingDrawCard] = useState<GameCardDto | null>(null);
-  const [pendingDrawReveal, setPendingDrawReveal] = useState(false);
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
-  const [pendingPlacementCard, setPendingPlacementCard] = useState<GameCardDto | null>(null);
-  const [lastGraveyardCardId, setLastGraveyardCardId] = useState<string | null>(null);
+  const [turnAnnouncement, setTurnAnnouncement] = useState<{
+    title: string;
+    subtitle?: string;
+    colorClass: string;
+  } | null>(null);
   const [turnStatus, setTurnStatus] = useState<GameTurnStatus>({
     activePlayerId: VIEWER_PLAYER_ID,
     phase: TurnPhase.Draw,
   });
+  const previousTurnStatusRef = useRef<GameTurnStatus | null>(null);
+  const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (announcementTimeoutRef.current) {
+        clearTimeout(announcementTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const previous = previousTurnStatusRef.current;
+    const currentPhase = Number(turnStatus.phase);
+
+    if (!previous) {
+      previousTurnStatusRef.current = turnStatus;
+      return;
+    }
+
+    const phaseChanged = Number(previous.phase) !== currentPhase;
+    const playerChanged = previous.activePlayerId !== turnStatus.activePlayerId;
+
+    if (!phaseChanged && !playerChanged) return;
+
+    const phaseLabel = PHASE_LABELS[currentPhase] ?? `Phase ${turnStatus.phase}`;
+    const title = phaseChanged ? `${phaseLabel} Phase` : "Player Turn Changed";
+    const subtitle = playerChanged ? `Player: ${turnStatus.activePlayerId}` : undefined;
+    const colorClass = PHASE_COLOR_CLASSES[currentPhase] ?? "border-cyan-300/60 text-cyan-100";
+
+    const announcementPayload = { title, subtitle, colorClass };
+    const showTimer = setTimeout(() => {
+      setTurnAnnouncement(announcementPayload);
+    }, 0);
+    previousTurnStatusRef.current = turnStatus;
+
+    if (announcementTimeoutRef.current) {
+      clearTimeout(announcementTimeoutRef.current);
+    }
+    announcementTimeoutRef.current = setTimeout(() => {
+      setTurnAnnouncement(null);
+      announcementTimeoutRef.current = null;
+    }, TURN_ANNOUNCEMENT_DURATION_MS);
+
+    return () => clearTimeout(showTimer);
+  }, [turnStatus]);
   const isDrawPhase = Number(turnStatus.phase) === TurnPhase.Draw;
   const isMain1Phase = Number(turnStatus.phase) === TurnPhase.Main1;
-  const isBattlePhase = Number(turnStatus.phase) === TurnPhase.Battle;
-  const isViewerActivePlayer =
-    turnStatus.activePlayerId === VIEWER_PLAYER_ID;
-
-  const visibleDeckCards = gameCards.filter(
+  const isViewerActivePlayer = turnStatus.activePlayerId === VIEWER_PLAYER_ID;
+  const drawPileCards = gameCards.filter(
     (card) =>
       card.playerId === VIEWER_PLAYER_ID &&
       card.zone === ZONE_DECK &&
       card.fieldIndex === null &&
       card.card
   );
-  const drawPileCards = gameCards.filter(
+  const selectableHandCards = gameCards.filter(
     (card) =>
       card.playerId === VIEWER_PLAYER_ID &&
       card.zone === ZONE_HAND &&
@@ -303,164 +367,97 @@ const GamePage = () => {
       card.card
   );
   const selectedHandCard =
-    visibleDeckCards.find((card) => card.card?.id === selectedHandCardId) ?? null;
-  const graveyardCards = gameCards.filter(
-    (card) => card.playerId === VIEWER_PLAYER_ID && card.zone === ZONE_GRAVEYARD
-  );
-  const lastGraveyardCard =
-    graveyardCards.find((card) => card.card?.id === lastGraveyardCardId) ??
-    (graveyardCards.length > 0 ? graveyardCards[graveyardCards.length - 1] : null);
-  const fieldCards = gameCards.filter(
-    (card) =>
-      card.playerId === VIEWER_PLAYER_ID &&
-      card.zone === ZONE_FIELD &&
-      card.fieldIndex !== null &&
-      card.card
-  );
+    selectableHandCards.find((card) => card.card?.id === selectedHandCardId) ?? null;
 
-  const moveCardToZone = (
-    cardId: string,
-    zone: number,
-    fieldIndex: number | null = null,
-    defensePosition = false
-  ) => {
-    setGameCards((prevCards) => {
-      const index = prevCards.findIndex((card) => card.card?.id === cardId);
-      if (index === -1) return prevCards;
+  const canPlaceCardAtFieldIndex = (card: GameCardDto | null, fieldIndex: number) => {
+    const cardType = card?.card?.type;
+    if (cardType === undefined || cardType === null) return false;
 
-      const updatedCard: GameCardDto = {
-        ...prevCards[index],
-        zone,
-        fieldIndex,
-        isFaceDown: false,
-        defensePosition,
-      };
-
-      const remainingCards = prevCards.filter((_, i) => i !== index);
-      if (zone === ZONE_DECK || zone === ZONE_GRAVEYARD) {
-        return [updatedCard, ...remainingCards];
-      }
-
-      return [...remainingCards, updatedCard];
-    });
-
-    if (zone === ZONE_GRAVEYARD) {
-      setLastGraveyardCardId(cardId);
-    }
+    if (cardType === CARD_TYPE_MONSTER) return fieldIndex <= TOP_ROW_MAX_INDEX;
+    if (cardType === CARD_TYPE_SPELL || cardType === CARD_TYPE_TRAP) return fieldIndex > TOP_ROW_MAX_INDEX;
+    return false;
   };
 
   const handleDeckClick = (playerId: string) => {
     if (!isDrawPhase) return;
     if (playerId !== VIEWER_PLAYER_ID || playerId !== turnStatus.activePlayerId) return;
-    if (pendingDrawCard) return;
 
     setGameCards((prevCards) => {
       const topDeckIndex = [...prevCards]
         .map((card, index) => ({ card, index }))
         .reverse()
-        .find(({ card }) => card.playerId === playerId && card.zone === ZONE_HAND && card.fieldIndex === null && card.card)
+        .find(({ card }) => card.playerId === playerId && card.zone === ZONE_DECK && card.fieldIndex === null && card.card)
         ?.index;
 
       if (topDeckIndex === undefined) return prevCards;
 
       const drawnCard = prevCards[topDeckIndex];
-      setPendingDrawCard({
+      const updatedCard: GameCardDto = {
         ...drawnCard,
-        zone: ZONE_DECK,
+        zone: ZONE_HAND,
         fieldIndex: null,
         isFaceDown: false,
         defensePosition: false,
-      });
-      setPendingDrawReveal(false);
-      setTimeout(() => setPendingDrawReveal(true), 20);
-      setTurnStatus((prev) => ({ ...prev, phase: TurnPhase.Main1 }));
+      };
 
-      return prevCards.filter((_, index) => index !== topDeckIndex);
+      setTurnStatus((prev) => ({ ...prev, phase: TurnPhase.Main1 }));
+      setSelectedHandCardId(null);
+
+      const remainingCards = prevCards.filter((_, index) => index !== topDeckIndex);
+      return [updatedCard, ...remainingCards];
     });
   };
 
-  const handleDrawnCardToHand = () => {
-    if (!pendingDrawCard?.card) return;
-    setGameCards((prevCards) => [
-      { ...pendingDrawCard, zone: ZONE_DECK, fieldIndex: null, isFaceDown: false },
-      ...prevCards,
-    ]);
-    setPendingDrawCard(null);
-    setPendingDrawReveal(false);
+  const handleHandCardClick = (card: GameCardDto) => {
+    if (!isMain1Phase || !isViewerActivePlayer) return;
+    if (card.playerId !== VIEWER_PLAYER_ID || card.zone !== ZONE_HAND || !card.card) return;
+
+    setSelectedHandCardId((prev) => (prev === card.card?.id ? null : card.card?.id ?? null));
   };
 
-  const handleDrawnCardToField = () => {
-    if (!pendingDrawCard?.card) return;
-    setPendingPlacementCard({ ...pendingDrawCard, zone: ZONE_FIELD, fieldIndex: null });
-    setPendingDrawCard(null);
-    setPendingDrawReveal(false);
-  };
+  const handleGraveyardClick = (playerId: string) => {
+    if (!isMain1Phase || !isViewerActivePlayer) return;
+    if (playerId !== VIEWER_PLAYER_ID) return;
+    if (!selectedHandCard?.card?.id) return;
 
-  const handleDrawnCardToGraveyard = () => {
-    if (!pendingDrawCard?.card) return;
-    setGameCards((prevCards) => [
-      { ...pendingDrawCard, zone: ZONE_GRAVEYARD, fieldIndex: null, isFaceDown: false },
-      ...prevCards,
-    ]);
-    setLastGraveyardCardId(pendingDrawCard.card.id);
-    setPendingDrawCard(null);
-    setPendingDrawReveal(false);
-  };
-
-  const handleSelectedCardToField = () => {
-    if (!selectedHandCard?.card || !isMain1Phase || !isViewerActivePlayer) return;
-    setPendingPlacementCard({ ...selectedHandCard, zone: ZONE_FIELD, fieldIndex: null });
+    setGameCards((prevCards) =>
+      prevCards.map((card) =>
+        card.card?.id === selectedHandCard.card?.id
+          ? {
+              ...card,
+              zone: ZONE_GRAVEYARD,
+              fieldIndex: null,
+              isFaceDown: false,
+              defensePosition: false,
+            }
+          : card
+      )
+    );
     setSelectedHandCardId(null);
-  };
-
-  const handleSelectedCardToGraveyard = () => {
-    if (!selectedHandCard?.card || !isMain1Phase || !isViewerActivePlayer) return;
-    moveCardToZone(selectedHandCard.card.id, ZONE_GRAVEYARD);
-    setSelectedHandCardId(null);
-  };
-
-  const handleEndMain1 = () => {
-    if (!isMain1Phase) return;
-    setPendingDrawCard(null);
-    setPendingDrawReveal(false);
-    setPendingPlacementCard(null);
-    setSelectedHandCardId(null);
-    setTurnStatus((prev) => ({ ...prev, phase: TurnPhase.Battle }));
   };
 
   const handleFieldClick = (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
     if (!isMain1Phase) return;
     if (playerId !== VIEWER_PLAYER_ID || playerId !== turnStatus.activePlayerId) return;
 
-    if (pendingPlacementCard) {
+    if (selectedHandCard?.card?.id) {
       if (card !== null) return;
+      if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
 
-      setGameCards((prevCards) => {
-        const pendingCardId = pendingPlacementCard.card?.id;
-        if (!pendingCardId) return prevCards;
-
-        const existingCardIndex = prevCards.findIndex(
-          (existingCard) => existingCard.card?.id === pendingCardId
-        );
-
-        const updatedCard: GameCardDto = {
-          ...(existingCardIndex >= 0 ? prevCards[existingCardIndex] : pendingPlacementCard),
-          playerId,
-          zone: ZONE_FIELD,
-          fieldIndex,
-          isFaceDown: false,
-          defensePosition: false,
-        };
-
-        if (existingCardIndex >= 0) {
-          return prevCards.map((existingCard, index) =>
-            index === existingCardIndex ? updatedCard : existingCard
-          );
-        }
-
-        return [...prevCards, updatedCard];
-      });
-      setPendingPlacementCard(null);
+      setGameCards((prevCards) =>
+        prevCards.map((existingCard) =>
+          existingCard.card?.id === selectedHandCard.card?.id
+            ? {
+                ...existingCard,
+                zone: ZONE_FIELD,
+                fieldIndex,
+                isFaceDown: false,
+                defensePosition: false,
+              }
+            : existingCard
+        )
+      );
+      setSelectedHandCardId(null);
       return;
     }
 
@@ -485,223 +482,75 @@ const GamePage = () => {
       <div className="pointer-events-none absolute inset-0 backdrop-blur-[2px]" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-[#4b1812]/20 via-transparent to-[#091b33]/25" />
       <div className="pointer-events-none absolute inset-0 bg-black/30" />
+      {turnAnnouncement ? (
+        <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center px-4">
+          <div className={`text-center ${turnAnnouncement.colorClass}`}>
+            <p
+              className="text-5xl font-black italic tracking-[0.12em] uppercase [text-shadow:0_0_1.2rem_rgba(255,255,255,0.35)]"
+              style={{ WebkitTextStroke: "1px rgba(255,255,255,0.22)" }}
+            >
+              {turnAnnouncement.title}
+            </p>
+            {turnAnnouncement.subtitle ? (
+              <p className="mt-2 text-2xl font-extrabold italic tracking-[0.08em] text-white [text-shadow:0_0_0.9rem_rgba(255,255,255,0.28)]">
+                {turnAnnouncement.subtitle}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
-      <div className="relative h-screen w-full flex items-center pl-2 pr-3 gap-3">
-        <div className="relative h-full flex-1 -ml-3">
+      <div className="relative h-screen w-full pl-2 pr-3">
+        <div className="relative h-full w-full -ml-3">
           <div className="pointer-events-none absolute top-3 left-3 z-20">
             <TurnStatus status={turnStatus} />
           </div>
           <Board
             cards={gameCards}
             viewerPlayerId={VIEWER_PLAYER_ID}
+            hoveredCard={hoveredCard}
             onHoverCardChange={setHoveredCard}
             onDeckClick={handleDeckClick}
             onFieldClick={handleFieldClick}
+            onGraveyardClick={handleGraveyardClick}
+            onHandCardClick={handleHandCardClick}
             isDeckClickable={(playerId) =>
               isDrawPhase &&
-              !pendingDrawCard &&
               drawPileCards.length > 0 &&
               playerId === turnStatus.activePlayerId &&
               playerId === VIEWER_PLAYER_ID
             }
-            isFieldClickable={(playerId, _fieldIndex, card) =>
+            isFieldClickable={(playerId, fieldIndex, card) => {
+              if (
+                !isMain1Phase ||
+                playerId !== turnStatus.activePlayerId ||
+                playerId !== VIEWER_PLAYER_ID
+              ) {
+                return false;
+              }
+
+              if (selectedHandCard) {
+                return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
+              }
+
+              return card !== null;
+            }}
+            isGraveyardClickable={(playerId) =>
               isMain1Phase &&
-              playerId === turnStatus.activePlayerId &&
+              isViewerActivePlayer &&
               playerId === VIEWER_PLAYER_ID &&
-              (pendingPlacementCard ? card === null : card !== null)
+              Boolean(selectedHandCard)
             }
+            isHandCardClickable={(card) =>
+              isMain1Phase &&
+              isViewerActivePlayer &&
+              card.playerId === VIEWER_PLAYER_ID &&
+              card.zone === ZONE_HAND &&
+              Boolean(card.card)
+            }
+            selectedHandCardId={selectedHandCardId}
           />
         </div>
-
-        <aside className="h-[96%] w-[360px] shrink-0 rounded-xl border border-white/20 bg-black/45 p-3">
-          <div className="h-full w-full overflow-auto rounded-lg border border-white/15 bg-black/30 p-2">
-            <div className="rounded border border-white/20 bg-black/35 p-2 text-xs">
-              <p className="text-white/80">Deck : {drawPileCards.length}</p>
-              <p className="text-white/80">Hand : {visibleDeckCards.length}</p>
-              <p className="text-white/80">Field : {fieldCards.length}</p>
-              <p className="text-white/80">Graveyard : {graveyardCards.length}</p>
-            </div>
-
-            {pendingDrawCard?.card ? (
-              <div className="mt-2 rounded border border-white/20 bg-black/40 p-2">
-                <p className="mb-1 text-[10px] text-white/70">Izvucena karta (iz deck-a)</p>
-                <div style={{ perspective: "900px" }}>
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "150px",
-                      transformStyle: "preserve-3d",
-                      transition: "transform 420ms ease",
-                      transform: pendingDrawReveal ? "rotateY(180deg)" : "rotateY(0deg)",
-                    }}
-                  >
-                    <Card
-                      name={pendingDrawCard.card.name}
-                      description={pendingDrawCard.card.description}
-                      type={pendingDrawCard.card.type}
-                      attack={pendingDrawCard.card.attack}
-                      defense={pendingDrawCard.card.defense}
-                      level={pendingDrawCard.card.level}
-                      src={pendingDrawCard.card.image}
-                      hasEffect={Boolean(pendingDrawCard.card.effectId)}
-                      hidden={true}
-                      className="text-black"
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                      }}
-                      draggable={false}
-                    />
-                    <Card
-                      name={pendingDrawCard.card.name}
-                      description={pendingDrawCard.card.description}
-                      type={pendingDrawCard.card.type}
-                      attack={pendingDrawCard.card.attack}
-                      defense={pendingDrawCard.card.defense}
-                      level={pendingDrawCard.card.level}
-                      src={pendingDrawCard.card.image}
-                      hasEffect={Boolean(pendingDrawCard.card.effectId)}
-                      hidden={false}
-                      className="text-black absolute inset-0"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        transform: "rotateY(180deg)",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                      }}
-                      draggable={false}
-                    />
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-1">
-                  <button
-                    type="button"
-                    className="rounded border border-cyan-200/50 bg-cyan-300/20 px-2 py-1 text-[10px]"
-                    onClick={handleDrawnCardToField}
-                  >
-                    To Field
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-white/30 bg-white/10 px-2 py-1 text-[10px]"
-                    onClick={handleDrawnCardToHand}
-                  >
-                    To Hand
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-white/30 bg-white/10 px-2 py-1 text-[10px]"
-                    onClick={handleDrawnCardToGraveyard}
-                  >
-                    To Graveyard
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-2 rounded border border-white/20 bg-black/35 p-2 text-xs">
-              <p className="text-white/75">Hand</p>
-              <div className="mt-2 max-h-[150px] space-y-1 overflow-auto pr-1">
-                {visibleDeckCards.map((card) => (
-                  <button
-                    key={card.card!.id}
-                    type="button"
-                    className={`w-full rounded border px-2 py-1 text-left ${
-                      selectedHandCardId === card.card?.id
-                        ? "border-cyan-200/70 bg-cyan-300/20"
-                        : "border-white/25 bg-white/5"
-                    }`}
-                    onClick={() => setSelectedHandCardId(card.card?.id ?? null)}
-                    disabled={!isMain1Phase || !isViewerActivePlayer || Boolean(pendingPlacementCard)}
-                  >
-                    {card.card?.name}
-                  </button>
-                ))}
-                {visibleDeckCards.length === 0 ? <p className="text-white/55">Spil je prazan.</p> : null}
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-1">
-                <button
-                  type="button"
-                  className="rounded border border-cyan-200/50 bg-cyan-300/20 px-2 py-1 text-[10px] disabled:opacity-40"
-                  onClick={handleSelectedCardToField}
-                  disabled={!selectedHandCard || !isMain1Phase || !isViewerActivePlayer}
-                >
-                  To Filed
-                </button>
-                <button
-                  type="button"
-                  className="rounded border border-white/30 bg-white/10 px-2 py-1 text-[10px] disabled:opacity-40"
-                  onClick={handleSelectedCardToGraveyard}
-                  disabled={!selectedHandCard || !isMain1Phase || !isViewerActivePlayer}
-                >
-                  To Graveyard
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-2 rounded border border-white/20 bg-black/35 p-2 text-xs">
-              <p className="text-white/75">Groblje</p>
-              <div className="mt-1 space-y-1">
-                {lastGraveyardCard ? (
-                  <p className="rounded border border-white/20 bg-white/5 px-2 py-1">
-                    Last: {lastGraveyardCard.card?.name}
-                  </p>
-                ) : (
-                  <p className="text-white/55">Groblje je prazno.</p>
-                )}
-              </div>
-              <p className="mt-2 text-[10px] text-white/65">All cards in graveyard ({graveyardCards.length})</p>
-              <div className="mt-1 max-h-[90px] space-y-1 overflow-auto pr-1">
-                {graveyardCards.map((card) => (
-                  <p key={card.card?.id} className="rounded border border-white/20 bg-white/5 px-2 py-1">
-                    {card.card?.name}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="mt-2 w-full rounded border border-amber-200/50 bg-amber-300/20 px-2 py-1 text-[10px] disabled:opacity-40"
-              onClick={handleEndMain1}
-              disabled={!isMain1Phase || Boolean(pendingPlacementCard) || Boolean(pendingDrawCard)}
-            >
-              Next
-            </button>
-            {pendingPlacementCard ? (
-              <p className="mt-2 text-[10px] text-cyan-100">Klikni prazno svoje polje za postavljanje.</p>
-            ) : null}
-            {isBattlePhase ? (
-              <p className="mt-2 text-[10px] text-amber-100">Battle faza aktivna (trenutno bez akcija).</p>
-            ) : null}
-
-            <div className="mt-2 flex items-center justify-center rounded border border-white/20 bg-black/35 p-2">
-            {hoveredCard ? (
-              <Card
-                name={hoveredCard.name}
-                description={hoveredCard.description}
-                type={hoveredCard.type}
-                attack={hoveredCard.attack}
-                defense={hoveredCard.defense}
-                level={hoveredCard.level}
-                src={hoveredCard.image}
-                hasEffect={Boolean(hoveredCard.effectId)}
-                hidden={false}
-                className="text-black"
-                style={{ width: "100%", maxWidth: "280px", height: "auto", maxHeight: "95%" }}
-                draggable={false}
-              />
-            ) : (
-              <p className="text-sm text-white/55 text-center px-4">
-                Hover a visible card to preview it here.
-              </p>
-            )}
-            </div>
-          </div>
-        </aside>
       </div>
     </main>
   );

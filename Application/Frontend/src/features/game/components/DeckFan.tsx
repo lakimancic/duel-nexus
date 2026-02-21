@@ -8,11 +8,23 @@ interface DeckFanProps {
   hideCards: boolean;
   viewerPlayerId?: string;
   onHoverCardChange?: (card: CardDto | null) => void;
+  onCardClick?: (card: GameCardDto) => void;
+  isCardClickable?: (card: GameCardDto) => boolean;
+  selectedCardId?: string | null;
 }
 
 const CARD_RATIO = 120 / 174;
 
-const DeckFan = ({ cards, fieldSize, hideCards, viewerPlayerId, onHoverCardChange }: DeckFanProps) => {
+const DeckFan = ({
+  cards,
+  fieldSize,
+  hideCards,
+  viewerPlayerId,
+  onHoverCardChange,
+  onCardClick,
+  isCardClickable,
+  selectedCardId,
+}: DeckFanProps) => {
   if (cards.length === 0) return null;
 
   const shownCards = cards.slice(0, 8);
@@ -40,6 +52,7 @@ const DeckFan = ({ cards, fieldSize, hideCards, viewerPlayerId, onHoverCardChang
             style={{
               transform: `translateX(calc(-50% + ${x}px)) translateY(${y}px) rotate(${rotate}deg)`,
               zIndex: index + 1,
+              cursor: isCardClickable?.(card) ? "pointer" : "default",
             }}
             onMouseEnter={() => {
               if (!onHoverCardChange) return;
@@ -51,6 +64,7 @@ const DeckFan = ({ cards, fieldSize, hideCards, viewerPlayerId, onHoverCardChang
               onHoverCardChange(canPreview ? card.card ?? null : null);
             }}
             onMouseLeave={() => onHoverCardChange?.(null)}
+            onClick={() => onCardClick?.(card)}
           >
             <Card
               name={card.card?.name ?? "Card"}
@@ -62,7 +76,7 @@ const DeckFan = ({ cards, fieldSize, hideCards, viewerPlayerId, onHoverCardChang
               src={card.card?.image ?? ""}
               hasEffect={Boolean(card.card?.effectId)}
               hidden={hideCards || card.isFaceDown || !card.card}
-              className="text-black"
+              className={`text-black ${selectedCardId === card.card?.id ? "ring-2 ring-cyan-200 ring-offset-2 ring-offset-black/60" : ""}`}
               style={{
                 width: `${cardWidth}px`,
                 height: `${cardHeight}px`,
