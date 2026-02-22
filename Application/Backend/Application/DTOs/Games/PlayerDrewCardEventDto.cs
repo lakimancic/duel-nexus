@@ -1,5 +1,7 @@
 namespace Backend.Application.DTOs.Games;
 
+using Backend.Data.Enums;
+
 public class PlayerDrewCardEventDto
 {
     public Guid GameId { get; set; }
@@ -7,5 +9,6 @@ public class PlayerDrewCardEventDto
     public Guid TurnId { get; set; }
     public int DrawsInTurn { get; set; }
     public bool TurnEnded { get; set; }
-    public Guid? NextActivePlayerId { get; set; }
+    public bool PhaseAdvanced { get; set; }
+    public TurnPhase CurrentPhase { get; set; }
 }

@@ -5,10 +5,16 @@ using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Domain.Commands;
 using Backend.Utils.WebApi;
+using Microsoft.Extensions.DependencyInjection;
 
-public sealed class GameEngine(IUnitOfWork unitOfWork) : IGameEngine
+public sealed class GameEngine(
+    IUnitOfWork unitOfWork,
+    IGameCommandLock commandLock,
+    IServiceProvider serviceProvider) : IGameEngine
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IGameCommandLock _commandLock = commandLock;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
 
     public async Task InitializeGameAsync(Game game, CancellationToken cancellationToken = default)
     {
@@ -19,7 +25,6 @@ public sealed class GameEngine(IUnitOfWork unitOfWork) : IGameEngine
         var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(game.Id)
             ?? throw new BadRequestException("Game turn was not initialized.");
 
-        currentTurn.ActivePlayerId ??= players[0].Id;
         currentTurn.Phase = TurnPhase.Draw;
         _unitOfWork.Turns.Update(currentTurn);
 
@@ -31,25 +36,30 @@ public sealed class GameEngine(IUnitOfWork unitOfWork) : IGameEngine
         }
     }
 
-    public async Task<TResult> ExecuteCommandAsync<TResult>(Guid gameId, Guid userId, IGameCommand<TResult> command, CancellationToken cancellationToken = default)
+    public async Task<TResult> ExecuteCommandAsync<TCommand, TResult>(Guid gameId, Guid userId, TCommand command, CancellationToken cancellationToken = default)
+        where TCommand : IGameCommand<TResult>
     {
-        var game = await GetGameOrThrow(gameId, cancellationToken);
-        var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new ObjectNotFoundException("Turn not found");
+        return await _commandLock.ExecuteAsync(gameId, async () =>
+        {
+            var game = await GetGameOrThrow(gameId, cancellationToken);
+            var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
+                ?? throw new ObjectNotFoundException("Turn not found");
 
-        var actor = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, gameId)
-            ?? throw new BadRequestException("Player is not part of this game.");
+            var actor = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, gameId)
+                ?? throw new BadRequestException("Player is not part of this game.");
 
-        var commandContext = new GameCommandContext(
-            UnitOfWork: _unitOfWork,
-            Game: game,
-            CurrentTurn: currentTurn,
-            Actor: actor
-        );
+            var commandContext = new GameCommandContext(
+                UnitOfWork: _unitOfWork,
+                Game: game,
+                CurrentTurn: currentTurn,
+                Actor: actor
+            );
 
-        var result = await command.ExecuteAsync(commandContext, cancellationToken);
-        await _unitOfWork.CompleteAsync();
-        return result;
+            var handler = _serviceProvider.GetRequiredService<IGameCommandHandler<TCommand, TResult>>();
+            var result = await handler.HandleAsync(command, commandContext, cancellationToken);
+            await _unitOfWork.CompleteAsync();
+            return result;
+        });
     }
 
     public async Task<GameStateSnapshot> GetGameStateAsync(Guid gameId, Guid viewerUserId, CancellationToken cancellationToken = default)

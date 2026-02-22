@@ -3,12 +3,10 @@ namespace Backend.Domain.Engine;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 
-public sealed record DrawActionResult(
+public sealed record DrawPhaseProgressResult(
     Game Game,
     Turn Turn,
     PlayerGame Player,
-    GameCard DrawnCard,
-    int DrawsInTurn,
     bool TurnEnded,
     bool PhaseAdvanced,
     TurnPhase CurrentPhase

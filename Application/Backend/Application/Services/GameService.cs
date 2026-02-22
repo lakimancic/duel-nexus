@@ -134,22 +134,21 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
 
     public async Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId)
     {
-        var drawResult = await _gameEngine.ExecuteCommandAsync(gameId, userId, new DrawActionCommand());
+        var drawResult = await _gameEngine.ExecuteCommandAsync<DrawActionCommand, DrawActionResult>(
+            gameId, userId, new DrawActionCommand());
         var viewerState = await _gameEngine.GetGameStateAsync(gameId, userId);
         var drawnCard = viewerState.Cards.FirstOrDefault(card => card.Id == drawResult.DrawnCard.Id)
             ?? throw new ObjectNotFoundException("Drawn card not found in game state");
+        var resultDto = _mapper.Map<DrawActionResultDto>(drawResult);
+        resultDto.DrawnCard = MapCardForViewer(drawnCard, viewerState.Viewer.Id);
+        return resultDto;
+    }
 
-        return new DrawActionResultDto
-        {
-            GameId = drawResult.Game.Id,
-            RoomId = drawResult.Game.RoomId,
-            PlayerGameId = drawResult.Player.Id,
-            TurnId = drawResult.Turn.Id,
-            DrawsInTurn = drawResult.DrawsInTurn,
-            TurnEnded = drawResult.TurnEnded,
-            NextActivePlayerId = drawResult.NextActivePlayerId,
-            DrawnCard = MapCardForViewer(drawnCard, viewerState.Viewer.Id),
-        };
+    public async Task<DrawPhaseProgressDto> SkipDraw(Guid gameId, Guid userId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<SkipDrawActionCommand, DrawPhaseProgressResult>(
+            gameId, userId, new SkipDrawActionCommand());
+        return _mapper.Map<DrawPhaseProgressDto>(result);
     }
 
     public async Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto)

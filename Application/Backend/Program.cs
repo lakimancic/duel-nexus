@@ -8,6 +8,8 @@ using Backend.Application.Services.Interfaces;
 using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
+using Backend.Domain.Commands;
+using Backend.Domain.Commands.Handlers;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
@@ -72,6 +74,9 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IGameEngine, GameEngine>();
+builder.Services.AddSingleton<IGameCommandLock, GameCommandLock>();
+builder.Services.AddScoped<IGameCommandHandler<DrawActionCommand, DrawActionResult>, DrawActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionCommandHandler>();
 builder.Services.AddScoped<IConnectionService, ConnectionService>();
 builder.Services.AddSingleton<ConnectionTracker>();
 
