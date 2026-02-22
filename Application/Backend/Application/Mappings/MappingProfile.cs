@@ -10,6 +10,7 @@ using Backend.Utils.Data;
 using Backend.Application.DTOs.Chat;
 using Backend.Application.DTOs.Cards;
 using Backend.Application.DTOs.Games;
+using Backend.Domain.Engine;
 
 namespace Backend.Application.Mappings;
 
@@ -103,6 +104,19 @@ public class MappingProfile : Profile
         CreateMap<EffectActivation, EffectActivationDto>();
 
         CreateMap<EffectActivationDto, EffectActivation>();
+
+        CreateMap<DrawActionResult, DrawActionResultDto>()
+            .ForMember(dest => dest.GameId, opt => opt.MapFrom(src => src.Game.Id))
+            .ForMember(dest => dest.RoomId, opt => opt.MapFrom(src => src.Game.RoomId))
+            .ForMember(dest => dest.PlayerGameId, opt => opt.MapFrom(src => src.Player.Id))
+            .ForMember(dest => dest.TurnId, opt => opt.MapFrom(src => src.Turn.Id))
+            .ForMember(dest => dest.DrawnCard, opt => opt.Ignore());
+
+        CreateMap<DrawPhaseProgressResult, DrawPhaseProgressDto>()
+            .ForMember(dest => dest.GameId, opt => opt.MapFrom(src => src.Game.Id))
+            .ForMember(dest => dest.RoomId, opt => opt.MapFrom(src => src.Game.RoomId))
+            .ForMember(dest => dest.PlayerGameId, opt => opt.MapFrom(src => src.Player.Id))
+            .ForMember(dest => dest.TurnId, opt => opt.MapFrom(src => src.Turn.Id));
 
 
         CreateMap<EditGameCardDto, GameCard>();

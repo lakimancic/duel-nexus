@@ -1,8 +1,5 @@
 namespace Backend.Domain.Commands;
 
-using Backend.Domain.Engine;
-
-public interface IGameCommand<TResult>
+public interface IGameCommand<out TResult>
 {
-    Task<TResult> ExecuteAsync(GameCommandContext context, CancellationToken cancellationToken = default);
 }

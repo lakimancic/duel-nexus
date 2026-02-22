@@ -119,6 +119,64 @@ class GameHubClient {
   offGameRoomCancelled(handler: (...args: any[]) => void) {
     this.connection.off("game-room:cancelled", handler);
   }
+
+  // ========== Game methods / subscriptions ==========
+
+  joinGame(gameId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:join", gameId)
+    );
+  }
+
+  leaveGame(gameId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:leave", gameId)
+    );
+  }
+
+  drawCard(gameId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:draw", gameId)
+    );
+  }
+
+  skipDraw(gameId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:draw:skip", gameId)
+    );
+  }
+
+  onDrawResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:draw:result", handler);
+  }
+
+  offDrawResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:draw:result", handler);
+  }
+
+  onPlayerDrew(handler: (...args: any[]) => void) {
+    this.connection.on("game:player:drew", handler);
+  }
+
+  offPlayerDrew(handler: (...args: any[]) => void) {
+    this.connection.off("game:player:drew", handler);
+  }
+
+  onSkipDrawResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:draw:skip:result", handler);
+  }
+
+  offSkipDrawResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:draw:skip:result", handler);
+  }
+
+  onPlayerSkippedDraw(handler: (...args: any[]) => void) {
+    this.connection.on("game:player:draw:skipped", handler);
+  }
+
+  offPlayerSkippedDraw(handler: (...args: any[]) => void) {
+    this.connection.off("game:player:draw:skipped", handler);
+  }
 }
 
 export const gameHub = new GameHubClient();

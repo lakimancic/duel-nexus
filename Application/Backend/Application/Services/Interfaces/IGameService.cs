@@ -13,6 +13,7 @@ public interface IGameService
     Task<EffectActivationDto> CreateEffectActivation(CreateEffectActivationDto actionDto);
     Task<GameDto> CreateGame(CreateGameDto gameDto);
     Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId);
+    Task<DrawPhaseProgressDto> SkipDraw(Guid gameId, Guid userId);
     Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto);
     Task DeleteAttackAction(Guid actionId);
     Task DeleteCardMovement(Guid actionId);
