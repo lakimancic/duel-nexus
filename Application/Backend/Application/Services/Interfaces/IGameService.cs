@@ -14,6 +14,11 @@ public interface IGameService
     Task<GameDto> CreateGame(CreateGameDto gameDto);
     Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId);
     Task<DrawPhaseProgressDto> SkipDraw(Guid gameId, Guid userId);
+    Task<PlaceCardResultDto> PlaceCard(Guid gameId, Guid userId, Guid gameCardId, int fieldIndex, bool faceDown);
+    Task<GameCardUpdateResultDto> SendCardToGraveyard(Guid gameId, Guid userId, Guid gameCardId);
+    Task<GameCardUpdateResultDto> ToggleDefensePosition(Guid gameId, Guid userId, Guid gameCardId);
+    Task<GameCardUpdateResultDto> RevealCard(Guid gameId, Guid userId, Guid gameCardId);
+    Task<PhaseAdvanceResultDto> AdvancePhase(Guid gameId, Guid userId);
     Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto);
     Task DeleteAttackAction(Guid actionId);
     Task DeleteCardMovement(Guid actionId);

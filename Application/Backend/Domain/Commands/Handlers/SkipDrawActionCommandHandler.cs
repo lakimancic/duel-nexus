@@ -12,6 +12,8 @@ public sealed class SkipDrawActionCommandHandler : IGameCommandHandler<SkipDrawA
         if (context.CurrentTurn.Phase != TurnPhase.Draw)
             throw new BadRequestException("Skip draw is allowed only in Draw phase.");
 
+        DrawActionValidator.EnsureActorOwnsCurrentTurn(context);
+
         if (!context.Actor.TurnEnded)
         {
             context.Actor.TurnEnded = true;
