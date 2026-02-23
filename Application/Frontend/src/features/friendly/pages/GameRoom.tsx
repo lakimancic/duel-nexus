@@ -8,7 +8,12 @@ import { gameHub } from "@/shared/realtime/gameHub";
 import type { ErrorMessage } from "@/shared/types/error.types";
 import { friendlyApi } from "../api/friendly.api";
 import { useGameRoomChat } from "../hooks/useGameRoomChat";
-import type { DeckDto, GameRoomDto, GameRoomPlayerDto } from "../types/friendly.types";
+import type {
+  DeckDto,
+  GameRoomDto,
+  GameRoomPlayerDto,
+  GameStartedEventDto,
+} from "../types/friendly.types";
 
 type TabValue = "chat" | "players";
 
@@ -92,14 +97,34 @@ const GameRoomPage = () => {
       });
     };
 
+    const roomStartedHandler = (event: GameStartedEventDto) => {
+      const eventRoomId =
+        ((event as unknown as { roomId?: string }).roomId ??
+          (event as unknown as { RoomId?: string }).RoomId ??
+          "")
+          .toString()
+          .toLowerCase();
+      const eventGameId =
+        ((event as unknown as { gameId?: string }).gameId ??
+          (event as unknown as { GameId?: string }).GameId ??
+          "")
+          .toString();
+
+      if (!eventGameId) return;
+      if (eventRoomId !== roomId?.toLowerCase()) return;
+      navigate(`/game/${eventGameId}`, { replace: true });
+    };
+
     void load();
     gameHub.onGameRoomPlayersUpdated(playersUpdatedHandler);
     gameHub.onGameRoomCancelled(roomCancelledHandler);
+    gameHub.onGameRoomStarted(roomStartedHandler);
 
     return () => {
       disposed = true;
       gameHub.offGameRoomPlayersUpdated(playersUpdatedHandler);
       gameHub.offGameRoomCancelled(roomCancelledHandler);
+      gameHub.offGameRoomStarted(roomStartedHandler);
       void gameHub.leaveGameRoom(roomId);
     };
   }, [fetchDecks, fetchRoomState, navigate, roomId]);
@@ -184,8 +209,7 @@ const GameRoomPage = () => {
     setStatusMessage(null);
     try {
       const response = await friendlyApi.startRoomGame(roomId);
-      setStatusMessage(`Game started. Game ID: ${response.data.gameId}`);
-      await fetchRoomState();
+      navigate(`/game/${response.data.gameId}`, { replace: true });
     } catch (err) {
       if (err instanceof AxiosError) {
         const data = err.response?.data as ErrorMessage | undefined;

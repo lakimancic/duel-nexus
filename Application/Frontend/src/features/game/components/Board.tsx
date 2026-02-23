@@ -10,6 +10,7 @@ import Hand from "./Hand";
 
 interface BoardProps {
   cards: GameCardDto[];
+  playerIds?: string[];
   viewerPlayerId?: string;
   hoveredCard?: CardDto | null;
   onHoverCardChange?: (card: CardDto | null) => void;
@@ -212,6 +213,7 @@ const getPlayerCoordinates = (
 
 const Board = ({
   cards,
+  playerIds: orderedPlayerIds,
   viewerPlayerId,
   hoveredCard,
   onHoverCardChange,
@@ -274,7 +276,22 @@ const Board = ({
     [cards, graveyardZoneValue]
   );
 
-  const playerIds = useMemo(() => Array.from(new Set(cards.map((card) => card.playerId))), [cards]);
+  const playerIds = useMemo(
+    () =>
+      orderedPlayerIds && orderedPlayerIds.length > 0
+        ? orderedPlayerIds
+        : Array.from(new Set(cards.map((card) => card.playerId))),
+    [cards, orderedPlayerIds]
+  );
+  const displayedPlayerIds = useMemo(() => {
+    if (!viewerPlayerId) return playerIds;
+
+    const viewerIndex = playerIds.indexOf(viewerPlayerId);
+    if (viewerIndex < 0) return playerIds;
+    if (viewerIndex === 0) return playerIds;
+
+    return [...playerIds.slice(viewerIndex), ...playerIds.slice(0, viewerIndex)];
+  }, [playerIds, viewerPlayerId]);
   const playerFieldMap = useMemo(() => createPlayerFieldMap(fieldCards), [fieldCards]);
   const playerHandMap = useMemo(() => createPlayerCardsMap(handCards), [handCards]);
   const playerGraveyardMap = useMemo(() => createPlayerCardsMap(graveyardCards), [graveyardCards]);
@@ -297,11 +314,11 @@ const Board = ({
   }, []);
 
   const metrics = useMemo(
-    () => computeBoardMetrics(boardSize.width, boardSize.height, playerIds.length),
-    [boardSize.height, boardSize.width, playerIds.length]
+    () => computeBoardMetrics(boardSize.width, boardSize.height, displayedPlayerIds.length),
+    [boardSize.height, boardSize.width, displayedPlayerIds.length]
   );
 
-  if (playerIds.length === 0) {
+  if (displayedPlayerIds.length === 0) {
     return (
       <div className="rounded-xl border border-white/20 bg-black/25 p-6 text-white/80">
         Add at least one player card to render the board.
@@ -317,10 +334,10 @@ const Board = ({
     >
       <div className="pointer-events-none absolute inset-0 backdrop-blur-[3px]" />
       <div className="relative h-full w-full">
-        {playerIds.map((playerId, index) => {
+        {displayedPlayerIds.map((playerId, index) => {
           const topGraveyardCard = playerGraveyardMap[playerId]?.[0] ?? null;
           const position = getPlayerCoordinates(
-            playerIds.length,
+            displayedPlayerIds.length,
             index,
             metrics.radius,
             metrics.width,
