@@ -2,6 +2,7 @@ import { HubConnection } from "@microsoft/signalr";
 import { createConnection } from "./connection";
 import type { MessageDto } from "../types/message.types";
 import type { ShortUserDto } from "../types/user.types";
+import type { GameStartedEventDto } from "@/features/friendly/types/friendly.types";
 
 class GameHubClient {
   private connection: HubConnection;
@@ -120,6 +121,14 @@ class GameHubClient {
     this.connection.off("game-room:cancelled", handler);
   }
 
+  onGameRoomStarted(handler: (event: GameStartedEventDto) => void) {
+    this.connection.on("game-room:game:started", handler);
+  }
+
+  offGameRoomStarted(handler: (...args: any[]) => void) {
+    this.connection.off("game-room:game:started", handler);
+  }
+
   // ========== Game methods / subscriptions ==========
 
   joinGame(gameId: string) {
@@ -143,6 +152,36 @@ class GameHubClient {
   skipDraw(gameId: string) {
     return this.ensureConnected().then(() =>
       this.connection.invoke("game:action:draw:skip", gameId)
+    );
+  }
+
+  placeCard(gameId: string, gameCardId: string, fieldIndex: number, faceDown: boolean) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:place", gameId, gameCardId, fieldIndex, faceDown)
+    );
+  }
+
+  nextPhase(gameId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:next", gameId)
+    );
+  }
+
+  sendCardToGraveyard(gameId: string, gameCardId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:grave", gameId, gameCardId)
+    );
+  }
+
+  toggleDefensePosition(gameId: string, gameCardId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:toggle-defense", gameId, gameCardId)
+    );
+  }
+
+  revealCard(gameId: string, gameCardId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:reveal", gameId, gameCardId)
     );
   }
 
@@ -176,6 +215,70 @@ class GameHubClient {
 
   offPlayerSkippedDraw(handler: (...args: any[]) => void) {
     this.connection.off("game:player:draw:skipped", handler);
+  }
+
+  onPlaceResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:place:result", handler);
+  }
+
+  offPlaceResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:place:result", handler);
+  }
+
+  onPlayerPlaced(handler: (...args: any[]) => void) {
+    this.connection.on("game:player:placed", handler);
+  }
+
+  offPlayerPlaced(handler: (...args: any[]) => void) {
+    this.connection.off("game:player:placed", handler);
+  }
+
+  onNextResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:next:result", handler);
+  }
+
+  offNextResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:next:result", handler);
+  }
+
+  onPhaseAdvanced(handler: (...args: any[]) => void) {
+    this.connection.on("game:phase:advanced", handler);
+  }
+
+  offPhaseAdvanced(handler: (...args: any[]) => void) {
+    this.connection.off("game:phase:advanced", handler);
+  }
+
+  onGraveResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:grave:result", handler);
+  }
+
+  offGraveResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:grave:result", handler);
+  }
+
+  onToggleDefenseResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:toggle:defense:result", handler);
+  }
+
+  offToggleDefenseResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:toggle:defense:result", handler);
+  }
+
+  onPlayerCardUpdated(handler: (...args: any[]) => void) {
+    this.connection.on("game:player:card:updated", handler);
+  }
+
+  offPlayerCardUpdated(handler: (...args: any[]) => void) {
+    this.connection.off("game:player:card:updated", handler);
+  }
+
+  onRevealResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:reveal:result", handler);
+  }
+
+  offRevealResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:reveal:result", handler);
   }
 }
 

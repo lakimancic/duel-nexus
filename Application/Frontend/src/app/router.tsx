@@ -35,7 +35,7 @@ export const router = createBrowserRouter([
           { path: "/decks", element: <DeckEditorPage /> },
           { path: "/friendly", element: <FriendlyPage /> },
           { path: "/game-room/:roomId", element: <GameRoomPage /> },
-          { path: "/game", element: <GamePage /> },
+          { path: "/game/:gameId", element: <GamePage /> },
         ],
       },
       {

@@ -69,18 +69,18 @@ const CardField = ({
         />
       </div>
 
-      {card?.card ? (
+      {card ? (
         <div className="absolute inset-0 flex items-center justify-center" style={{ padding: `${innerGap}px` }}>
           <Card
-            name={card.card.name}
-            description={card.card.description}
-            type={card.card.type}
-            attack={card.card.attack}
-            defense={card.card.defense}
-            level={card.card.level}
-            src={card.card.image}
-            hasEffect={Boolean(card.card.effectId)}
-            hidden={card.isFaceDown}
+            name={card.card?.name ?? "Card"}
+            description={card.card?.description ?? ""}
+            type={card.card?.type ?? 0}
+            attack={card.card?.attack ?? null}
+            defense={card.card?.defense ?? null}
+            level={card.card?.level ?? null}
+            src={card.card?.image ?? ""}
+            hasEffect={Boolean(card.card?.effectId)}
+            hidden={card.isFaceDown || !card.card}
             className={`${card.defensePosition ? "rotate-90" : ""} text-black`}
             style={{
               width: `${cardWidth}px`,

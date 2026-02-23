@@ -1,4 +1,5 @@
 import type { CardDto } from "@/shared/types/card.types";
+import type { ShortUserDto } from "@/shared/types/user.types";
 
 export const TurnPhase = {
   Draw: 0,
@@ -15,10 +16,46 @@ export interface GameTurnStatus {
 }
 
 export interface GameCardDto {
+  id: string;
   playerId: string;
   zone: number;
+  deckOrder: number | null;
   isFaceDown: boolean;
   fieldIndex: number | null;
   defensePosition: boolean;
-  card: CardDto|null;
-};
+  card: CardDto | null;
+}
+
+export interface PlayerGameDto {
+  id: string;
+  index: number;
+  lifePoints: number;
+  user: ShortUserDto;
+}
+
+export interface TurnDto {
+  id: string;
+  gameId: string;
+  turnNumber: number;
+  activePlayerId: string | null;
+  phase: TurnPhase | number;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+export interface GameStateDto {
+  gameId: string;
+  viewerPlayerId: string;
+  currentTurn: TurnDto;
+  players: PlayerGameDto[];
+  cards: Array<{
+    id: string;
+    zone: number;
+    deckOrder: number | null;
+    isFaceDown: boolean;
+    fieldIndex: number | null;
+    defensePosition: boolean;
+    card: CardDto | null;
+    playerGameId: string;
+  }>;
+}

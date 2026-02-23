@@ -1,23 +1,22 @@
 import Board from "@/features/game/components/Board";
 import TurnStatus from "@/features/game/components/TurnStatus";
-import {
-  TurnPhase,
-  type GameCardDto,
-  type GameTurnStatus,
-} from "@/features/game/types/game.types";
-import { useEffect, useRef, useState } from "react";
+import { gameApi } from "@/features/game/api/game.api";
+import { TurnPhase, type GameCardDto } from "@/features/game/types/game.types";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { gameHub } from "@/shared/realtime/gameHub";
 import type { CardDto } from "@/shared/types/card.types";
+import type { ErrorMessage } from "@/shared/types/error.types";
+import { AxiosError } from "axios";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 const ZONE_FIELD = 0;
-const ZONE_DECK = 2;
-const ZONE_GRAVEYARD = 3;
 const ZONE_HAND = 1;
-const VIEWER_PLAYER_ID = "Player-1";
 const TOP_ROW_MAX_INDEX = 4;
 const CARD_TYPE_MONSTER = 0;
 const CARD_TYPE_SPELL = 1;
 const CARD_TYPE_TRAP = 2;
-const TURN_ANNOUNCEMENT_DURATION_MS = 1000;
+const TURN_ANNOUNCEMENT_DURATION_MS = 1100;
 
 const PHASE_LABELS: Record<number, string> = {
   [TurnPhase.Draw]: "Draw",
@@ -35,276 +34,166 @@ const PHASE_COLOR_CLASSES: Record<number, string> = {
   [TurnPhase.End]: "text-yellow-300 drop-shadow-[0_0_18px_rgba(253,224,71,0.95)]",
 };
 
-const demoCards: GameCardDto[] = [
-  {
-    playerId: "Player-1",
-    zone: ZONE_FIELD,
-    isFaceDown: false,
-    fieldIndex: 0,
-    defensePosition: false,
-    card: {
-      id: "c-1",
-      name: "Dragon Knight",
-      image: "",
-      description: "A frontline monster used for testing board layout.",
-      type: 0,
-      effectId: null,
-      attack: 2400,
-      defense: 1800,
-      level: 6,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_FIELD,
-    isFaceDown: false,
-    fieldIndex: 6,
-    defensePosition: true,
-    card: {
-      id: "c-2",
-      name: "Hidden Guard",
-      image: "",
-      description: "Face-down card to validate hidden mode.",
-      type: 2,
-      effectId: "e-2",
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-2",
-    zone: ZONE_FIELD,
-    isFaceDown: false,
-    fieldIndex: 2,
-    defensePosition: true,
-    card: {
-      id: "c-3",
-      name: "Stone Turtle",
-      image: "",
-      description: "Defense-position sample card.",
-      type: 0,
-      effectId: null,
-      attack: 800,
-      defense: 2500,
-      level: 4,
-    },
-  },
-  {
-    playerId: "Player-3",
-    zone: ZONE_FIELD,
-    isFaceDown: false,
-    fieldIndex: 4,
-    defensePosition: false,
-    card: {
-      id: "c-4",
-      name: "Arcane Surge",
-      image: "",
-      description: "Spell sample for mixed card types.",
-      type: 1,
-      effectId: "e-4",
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_HAND,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-1",
-      name: "Blue-Eyes White Dragon",
-      image: "",
-      description: "Demo deck card for the current player hand fan.",
-      type: 0,
-      effectId: null,
-      attack: 3000,
-      defense: 2500,
-      level: 8,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_HAND,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-2",
-      name: "Mystical Space Typhoon",
-      image: "",
-      description: "Demo deck card for curved fan layout.",
-      type: 1,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_HAND,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-7",
-      name: "Dark Magician",
-      image: "",
-      description: "Extra draw test card.",
-      type: 0,
-      effectId: null,
-      attack: 2500,
-      defense: 2100,
-      level: 7,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_HAND,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-8",
-      name: "Raigeki",
-      image: "",
-      description: "Extra draw test card.",
-      type: 1,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_HAND,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-3",
-      name: "Mirror Force",
-      image: "",
-      description: "Demo deck card for curved fan layout.",
-      type: 2,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_DECK,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "h-1",
-      name: "Summoned Skull",
-      image: "",
-      description: "Main1 test card already in hand.",
-      type: 0,
-      effectId: null,
-      attack: 2500,
-      defense: 1200,
-      level: 6,
-    },
-  },
-  {
-    playerId: "Player-1",
-    zone: ZONE_DECK,
-    isFaceDown: false,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "h-2",
-      name: "Swords of Revealing Light",
-      image: "",
-      description: "Main1 test card for graveyard/deck actions.",
-      type: 1,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-2",
-    zone: ZONE_DECK,
-    isFaceDown: true,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-4",
-      name: "Opponent Card A",
-      image: "",
-      description: "Should be hidden from current player.",
-      type: 0,
-      effectId: null,
-      attack: 1500,
-      defense: 1500,
-      level: 4,
-    },
-  },
-  {
-    playerId: "Player-2",
-    zone: ZONE_DECK,
-    isFaceDown: true,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-5",
-      name: "Opponent Card B",
-      image: "",
-      description: "Should be hidden from current player.",
-      type: 1,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-  {
-    playerId: "Player-3",
-    zone: ZONE_DECK,
-    isFaceDown: true,
-    fieldIndex: null,
-    defensePosition: false,
-    card: {
-      id: "d-6",
-      name: "Opponent Card C",
-      image: "",
-      description: "Should be hidden from current player.",
-      type: 2,
-      effectId: null,
-      attack: null,
-      defense: null,
-      level: null,
-    },
-  },
-];
-
 const GamePage = () => {
+  const { gameId } = useParams();
+  const navigate = useNavigate();
+  const currentUserId = useAuthStore((state) => state.userId);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
-  const [gameCards, setGameCards] = useState<GameCardDto[]>(demoCards);
+  const [cards, setCards] = useState<GameCardDto[]>([]);
+  const [playerOrder, setPlayerOrder] = useState<string[]>([]);
+  const [viewerPlayerId, setViewerPlayerId] = useState<string | null>(null);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const [activePlayerLabel, setActivePlayerLabel] = useState<string>("-");
+  const [phase, setPhase] = useState<number>(0);
+  const [isSubmittingDrawAction, setIsSubmittingDrawAction] = useState(false);
+  const [isSubmittingMainAction, setIsSubmittingMainAction] = useState(false);
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
+  const [placeFaceDown, setPlaceFaceDown] = useState(false);
+  const [pendingRevealCardId, setPendingRevealCardId] = useState<string | null>(null);
   const [turnAnnouncement, setTurnAnnouncement] = useState<{
     title: string;
     subtitle?: string;
     colorClass: string;
   } | null>(null);
-  const [turnStatus, setTurnStatus] = useState<GameTurnStatus>({
-    activePlayerId: VIEWER_PLAYER_ID,
-    phase: TurnPhase.Draw,
-  });
-  const previousTurnStatusRef = useRef<GameTurnStatus | null>(null);
+
+  const previousTurnStatusRef = useRef<{ activePlayerId: string; phase: number } | null>(null);
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const safeGameId = gameId ?? "";
+
+  const fetchGameState = useCallback(async () => {
+    if (!safeGameId) return;
+
+    const response = await gameApi.getGameState(safeGameId);
+    const data = response.data;
+
+    const mappedCards: GameCardDto[] = data.cards.map((card) => ({
+      id: card.id,
+      playerId: card.playerGameId,
+      zone: card.zone,
+      deckOrder: card.deckOrder,
+      isFaceDown: card.isFaceDown,
+      fieldIndex: card.fieldIndex,
+      defensePosition: card.defensePosition,
+      card: card.card,
+    }));
+
+    const playerNameByPlayerGameId = new Map(
+      data.players.map((player) => [player.id, player.user.username])
+    );
+    const orderedPlayerIds = [...data.players]
+      .sort((a, b) => a.index - b.index)
+      .map((player) => player.id);
+    const activePlayerId = data.currentTurn.activePlayerId;
+
+    setCards(mappedCards);
+    setPlayerOrder(orderedPlayerIds);
+    setViewerPlayerId(data.viewerPlayerId);
+    setActivePlayerId(data.currentTurn.activePlayerId);
+    setPhase(Number(data.currentTurn.phase));
+    setActivePlayerLabel(
+      activePlayerId ? (playerNameByPlayerGameId.get(activePlayerId) ?? activePlayerId) : "-"
+    );
+  }, [safeGameId]);
+
+  useEffect(() => {
+    if (!safeGameId) {
+      navigate("/friendly", { replace: true });
+      return;
+    }
+
+    let disposed = false;
+
+    const load = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await fetchGameState();
+      } catch (err) {
+        if (!disposed && err instanceof AxiosError) {
+          const data = err.response?.data as ErrorMessage | undefined;
+          setError(data?.error ?? "Failed to load game state.");
+        }
+      } finally {
+        if (!disposed) setIsLoading(false);
+      }
+    };
+
+    const onStateMayHaveChanged = (..._args: unknown[]) => {
+      void fetchGameState();
+    };
+
+    void load();
+    void gameHub.joinGame(safeGameId);
+
+    gameHub.onDrawResult(onStateMayHaveChanged);
+    gameHub.onPlayerDrew(onStateMayHaveChanged);
+    gameHub.onSkipDrawResult(onStateMayHaveChanged);
+    gameHub.onPlayerSkippedDraw(onStateMayHaveChanged);
+    gameHub.onPlaceResult(onStateMayHaveChanged);
+    gameHub.onPlayerPlaced(onStateMayHaveChanged);
+    gameHub.onNextResult(onStateMayHaveChanged);
+    gameHub.onPhaseAdvanced(onStateMayHaveChanged);
+    gameHub.onGraveResult(onStateMayHaveChanged);
+    gameHub.onToggleDefenseResult(onStateMayHaveChanged);
+    gameHub.onRevealResult(onStateMayHaveChanged);
+    gameHub.onPlayerCardUpdated(onStateMayHaveChanged);
+
+    return () => {
+      disposed = true;
+      gameHub.offDrawResult(onStateMayHaveChanged);
+      gameHub.offPlayerDrew(onStateMayHaveChanged);
+      gameHub.offSkipDrawResult(onStateMayHaveChanged);
+      gameHub.offPlayerSkippedDraw(onStateMayHaveChanged);
+      gameHub.offPlaceResult(onStateMayHaveChanged);
+      gameHub.offPlayerPlaced(onStateMayHaveChanged);
+      gameHub.offNextResult(onStateMayHaveChanged);
+      gameHub.offPhaseAdvanced(onStateMayHaveChanged);
+      gameHub.offGraveResult(onStateMayHaveChanged);
+      gameHub.offToggleDefenseResult(onStateMayHaveChanged);
+      gameHub.offRevealResult(onStateMayHaveChanged);
+      gameHub.offPlayerCardUpdated(onStateMayHaveChanged);
+      void gameHub.leaveGame(safeGameId);
+    };
+  }, [fetchGameState, navigate, safeGameId]);
+
+  const turnStatus = useMemo(
+    () => ({ activePlayerId: activePlayerLabel, phase }),
+    [activePlayerLabel, phase]
+  );
+
+  useEffect(() => {
+    const previous = previousTurnStatusRef.current;
+    const current = { activePlayerId: activePlayerLabel, phase: Number(phase) };
+
+    if (!previous) {
+      previousTurnStatusRef.current = current;
+      return;
+    }
+
+    const phaseChanged = previous.phase !== current.phase;
+    const playerChanged = previous.activePlayerId !== current.activePlayerId;
+    if (!phaseChanged && !playerChanged) return;
+
+    const phaseLabel = PHASE_LABELS[current.phase] ?? `Phase ${current.phase}`;
+    const colorClass = PHASE_COLOR_CLASSES[current.phase] ?? "text-cyan-100";
+    const title = `${current.activePlayerId} ${phaseLabel} Phase`;
+    const subtitle = playerChanged && !phaseChanged ? "Player Turn Changed" : undefined;
+
+    setTurnAnnouncement({ title, subtitle, colorClass });
+    previousTurnStatusRef.current = current;
+
+    if (announcementTimeoutRef.current) {
+      clearTimeout(announcementTimeoutRef.current);
+    }
+    announcementTimeoutRef.current = setTimeout(() => {
+      setTurnAnnouncement(null);
+      announcementTimeoutRef.current = null;
+    }, TURN_ANNOUNCEMENT_DURATION_MS);
+  }, [activePlayerLabel, phase]);
 
   useEffect(() => {
     return () => {
@@ -314,168 +203,208 @@ const GamePage = () => {
     };
   }, []);
 
+  const canViewerDraw =
+    Boolean(viewerPlayerId) &&
+    viewerPlayerId === activePlayerId &&
+    Number(phase) === TurnPhase.Draw;
+  const canViewerAdvancePhase = Boolean(viewerPlayerId) && viewerPlayerId === activePlayerId;
+  const canViewerPlayMain1 =
+    Boolean(viewerPlayerId) &&
+    viewerPlayerId === activePlayerId &&
+    Number(phase) === TurnPhase.Main1;
+
   useEffect(() => {
-    const previous = previousTurnStatusRef.current;
-    const currentPhase = Number(turnStatus.phase);
-
-    if (!previous) {
-      previousTurnStatusRef.current = turnStatus;
-      return;
+    if (!canViewerPlayMain1) {
+      setSelectedHandCardId(null);
+      setPlaceFaceDown(false);
+      setPendingRevealCardId(null);
     }
+  }, [canViewerPlayMain1]);
 
-    const phaseChanged = Number(previous.phase) !== currentPhase;
-    const playerChanged = previous.activePlayerId !== turnStatus.activePlayerId;
-
-    if (!phaseChanged && !playerChanged) return;
-
-    const phaseLabel = PHASE_LABELS[currentPhase] ?? `Phase ${turnStatus.phase}`;
-    const title = phaseChanged ? `${phaseLabel} Phase` : "Player Turn Changed";
-    const subtitle = playerChanged ? `Player: ${turnStatus.activePlayerId}` : undefined;
-    const colorClass = PHASE_COLOR_CLASSES[currentPhase] ?? "border-cyan-300/60 text-cyan-100";
-
-    const announcementPayload = { title, subtitle, colorClass };
-    const showTimer = setTimeout(() => {
-      setTurnAnnouncement(announcementPayload);
-    }, 0);
-    previousTurnStatusRef.current = turnStatus;
-
-    if (announcementTimeoutRef.current) {
-      clearTimeout(announcementTimeoutRef.current);
-    }
-    announcementTimeoutRef.current = setTimeout(() => {
-      setTurnAnnouncement(null);
-      announcementTimeoutRef.current = null;
-    }, TURN_ANNOUNCEMENT_DURATION_MS);
-
-    return () => clearTimeout(showTimer);
-  }, [turnStatus]);
-  const isDrawPhase = Number(turnStatus.phase) === TurnPhase.Draw;
-  const isMain1Phase = Number(turnStatus.phase) === TurnPhase.Main1;
-  const isViewerActivePlayer = turnStatus.activePlayerId === VIEWER_PLAYER_ID;
-  const drawPileCards = gameCards.filter(
-    (card) =>
-      card.playerId === VIEWER_PLAYER_ID &&
-      card.zone === ZONE_DECK &&
-      card.fieldIndex === null &&
-      card.card
+  const pendingRevealCard = useMemo(
+    () =>
+      pendingRevealCardId
+        ? (cards.find((card) => card.id === pendingRevealCardId && card.isFaceDown) ?? null)
+        : null,
+    [cards, pendingRevealCardId]
   );
-  const selectableHandCards = gameCards.filter(
-    (card) =>
-      card.playerId === VIEWER_PLAYER_ID &&
-      card.zone === ZONE_HAND &&
-      card.fieldIndex === null &&
-      card.card
-  );
-  const selectedHandCard =
-    selectableHandCards.find((card) => card.card?.id === selectedHandCardId) ?? null;
 
-  const canPlaceCardAtFieldIndex = (card: GameCardDto | null, fieldIndex: number) => {
+  const selectedHandCard = useMemo(() => {
+    if (!selectedHandCardId) return null;
+
+    return (
+      cards.find(
+        (card) =>
+          card.id === selectedHandCardId &&
+          card.playerId === viewerPlayerId &&
+          card.zone === ZONE_HAND &&
+          Boolean(card.card)
+      ) ?? null
+    );
+  }, [cards, selectedHandCardId, viewerPlayerId]);
+
+  const canPlaceCardAtFieldIndex = useCallback((card: GameCardDto | null, fieldIndex: number) => {
     const cardType = card?.card?.type;
     if (cardType === undefined || cardType === null) return false;
 
     if (cardType === CARD_TYPE_MONSTER) return fieldIndex <= TOP_ROW_MAX_INDEX;
     if (cardType === CARD_TYPE_SPELL || cardType === CARD_TYPE_TRAP) return fieldIndex > TOP_ROW_MAX_INDEX;
     return false;
-  };
+  }, []);
 
-  const handleDeckClick = (playerId: string) => {
-    if (!isDrawPhase) return;
-    if (playerId !== VIEWER_PLAYER_ID || playerId !== turnStatus.activePlayerId) return;
+  const handleDrawCard = useCallback(async () => {
+    if (!safeGameId || !canViewerDraw || isSubmittingDrawAction) return;
 
-    setGameCards((prevCards) => {
-      const topDeckIndex = [...prevCards]
-        .map((card, index) => ({ card, index }))
-        .reverse()
-        .find(({ card }) => card.playerId === playerId && card.zone === ZONE_DECK && card.fieldIndex === null && card.card)
-        ?.index;
-
-      if (topDeckIndex === undefined) return prevCards;
-
-      const drawnCard = prevCards[topDeckIndex];
-      const updatedCard: GameCardDto = {
-        ...drawnCard,
-        zone: ZONE_HAND,
-        fieldIndex: null,
-        isFaceDown: false,
-        defensePosition: false,
-      };
-
-      setTurnStatus((prev) => ({ ...prev, phase: TurnPhase.Main1 }));
-      setSelectedHandCardId(null);
-
-      const remainingCards = prevCards.filter((_, index) => index !== topDeckIndex);
-      return [updatedCard, ...remainingCards];
-    });
-  };
-
-  const handleHandCardClick = (card: GameCardDto) => {
-    if (!isMain1Phase || !isViewerActivePlayer) return;
-    if (card.playerId !== VIEWER_PLAYER_ID || card.zone !== ZONE_HAND || !card.card) return;
-
-    setSelectedHandCardId((prev) => (prev === card.card?.id ? null : card.card?.id ?? null));
-  };
-
-  const handleGraveyardClick = (playerId: string) => {
-    if (!isMain1Phase || !isViewerActivePlayer) return;
-    if (playerId !== VIEWER_PLAYER_ID) return;
-    if (!selectedHandCard?.card?.id) return;
-
-    setGameCards((prevCards) =>
-      prevCards.map((card) =>
-        card.card?.id === selectedHandCard.card?.id
-          ? {
-              ...card,
-              zone: ZONE_GRAVEYARD,
-              fieldIndex: null,
-              isFaceDown: false,
-              defensePosition: false,
-            }
-          : card
-      )
-    );
-    setSelectedHandCardId(null);
-  };
-
-  const handleFieldClick = (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
-    if (!isMain1Phase) return;
-    if (playerId !== VIEWER_PLAYER_ID || playerId !== turnStatus.activePlayerId) return;
-
-    if (selectedHandCard?.card?.id) {
-      if (card !== null) return;
-      if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
-
-      setGameCards((prevCards) =>
-        prevCards.map((existingCard) =>
-          existingCard.card?.id === selectedHandCard.card?.id
-            ? {
-                ...existingCard,
-                zone: ZONE_FIELD,
-                fieldIndex,
-                isFaceDown: false,
-                defensePosition: false,
-              }
-            : existingCard
-        )
-      );
-      setSelectedHandCardId(null);
-      return;
+    setIsSubmittingDrawAction(true);
+    setError(null);
+    try {
+      await gameHub.drawCard(safeGameId);
+      await fetchGameState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Draw action failed.";
+      setError(message);
+    } finally {
+      setIsSubmittingDrawAction(false);
     }
+  }, [canViewerDraw, fetchGameState, isSubmittingDrawAction, safeGameId]);
 
-    if (!card || card.playerId !== playerId || card.zone !== ZONE_FIELD) return;
+  const handleNextPhase = useCallback(async () => {
+    if (!safeGameId || !canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction) return;
+    setIsSubmittingDrawAction(true);
+    setError(null);
+    try {
+      await gameHub.nextPhase(safeGameId);
+      await fetchGameState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Next phase action failed.";
+      setError(message);
+    } finally {
+      setIsSubmittingDrawAction(false);
+    }
+  }, [canViewerAdvancePhase, fetchGameState, isSubmittingDrawAction, isSubmittingMainAction, safeGameId]);
 
-    setGameCards((prevCards) =>
-      prevCards.map((existingCard) => {
-        const sameCard =
-          existingCard.playerId === card.playerId &&
-          existingCard.zone === card.zone &&
-          existingCard.fieldIndex === card.fieldIndex &&
-          existingCard.card?.id === card.card?.id;
+  const handleHandCardClick = useCallback(
+    (card: GameCardDto) => {
+      if (!canViewerPlayMain1) return;
+      if (card.playerId !== viewerPlayerId || card.zone !== ZONE_HAND || !card.card) return;
 
-        if (!sameCard) return existingCard;
-        return { ...existingCard, defensePosition: !existingCard.defensePosition };
-      })
-    );
-  };
+      setSelectedHandCardId((prev) => (prev === card.id ? null : card.id));
+    },
+    [canViewerPlayMain1, viewerPlayerId]
+  );
+
+  const handleGraveyardClick = useCallback(
+    (playerId: string) => {
+      if (!canViewerPlayMain1 || !viewerPlayerId) return;
+      if (playerId !== viewerPlayerId) return;
+      if (!selectedHandCard) return;
+      if (!safeGameId || isSubmittingMainAction) return;
+
+      setIsSubmittingMainAction(true);
+      setError(null);
+      void gameHub
+        .sendCardToGraveyard(safeGameId, selectedHandCard.id)
+        .then(async () => {
+          await fetchGameState();
+          setSelectedHandCardId(null);
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : "Send to graveyard failed.";
+          setError(message);
+        })
+        .finally(() => {
+          setIsSubmittingMainAction(false);
+        });
+    },
+    [
+      canViewerPlayMain1,
+      fetchGameState,
+      isSubmittingMainAction,
+      safeGameId,
+      selectedHandCard,
+      viewerPlayerId,
+    ]
+  );
+
+  const handleFieldClick = useCallback(
+    (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
+      if (!canViewerPlayMain1 || !viewerPlayerId) return;
+      if (playerId !== viewerPlayerId) return;
+
+      if (selectedHandCard) {
+        if (card !== null) return;
+        if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
+        if (!safeGameId || isSubmittingMainAction) return;
+
+        setIsSubmittingMainAction(true);
+        setError(null);
+        void gameHub
+          .placeCard(safeGameId, selectedHandCard.id, fieldIndex, placeFaceDown)
+          .then(async () => {
+            await fetchGameState();
+            setSelectedHandCardId(null);
+            setPlaceFaceDown(false);
+          })
+          .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : "Place action failed.";
+            setError(message);
+          })
+          .finally(() => {
+            setIsSubmittingMainAction(false);
+          });
+        return;
+      }
+
+      if (!card || card.playerId !== playerId || card.zone !== ZONE_FIELD) return;
+      if (!safeGameId || isSubmittingMainAction) return;
+
+      setIsSubmittingMainAction(true);
+      setError(null);
+      void gameHub
+        .toggleDefensePosition(safeGameId, card.id)
+        .then(async () => {
+          await fetchGameState();
+          setPendingRevealCardId(card.isFaceDown ? card.id : null);
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : "Card action failed.";
+          setError(message);
+        })
+        .finally(() => {
+          setIsSubmittingMainAction(false);
+        });
+    },
+    [
+      canPlaceCardAtFieldIndex,
+      canViewerPlayMain1,
+      fetchGameState,
+      isSubmittingMainAction,
+      placeFaceDown,
+      safeGameId,
+      selectedHandCard,
+      viewerPlayerId,
+    ]
+  );
+
+  const handleRevealCard = useCallback(async () => {
+    if (!safeGameId || !pendingRevealCard || isSubmittingMainAction) return;
+
+    setIsSubmittingMainAction(true);
+    setError(null);
+    try {
+      await gameHub.revealCard(safeGameId, pendingRevealCard.id);
+      await fetchGameState();
+      setPendingRevealCardId(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Reveal action failed.";
+      setError(message);
+    } finally {
+      setIsSubmittingMainAction(false);
+    }
+  }, [fetchGameState, isSubmittingMainAction, pendingRevealCard, safeGameId]);
+
+  const showBoard = !isLoading && !error && cards.length > 0 && viewerPlayerId;
+  const isViewer = Boolean(currentUserId);
 
   return (
     <main className="relative min-h-screen w-full text-zinc-100 box-border">
@@ -505,51 +434,123 @@ const GamePage = () => {
           <div className="pointer-events-none absolute top-3 left-3 z-20">
             <TurnStatus status={turnStatus} />
           </div>
-          <Board
-            cards={gameCards}
-            viewerPlayerId={VIEWER_PLAYER_ID}
-            hoveredCard={hoveredCard}
-            onHoverCardChange={setHoveredCard}
-            onDeckClick={handleDeckClick}
-            onFieldClick={handleFieldClick}
-            onGraveyardClick={handleGraveyardClick}
-            onHandCardClick={handleHandCardClick}
-            isDeckClickable={(playerId) =>
-              isDrawPhase &&
-              drawPileCards.length > 0 &&
-              playerId === turnStatus.activePlayerId &&
-              playerId === VIEWER_PLAYER_ID
-            }
-            isFieldClickable={(playerId, fieldIndex, card) => {
-              if (
-                !isMain1Phase ||
-                playerId !== turnStatus.activePlayerId ||
-                playerId !== VIEWER_PLAYER_ID
-              ) {
-                return false;
-              }
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void handleDrawCard();
+              }}
+              disabled={!canViewerDraw || isSubmittingDrawAction}
+              className="rounded-md border border-cyan-200/50 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:cursor-default disabled:opacity-50"
+            >
+              Draw card
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void handleNextPhase();
+              }}
+              disabled={!canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction}
+              className="rounded-md border border-amber-200/50 bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-100 disabled:cursor-default disabled:opacity-50"
+            >
+              Next
+            </button>
+            {canViewerPlayMain1 && pendingRevealCard ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRevealCard();
+                }}
+                disabled={isSubmittingMainAction}
+                className="rounded-md border border-violet-200/50 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 disabled:cursor-default disabled:opacity-50"
+              >
+                Reveal
+              </button>
+            ) : null}
+            {canViewerPlayMain1 && selectedHandCard ? (
+              <label className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-black/35 px-3 py-2 text-xs text-white/90">
+                <input
+                  type="checkbox"
+                  checked={placeFaceDown}
+                  onChange={(event) => setPlaceFaceDown(event.target.checked)}
+                  className="size-3.5"
+                />
+                Set face-down
+              </label>
+            ) : null}
+          </div>
 
-              if (selectedHandCard) {
-                return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
-              }
+          {isLoading && (
+            <div className="grid h-full w-full place-items-center text-white/80">Loading game...</div>
+          )}
 
-              return card !== null;
-            }}
-            isGraveyardClickable={(playerId) =>
-              isMain1Phase &&
-              isViewerActivePlayer &&
-              playerId === VIEWER_PLAYER_ID &&
-              Boolean(selectedHandCard)
-            }
-            isHandCardClickable={(card) =>
-              isMain1Phase &&
-              isViewerActivePlayer &&
-              card.playerId === VIEWER_PLAYER_ID &&
-              card.zone === ZONE_HAND &&
-              Boolean(card.card)
-            }
-            selectedHandCardId={selectedHandCardId}
-          />
+          {!isLoading && error && (
+            <div className="grid h-full w-full place-items-center px-4 text-red-300">{error}</div>
+          )}
+
+          {!isLoading && !error && !showBoard && (
+            <div className="grid h-full w-full place-items-center px-4 text-white/70">
+              Game state is empty.
+            </div>
+          )}
+
+          {showBoard ? (
+            <Board
+              cards={cards}
+              playerIds={playerOrder}
+              viewerPlayerId={viewerPlayerId}
+              hoveredCard={hoveredCard}
+              onHoverCardChange={setHoveredCard}
+              onDeckClick={(playerId) => {
+                if (playerId !== viewerPlayerId) return;
+                void handleDrawCard();
+              }}
+              onFieldClick={handleFieldClick}
+              onGraveyardClick={handleGraveyardClick}
+              onHandCardClick={handleHandCardClick}
+              isDeckClickable={(playerId) =>
+                canViewerDraw && !isSubmittingDrawAction && playerId === viewerPlayerId
+              }
+              isFieldClickable={(playerId, fieldIndex, card) => {
+                if (
+                  !canViewerPlayMain1 ||
+                  !viewerPlayerId ||
+                  playerId !== viewerPlayerId ||
+                  isSubmittingMainAction
+                ) {
+                  return false;
+                }
+
+                if (selectedHandCard) {
+                  return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
+                }
+
+                return card !== null;
+              }}
+              isGraveyardClickable={(playerId) =>
+                canViewerPlayMain1 &&
+                Boolean(selectedHandCard) &&
+                Boolean(viewerPlayerId) &&
+                playerId === viewerPlayerId &&
+                !isSubmittingMainAction
+              }
+              isHandCardClickable={(card) =>
+                canViewerPlayMain1 &&
+                Boolean(viewerPlayerId) &&
+                card.playerId === viewerPlayerId &&
+                card.zone === ZONE_HAND &&
+                Boolean(card.card) &&
+                !isSubmittingMainAction
+              }
+              selectedHandCardId={selectedHandCardId}
+            />
+          ) : null}
+
+          {!isViewer && (
+            <div className="absolute right-3 top-3 rounded-md border border-amber-200/40 bg-black/40 px-3 py-2 text-xs text-amber-100">
+              Missing user session.
+            </div>
+          )}
         </div>
       </div>
     </main>

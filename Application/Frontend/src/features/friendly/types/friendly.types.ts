@@ -29,6 +29,11 @@ export interface StartRoomResponse {
   gameId: string;
 }
 
+export interface GameStartedEventDto {
+  roomId: string;
+  gameId: string;
+}
+
 export interface LeaveRoomResponse {
   cancelled: boolean;
 }
