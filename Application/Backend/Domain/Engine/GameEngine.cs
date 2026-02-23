@@ -25,6 +25,10 @@ public sealed class GameEngine(
         var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(game.Id)
             ?? throw new BadRequestException("Game turn was not initialized.");
 
+        var firstPlayerIndex = Random.Shared.Next(players.Count);
+        var firstPlayer = players[firstPlayerIndex];
+
+        currentTurn.ActivePlayerId = firstPlayer.Id;
         currentTurn.Phase = TurnPhase.Draw;
         _unitOfWork.Turns.Update(currentTurn);
 

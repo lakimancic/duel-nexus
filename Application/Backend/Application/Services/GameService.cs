@@ -126,6 +126,8 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         }
 
         await _unitOfWork.Turns.InitializeTurnsForGameAsync(game);
+        await _unitOfWork.CompleteAsync();
+
         await _gameEngine.InitializeGameAsync(game);
         await _unitOfWork.CompleteAsync();
 
@@ -149,6 +151,100 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         var result = await _gameEngine.ExecuteCommandAsync<SkipDrawActionCommand, DrawPhaseProgressResult>(
             gameId, userId, new SkipDrawActionCommand());
         return _mapper.Map<DrawPhaseProgressDto>(result);
+    }
+
+    public async Task<PlaceCardResultDto> PlaceCard(Guid gameId, Guid userId, Guid gameCardId, int fieldIndex, bool faceDown)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<PlaceCardActionCommand, PlaceCardResult>(
+            gameId, userId, new PlaceCardActionCommand(gameCardId, fieldIndex, faceDown));
+
+        return new PlaceCardResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            PlayerGameId = result.Player.Id,
+            TurnId = result.Turn.Id,
+            GameCardId = result.Card.Id,
+            FieldIndex = result.FieldIndex,
+            FaceDown = result.FaceDown,
+            CurrentPhase = result.CurrentPhase,
+        };
+    }
+
+    public async Task<GameCardUpdateResultDto> SendCardToGraveyard(Guid gameId, Guid userId, Guid gameCardId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<SendCardToGraveyardActionCommand, GameCardUpdateResult>(
+            gameId, userId, new SendCardToGraveyardActionCommand(gameCardId));
+
+        return new GameCardUpdateResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            PlayerGameId = result.Player.Id,
+            TurnId = result.Turn.Id,
+            GameCardId = result.Card.Id,
+            Zone = result.Card.Zone,
+            FieldIndex = result.Card.FieldIndex,
+            IsFaceDown = result.Card.IsFaceDown,
+            DefensePosition = result.Card.DefensePosition,
+            CurrentPhase = result.CurrentPhase,
+        };
+    }
+
+    public async Task<GameCardUpdateResultDto> ToggleDefensePosition(Guid gameId, Guid userId, Guid gameCardId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<ToggleDefensePositionActionCommand, GameCardUpdateResult>(
+            gameId, userId, new ToggleDefensePositionActionCommand(gameCardId));
+
+        return new GameCardUpdateResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            PlayerGameId = result.Player.Id,
+            TurnId = result.Turn.Id,
+            GameCardId = result.Card.Id,
+            Zone = result.Card.Zone,
+            FieldIndex = result.Card.FieldIndex,
+            IsFaceDown = result.Card.IsFaceDown,
+            DefensePosition = result.Card.DefensePosition,
+            CurrentPhase = result.CurrentPhase,
+        };
+    }
+
+    public async Task<GameCardUpdateResultDto> RevealCard(Guid gameId, Guid userId, Guid gameCardId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<RevealCardActionCommand, GameCardUpdateResult>(
+            gameId, userId, new RevealCardActionCommand(gameCardId));
+
+        return new GameCardUpdateResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            PlayerGameId = result.Player.Id,
+            TurnId = result.Turn.Id,
+            GameCardId = result.Card.Id,
+            Zone = result.Card.Zone,
+            FieldIndex = result.Card.FieldIndex,
+            IsFaceDown = result.Card.IsFaceDown,
+            DefensePosition = result.Card.DefensePosition,
+            CurrentPhase = result.CurrentPhase,
+        };
+    }
+
+    public async Task<PhaseAdvanceResultDto> AdvancePhase(Guid gameId, Guid userId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<AdvancePhaseActionCommand, PhaseAdvanceResult>(
+            gameId, userId, new AdvancePhaseActionCommand());
+
+        return new PhaseAdvanceResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            TurnId = result.Turn.Id,
+            ActivePlayerId = result.ActivePlayerId,
+            CurrentPhase = result.CurrentPhase,
+            TurnChanged = result.TurnChanged,
+        };
     }
 
     public async Task<PlaceCardDto> CreatePlaceAction(CreatePlaceActionDto actionDto)

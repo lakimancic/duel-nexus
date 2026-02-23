@@ -77,6 +77,11 @@ builder.Services.AddScoped<IGameEngine, GameEngine>();
 builder.Services.AddSingleton<IGameCommandLock, GameCommandLock>();
 builder.Services.AddScoped<IGameCommandHandler<DrawActionCommand, DrawActionResult>, DrawActionCommandHandler>();
 builder.Services.AddScoped<IGameCommandHandler<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<PlaceCardActionCommand, PlaceCardResult>, PlaceCardActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<SendCardToGraveyardActionCommand, GameCardUpdateResult>, SendCardToGraveyardActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<ToggleDefensePositionActionCommand, GameCardUpdateResult>, ToggleDefensePositionActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<RevealCardActionCommand, GameCardUpdateResult>, RevealCardActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandHandler<AdvancePhaseActionCommand, PhaseAdvanceResult>, AdvancePhaseActionCommandHandler>();
 builder.Services.AddScoped<IConnectionService, ConnectionService>();
 builder.Services.AddSingleton<ConnectionTracker>();
 
