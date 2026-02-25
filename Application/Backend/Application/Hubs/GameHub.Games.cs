@@ -1,4 +1,5 @@
 using Backend.Application.DTOs.Games;
+using Backend.Utils.WebApi;
 using Microsoft.AspNetCore.SignalR;
 
 public partial class GameHub
@@ -22,24 +23,35 @@ public partial class GameHub
     [HubMethodName("game:action:draw")]
     public async Task DrawCardAction(Guid gameId)
     {
-        var userId = GetUserId();
-        var result = await Games.DrawCard(gameId, userId);
-
-        await Clients.Caller.SendAsync("game:draw:result", result);
-
-        var publicEvent = new PlayerDrewCardEventDto
+        try
         {
-            GameId = result.GameId,
-            PlayerGameId = result.PlayerGameId,
-            TurnId = result.TurnId,
-            DrawsInTurn = result.DrawsInTurn,
-            TurnEnded = result.TurnEnded,
-            PhaseAdvanced = result.PhaseAdvanced,
-            CurrentPhase = result.CurrentPhase,
-        };
+            var userId = GetUserId();
+            var result = await Games.DrawCard(gameId, userId);
 
-        await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
-            .SendAsync("game:player:drew", publicEvent);
+            await Clients.Caller.SendAsync("game:draw:result", result);
+
+            var publicEvent = new PlayerDrewCardEventDto
+            {
+                GameId = result.GameId,
+                PlayerGameId = result.PlayerGameId,
+                TurnId = result.TurnId,
+                DrawsInTurn = result.DrawsInTurn,
+                TurnEnded = result.TurnEnded,
+                PhaseAdvanced = result.PhaseAdvanced,
+                CurrentPhase = result.CurrentPhase,
+            };
+
+            await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
+                .SendAsync("game:player:drew", publicEvent);
+        }
+        catch (BadRequestException exception)
+        {
+            throw new HubException(exception.Message);
+        }
+        catch (ObjectNotFoundException exception)
+        {
+            throw new HubException(exception.Message);
+        }
     }
 
     [HubMethodName("game:action:draw:skip")]

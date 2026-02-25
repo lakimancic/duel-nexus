@@ -17,6 +17,8 @@ const CARD_TYPE_MONSTER = 0;
 const CARD_TYPE_SPELL = 1;
 const CARD_TYPE_TRAP = 2;
 const TURN_ANNOUNCEMENT_DURATION_MS = 1100;
+const DRAW_PHASE_TIMEOUT_SECONDS = 20;
+const MAIN1_PHASE_TIMEOUT_SECONDS = 60;
 
 const PHASE_LABELS: Record<number, string> = {
   [TurnPhase.Draw]: "Draw",
@@ -45,9 +47,12 @@ const GamePage = () => {
   const [cards, setCards] = useState<GameCardDto[]>([]);
   const [playerOrder, setPlayerOrder] = useState<string[]>([]);
   const [viewerPlayerId, setViewerPlayerId] = useState<string | null>(null);
+  const [viewerDrawsInTurn, setViewerDrawsInTurn] = useState(0);
+  const [viewerTurnEnded, setViewerTurnEnded] = useState(false);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [activePlayerLabel, setActivePlayerLabel] = useState<string>("-");
   const [phase, setPhase] = useState<number>(0);
+  const [phaseStartedAt, setPhaseStartedAt] = useState<string | null>(null);
   const [isSubmittingDrawAction, setIsSubmittingDrawAction] = useState(false);
   const [isSubmittingMainAction, setIsSubmittingMainAction] = useState(false);
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
@@ -92,8 +97,13 @@ const GamePage = () => {
     setCards(mappedCards);
     setPlayerOrder(orderedPlayerIds);
     setViewerPlayerId(data.viewerPlayerId);
+    setViewerDrawsInTurn(data.viewerDrawsInTurn ?? 0);
+    setViewerTurnEnded(
+      data.players.find((player) => player.id === data.viewerPlayerId)?.turnEnded ?? false
+    );
     setActivePlayerId(data.currentTurn.activePlayerId);
     setPhase(Number(data.currentTurn.phase));
+    setPhaseStartedAt(data.currentTurn.startedAt ?? null);
     setActivePlayerLabel(
       activePlayerId ? (playerNameByPlayerGameId.get(activePlayerId) ?? activePlayerId) : "-"
     );
@@ -126,6 +136,12 @@ const GamePage = () => {
       void fetchGameState();
     };
 
+    const pollStateInterval = setInterval(() => {
+      if (!disposed) {
+        void fetchGameState();
+      }
+    }, 1000);
+
     void load();
     void gameHub.joinGame(safeGameId);
 
@@ -157,6 +173,7 @@ const GamePage = () => {
       gameHub.offRevealResult(onStateMayHaveChanged);
       gameHub.offPlayerCardUpdated(onStateMayHaveChanged);
       void gameHub.leaveGame(safeGameId);
+      clearInterval(pollStateInterval);
     };
   }, [fetchGameState, navigate, safeGameId]);
 
@@ -203,15 +220,53 @@ const GamePage = () => {
     };
   }, []);
 
+  const phaseNumber = Number(phase);
   const canViewerDraw =
     Boolean(viewerPlayerId) &&
-    viewerPlayerId === activePlayerId &&
-    Number(phase) === TurnPhase.Draw;
-  const canViewerAdvancePhase = Boolean(viewerPlayerId) && viewerPlayerId === activePlayerId;
-  const canViewerPlayMain1 =
+    !viewerTurnEnded &&
+    phaseNumber === TurnPhase.Draw &&
+    viewerDrawsInTurn < 2;
+  const canViewerPlayMain1 = Boolean(viewerPlayerId) && !viewerTurnEnded && phaseNumber === TurnPhase.Main1;
+  const canViewerAdvancePhase =
     Boolean(viewerPlayerId) &&
-    viewerPlayerId === activePlayerId &&
-    Number(phase) === TurnPhase.Main1;
+    (
+      ((phaseNumber === TurnPhase.Draw || phaseNumber === TurnPhase.Main1) && !viewerTurnEnded) ||
+      (phaseNumber === TurnPhase.Battle && viewerPlayerId === activePlayerId)
+    );
+
+  const phaseTimeoutSeconds = useMemo(() => {
+    if (phaseNumber === TurnPhase.Draw) return DRAW_PHASE_TIMEOUT_SECONDS;
+    if (phaseNumber === TurnPhase.Main1) return MAIN1_PHASE_TIMEOUT_SECONDS;
+    return null;
+  }, [phaseNumber]);
+
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setNowMs(Date.now());
+    }, 250);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const timeoutDisplay = useMemo(() => {
+    if (!phaseTimeoutSeconds || !phaseStartedAt) return null;
+
+    const startedMs = Date.parse(phaseStartedAt);
+    if (Number.isNaN(startedMs)) return null;
+
+    const elapsedSeconds = Math.floor((nowMs - startedMs) / 1000);
+    const remainingSeconds = Math.max(0, phaseTimeoutSeconds - elapsedSeconds);
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const isExpired = remainingSeconds <= 0;
+
+    return {
+      label: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+      isExpired,
+    };
+  }, [nowMs, phaseStartedAt, phaseTimeoutSeconds]);
 
   useEffect(() => {
     if (!canViewerPlayMain1) {
@@ -435,6 +490,17 @@ const GamePage = () => {
             <TurnStatus status={turnStatus} />
           </div>
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            {timeoutDisplay ? (
+              <div
+                className={`rounded-md border px-3 py-2 text-xs font-semibold ${
+                  timeoutDisplay.isExpired
+                    ? "border-red-300/60 bg-red-500/20 text-red-100"
+                    : "border-white/30 bg-black/45 text-white/90"
+                }`}
+              >
+                Timeout: {timeoutDisplay.label}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => {

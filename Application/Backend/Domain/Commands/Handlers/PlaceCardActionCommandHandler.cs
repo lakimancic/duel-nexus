@@ -12,8 +12,8 @@ public sealed class PlaceCardActionCommandHandler : IGameCommandHandler<PlaceCar
         if (context.CurrentTurn.Phase != TurnPhase.Main1)
             throw new BadRequestException("Placing cards is allowed only in Main1 phase.");
 
-        if (context.CurrentTurn.ActivePlayerId != context.Actor.Id)
-            throw new BadRequestException("Only active player can place cards.");
+        if (context.Actor.TurnEnded)
+            throw new BadRequestException("You already finished Main1 actions for this phase.");
 
         if (command.FieldIndex < 0 || command.FieldIndex > 9)
             throw new BadRequestException("Field index must be between 0 and 9.");

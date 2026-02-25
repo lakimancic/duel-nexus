@@ -12,6 +12,9 @@ public sealed class GameEngine(
     IGameCommandLock commandLock,
     IServiceProvider serviceProvider) : IGameEngine
 {
+    private static readonly TimeSpan DrawPhaseTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan Main1PhaseTimeout = TimeSpan.FromMinutes(1);
+
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IGameCommandLock _commandLock = commandLock;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
@@ -25,11 +28,9 @@ public sealed class GameEngine(
         var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(game.Id)
             ?? throw new BadRequestException("Game turn was not initialized.");
 
-        var firstPlayerIndex = Random.Shared.Next(players.Count);
-        var firstPlayer = players[firstPlayerIndex];
-
-        currentTurn.ActivePlayerId = firstPlayer.Id;
+        currentTurn.ActivePlayerId = null;
         currentTurn.Phase = TurnPhase.Draw;
+        currentTurn.StartedAt = DateTime.UtcNow;
         _unitOfWork.Turns.Update(currentTurn);
 
         foreach (var player in players)
@@ -48,6 +49,14 @@ public sealed class GameEngine(
             var game = await GetGameOrThrow(gameId, cancellationToken);
             var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
                 ?? throw new ObjectNotFoundException("Turn not found");
+
+            var timeoutApplied = await ApplyPhaseTimeoutIfNeededAsync(game, currentTurn, cancellationToken);
+            if (timeoutApplied)
+            {
+                await _unitOfWork.CompleteAsync();
+                currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
+                    ?? throw new ObjectNotFoundException("Turn not found");
+            }
 
             var actor = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(userId, gameId)
                 ?? throw new BadRequestException("Player is not part of this game.");
@@ -69,12 +78,19 @@ public sealed class GameEngine(
     public async Task<GameStateSnapshot> GetGameStateAsync(Guid gameId, Guid viewerUserId, CancellationToken cancellationToken = default)
     {
         var game = await GetGameOrThrow(gameId, cancellationToken);
+        var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
+            ?? throw new ObjectNotFoundException("Turn not found");
+
+        var timeoutApplied = await ApplyPhaseTimeoutIfNeededAsync(game, currentTurn, cancellationToken);
+        if (timeoutApplied)
+        {
+            await _unitOfWork.CompleteAsync();
+            currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
+                ?? throw new ObjectNotFoundException("Turn not found");
+        }
 
         var viewer = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(viewerUserId, gameId)
             ?? throw new BadRequestException("Player is not part of this game.");
-
-        var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
-            ?? throw new ObjectNotFoundException("Turn not found");
 
         var players = await _unitOfWork.PlayerGames.GetByGameIdWithUserAsync(gameId);
         var cards = await _unitOfWork.GameCards.GetByGameIdWithCardAsync(gameId);
@@ -104,5 +120,46 @@ public sealed class GameEngine(
     {
         return await _unitOfWork.Games.GetByIdAsync(gameId)
             ?? throw new ObjectNotFoundException("Game not found");
+    }
+
+    private async Task<bool> ApplyPhaseTimeoutIfNeededAsync(Game game, Turn currentTurn, CancellationToken cancellationToken)
+    {
+        if (currentTurn.Phase != TurnPhase.Draw && currentTurn.Phase != TurnPhase.Main1)
+            return false;
+
+        var timeout = currentTurn.Phase == TurnPhase.Draw ? DrawPhaseTimeout : Main1PhaseTimeout;
+        if (DateTime.UtcNow - currentTurn.StartedAt < timeout)
+            return false;
+
+        var players = await _unitOfWork.PlayerGames.GetByGameIdOrderedAsync(game.Id);
+        if (players.Count == 0)
+            return false;
+
+        if (players.All(player => player.TurnEnded))
+            return false;
+
+        if (currentTurn.Phase == TurnPhase.Draw)
+        {
+            currentTurn.Phase = TurnPhase.Main1;
+            currentTurn.ActivePlayerId = null;
+            currentTurn.StartedAt = DateTime.UtcNow;
+            _unitOfWork.Turns.Update(currentTurn);
+        }
+        else
+        {
+            var battleStarter = players[(currentTurn.TurnNumber - 1) % players.Count];
+            currentTurn.Phase = TurnPhase.Battle;
+            currentTurn.ActivePlayerId = battleStarter.Id;
+            currentTurn.StartedAt = DateTime.UtcNow;
+            _unitOfWork.Turns.Update(currentTurn);
+        }
+
+        foreach (var player in players)
+        {
+            player.TurnEnded = false;
+            _unitOfWork.PlayerGames.Update(player);
+        }
+
+        return true;
     }
 }

@@ -11,8 +11,8 @@ public sealed class RevealCardActionCommandHandler : IGameCommandHandler<RevealC
         if (context.CurrentTurn.Phase != TurnPhase.Main1)
             throw new BadRequestException("Revealing cards is allowed only in Main1 phase.");
 
-        if (context.CurrentTurn.ActivePlayerId != context.Actor.Id)
-            throw new BadRequestException("Only active player can reveal cards.");
+        if (context.Actor.TurnEnded)
+            throw new BadRequestException("You already finished Main1 actions for this phase.");
 
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(command.GameCardId)
             ?? throw new ObjectNotFoundException("Game card not found.");
