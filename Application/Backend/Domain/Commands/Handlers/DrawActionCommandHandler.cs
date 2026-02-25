@@ -46,9 +46,9 @@ public sealed class DrawActionCommandHandler : IGameCommandHandler<DrawActionCom
             context.Actor.TurnEnded = true;
             context.UnitOfWork.PlayerGames.Update(context.Actor);
             shouldEndTurn = true;
-            phaseAdvanced = await DrawPhaseCoordinator.TryAdvanceToMain1Async(context);
-        }
-
+            phaseAdvanced = await DrawPhaseCoordinator.TryAdvanceToMain1Async(context);        
+        }       
+         
         return new DrawActionResult(
             Game: context.Game,
             Turn: context.CurrentTurn,

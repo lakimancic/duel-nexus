@@ -470,11 +470,15 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
     public async Task<GameStateDto> GetGameState(Guid gameId, Guid userId)
     {
         var state = await _gameEngine.GetGameStateAsync(gameId, userId);
+        var viewerDrawsInTurn = state.CurrentTurn.Phase == TurnPhase.Draw
+            ? await _unitOfWork.CardMovements.CountDrawsInTurnByPlayerAsync(state.CurrentTurn.Id, state.Viewer.Id)
+            : 0;
 
         return new GameStateDto
         {
             GameId = state.Game.Id,
             ViewerPlayerId = state.Viewer.Id,
+            ViewerDrawsInTurn = viewerDrawsInTurn,
             CurrentTurn = _mapper.Map<TurnDto>(state.CurrentTurn),
             Players = state.Players.Select(player => _mapper.Map<PlayerGameDto>(player)).ToList(),
             Cards = state.Cards.Select(card => MapCardForViewer(card, state.Viewer.Id)).ToList(),

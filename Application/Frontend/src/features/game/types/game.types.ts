@@ -30,6 +30,7 @@ export interface PlayerGameDto {
   id: string;
   index: number;
   lifePoints: number;
+  turnEnded: boolean;
   user: ShortUserDto;
 }
 
@@ -46,6 +47,7 @@ export interface TurnDto {
 export interface GameStateDto {
   gameId: string;
   viewerPlayerId: string;
+  viewerDrawsInTurn: number;
   currentTurn: TurnDto;
   players: PlayerGameDto[];
   cards: Array<{
