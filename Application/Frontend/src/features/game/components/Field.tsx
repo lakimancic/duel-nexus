@@ -1,6 +1,7 @@
 import Card from "@/shared/components/Card";
 import type { GameCardDto } from "@/features/game/types/game.types";
 import type { CardDto } from "@/shared/types/card.types";
+import { getImageUrl } from "@/shared/api/httpClient";
 
 interface FieldProps {
   playerId: string;
@@ -78,7 +79,7 @@ const CardField = ({
             attack={card.card?.attack ?? null}
             defense={card.card?.defense ?? null}
             level={card.card?.level ?? null}
-            src={card.card?.image ?? ""}
+            src={getImageUrl(card.card?.image ?? "")}
             hasEffect={Boolean(card.card?.effectId)}
             hidden={card.isFaceDown || !card.card}
             className={`${card.defensePosition ? "rotate-90" : ""} text-black`}

@@ -2,6 +2,7 @@ import Card from "@/shared/components/Card";
 import type { GameCardDto } from "@/features/game/types/game.types";
 import type { CardDto } from "@/shared/types/card.types";
 import { FaSkull } from "react-icons/fa";
+import { getImageUrl } from "@/shared/api/httpClient";
 
 interface GraveyardProps {
   playerId: string;
@@ -51,7 +52,7 @@ const Graveyard = ({
           attack={topGraveyardCard.card.attack}
           defense={topGraveyardCard.card.defense}
           level={topGraveyardCard.card.level}
-          src={topGraveyardCard.card.image}
+          src={getImageUrl(topGraveyardCard.card.image)}
           hasEffect={Boolean(topGraveyardCard.card.effectId)}
           hidden={topGraveyardCard.isFaceDown}
           className={`${topGraveyardCard.defensePosition ? "rotate-90" : ""} text-black`}
