@@ -7,6 +7,7 @@ import Field from "./Field";
 import Deck from "./Deck";
 import Graveyard from "./Graveyard";
 import Hand from "./Hand";
+import { getImageUrl } from "@/shared/api/httpClient";
 
 interface BoardProps {
   cards: GameCardDto[];
@@ -413,7 +414,7 @@ const Board = ({
               attack={hoveredCard.attack}
               defense={hoveredCard.defense}
               level={hoveredCard.level}
-              src={hoveredCard.image}
+              src={getImageUrl(hoveredCard.image)}
               hasEffect={Boolean(hoveredCard.effectId)}
               hidden={false}
               className="text-black"

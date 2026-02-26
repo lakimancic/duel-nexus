@@ -1,6 +1,7 @@
 import Card from "@/shared/components/Card";
 import type { GameCardDto } from "@/features/game/types/game.types";
 import type { CardDto } from "@/shared/types/card.types";
+import { getImageUrl } from "@/shared/api/httpClient";
 
 interface DeckFanProps {
   cards: GameCardDto[];
@@ -73,7 +74,7 @@ const DeckFan = ({
               attack={card.card?.attack ?? null}
               defense={card.card?.defense ?? null}
               level={card.card?.level ?? null}
-              src={card.card?.image ?? ""}
+              src={getImageUrl(card.card?.image ?? "")}
               hasEffect={Boolean(card.card?.effectId)}
               hidden={hideCards || card.isFaceDown || !card.card}
               className={`text-black ${selectedCardId === card.card?.id ? "ring-2 ring-cyan-200 ring-offset-2 ring-offset-black/60" : ""}`}
