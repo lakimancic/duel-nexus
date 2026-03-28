@@ -68,8 +68,13 @@ public sealed class GameEngine(
                 Actor: actor
             );
 
-            var handler = _serviceProvider.GetRequiredService<IGameCommandHandler<TCommand, TResult>>();
-            var result = await handler.HandleAsync(command, commandContext, cancellationToken);
+            var validators = _serviceProvider.GetServices<IGameCommandValidator<TCommand, TResult>>();
+            foreach (var validator in validators)
+            {
+                await validator.ValidateAsync(command, commandContext, cancellationToken);
+            }
+
+            var result = await command.ExecuteAsync(commandContext, cancellationToken);
             await _unitOfWork.CompleteAsync();
             return result;
         });

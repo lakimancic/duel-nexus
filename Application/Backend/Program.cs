@@ -9,7 +9,8 @@ using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
 using Backend.Domain.Commands;
-using Backend.Domain.Commands.Handlers;
+using Backend.Domain.Commands.Draw;
+using Backend.Domain.Commands.Validators;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
@@ -75,13 +76,13 @@ builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IGameEngine, GameEngine>();
 builder.Services.AddSingleton<IGameCommandLock, GameCommandLock>();
-builder.Services.AddScoped<IGameCommandHandler<DrawActionCommand, DrawActionResult>, DrawActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<PlaceCardActionCommand, PlaceCardResult>, PlaceCardActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<SendCardToGraveyardActionCommand, GameCardUpdateResult>, SendCardToGraveyardActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<ToggleDefensePositionActionCommand, GameCardUpdateResult>, ToggleDefensePositionActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<RevealCardActionCommand, GameCardUpdateResult>, RevealCardActionCommandHandler>();
-builder.Services.AddScoped<IGameCommandHandler<AdvancePhaseActionCommand, PhaseAdvanceResult>, AdvancePhaseActionCommandHandler>();
+builder.Services.AddScoped<IGameCommandValidator<DrawActionCommand, DrawActionResult>, DrawActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<PlaceCardActionCommand, PlaceCardResult>, PlaceCardActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<SendCardToGraveyardActionCommand, GameCardUpdateResult>, SendCardToGraveyardActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<ToggleDefensePositionActionCommand, GameCardUpdateResult>, ToggleDefensePositionActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<RevealCardActionCommand, GameCardUpdateResult>, RevealCardActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<AdvancePhaseActionCommand, PhaseAdvanceResult>, AdvancePhaseActionValidator>();
 builder.Services.AddScoped<IConnectionService, ConnectionService>();
 builder.Services.AddSingleton<ConnectionTracker>();
 
@@ -96,12 +97,16 @@ builder.Services.AddSingleton(mapperConfig.CreateMapper());
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(builder.Configuration["AppSettings:Frontend"]!)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.WithOrigins(
+            "http://10.66.55.79:5173",
+            "http://10.66.57.52:5173",
+            "http://localhost:5173"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
@@ -118,7 +123,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 

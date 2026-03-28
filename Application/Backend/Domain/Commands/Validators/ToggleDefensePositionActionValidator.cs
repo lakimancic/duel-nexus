@@ -1,12 +1,12 @@
-namespace Backend.Domain.Commands.Handlers;
+namespace Backend.Domain.Commands.Validators;
 
 using Backend.Data.Enums;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
-public sealed class ToggleDefensePositionActionCommandHandler : IGameCommandHandler<ToggleDefensePositionActionCommand, GameCardUpdateResult>
+public sealed class ToggleDefensePositionActionValidator : IGameCommandValidator<ToggleDefensePositionActionCommand, GameCardUpdateResult>
 {
-    public async Task<GameCardUpdateResult> HandleAsync(ToggleDefensePositionActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
+    public async Task ValidateAsync(ToggleDefensePositionActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
     {
         if (context.CurrentTurn.Phase != TurnPhase.Main1)
             throw new BadRequestException("Changing battle position is allowed only in Main1 phase.");
@@ -22,16 +22,5 @@ public sealed class ToggleDefensePositionActionCommandHandler : IGameCommandHand
 
         if (card.Zone != CardZone.Field)
             throw new BadRequestException("Only field cards can change battle position.");
-
-        card.DefensePosition = !card.DefensePosition;
-        context.UnitOfWork.GameCards.Update(card);
-
-        return new GameCardUpdateResult(
-            Game: context.Game,
-            Turn: context.CurrentTurn,
-            Player: context.Actor,
-            Card: card,
-            CurrentPhase: context.CurrentTurn.Phase
-        );
     }
 }

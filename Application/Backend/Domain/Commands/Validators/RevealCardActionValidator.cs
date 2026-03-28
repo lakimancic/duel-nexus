@@ -1,12 +1,12 @@
-namespace Backend.Domain.Commands.Handlers;
+namespace Backend.Domain.Commands.Validators;
 
 using Backend.Data.Enums;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
-public sealed class RevealCardActionCommandHandler : IGameCommandHandler<RevealCardActionCommand, GameCardUpdateResult>
+public sealed class RevealCardActionValidator : IGameCommandValidator<RevealCardActionCommand, GameCardUpdateResult>
 {
-    public async Task<GameCardUpdateResult> HandleAsync(RevealCardActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
+    public async Task ValidateAsync(RevealCardActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
     {
         if (context.CurrentTurn.Phase != TurnPhase.Main1)
             throw new BadRequestException("Revealing cards is allowed only in Main1 phase.");
@@ -25,16 +25,5 @@ public sealed class RevealCardActionCommandHandler : IGameCommandHandler<RevealC
 
         if (!card.IsFaceDown)
             throw new BadRequestException("Card is already face-up.");
-
-        card.IsFaceDown = false;
-        context.UnitOfWork.GameCards.Update(card);
-
-        return new GameCardUpdateResult(
-            Game: context.Game,
-            Turn: context.CurrentTurn,
-            Player: context.Actor,
-            Card: card,
-            CurrentPhase: context.CurrentTurn.Phase
-        );
     }
 }

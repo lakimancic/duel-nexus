@@ -1,13 +1,23 @@
 namespace Backend.Domain.Commands.Draw;
 
 using Backend.Data.Enums;
+using Backend.Domain.Commands;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
-public static class DrawActionValidator
+public sealed class DrawActionValidator : IGameCommandValidator<DrawActionCommand, DrawActionResult>
 {
-    public static void EnsureCanDraw(GameCommandContext context, int drawsInTurn, int handCount, int deckCount)
+    public async Task ValidateAsync(DrawActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
     {
+        var drawsInTurn = await context.UnitOfWork.CardMovements
+            .CountDrawsInTurnByPlayerAsync(context.CurrentTurn.Id, context.Actor.Id);
+
+        var handCount = await context.UnitOfWork.GameCards
+            .CountByPlayerAndZoneAsync(context.Actor.Id, CardZone.Hand);
+
+        var deckCount = await context.UnitOfWork.GameCards
+            .CountByPlayerAndZoneAsync(context.Actor.Id, CardZone.Deck);
+
         if (context.CurrentTurn.Phase != TurnPhase.Draw)
             throw new BadRequestException("Draw action is allowed only in Draw phase.");
 
