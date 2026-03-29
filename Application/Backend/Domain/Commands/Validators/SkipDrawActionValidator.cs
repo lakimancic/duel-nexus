@@ -11,6 +11,9 @@ public sealed class SkipDrawActionValidator : IGameCommandValidator<SkipDrawActi
         if (context.CurrentTurn.Phase != TurnPhase.Draw)
             throw new BadRequestException("Skip draw is allowed only in Draw phase.");
 
+        if (context.Actor.TurnEnded)
+            throw new BadRequestException("You already finished draw actions for this phase.");
+
         return Task.CompletedTask;
     }
 }

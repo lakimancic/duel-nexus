@@ -4,20 +4,20 @@ using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.UnitOfWork;
 using Backend.Domain.Commands;
+using Backend.Domain.Engine.Phases;
 using Backend.Utils.WebApi;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed class GameEngine(
     IUnitOfWork unitOfWork,
     IGameCommandLock commandLock,
-    IServiceProvider serviceProvider) : IGameEngine
+    IServiceProvider serviceProvider,
+    ITurnPhaseStateMachine phaseStateMachine) : IGameEngine
 {
-    private static readonly TimeSpan DrawPhaseTimeout = TimeSpan.FromSeconds(20);
-    private static readonly TimeSpan Main1PhaseTimeout = TimeSpan.FromMinutes(1);
-
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IGameCommandLock _commandLock = commandLock;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly ITurnPhaseStateMachine _phaseStateMachine = phaseStateMachine;
 
     public async Task InitializeGameAsync(Game game, CancellationToken cancellationToken = default)
     {
@@ -65,7 +65,8 @@ public sealed class GameEngine(
                 UnitOfWork: _unitOfWork,
                 Game: game,
                 CurrentTurn: currentTurn,
-                Actor: actor
+                Actor: actor,
+                PhaseStateMachine: _phaseStateMachine
             );
 
             var validators = _serviceProvider.GetServices<IGameCommandValidator<TCommand, TResult>>();
@@ -129,42 +130,8 @@ public sealed class GameEngine(
 
     private async Task<bool> ApplyPhaseTimeoutIfNeededAsync(Game game, Turn currentTurn, CancellationToken cancellationToken)
     {
-        if (currentTurn.Phase != TurnPhase.Draw && currentTurn.Phase != TurnPhase.Main1)
-            return false;
-
-        var timeout = currentTurn.Phase == TurnPhase.Draw ? DrawPhaseTimeout : Main1PhaseTimeout;
-        if (DateTime.UtcNow - currentTurn.StartedAt < timeout)
-            return false;
-
-        var players = await _unitOfWork.PlayerGames.GetByGameIdOrderedAsync(game.Id);
-        if (players.Count == 0)
-            return false;
-
-        if (players.All(player => player.TurnEnded))
-            return false;
-
-        if (currentTurn.Phase == TurnPhase.Draw)
-        {
-            currentTurn.Phase = TurnPhase.Main1;
-            currentTurn.ActivePlayerId = null;
-            currentTurn.StartedAt = DateTime.UtcNow;
-            _unitOfWork.Turns.Update(currentTurn);
-        }
-        else
-        {
-            var battleStarter = players[(currentTurn.TurnNumber - 1) % players.Count];
-            currentTurn.Phase = TurnPhase.Battle;
-            currentTurn.ActivePlayerId = battleStarter.Id;
-            currentTurn.StartedAt = DateTime.UtcNow;
-            _unitOfWork.Turns.Update(currentTurn);
-        }
-
-        foreach (var player in players)
-        {
-            player.TurnEnded = false;
-            _unitOfWork.PlayerGames.Update(player);
-        }
-
-        return true;
+        var stateContext = new TurnPhaseStateContext(_unitOfWork, game, currentTurn);
+        var transition = await _phaseStateMachine.TryAdvanceOnTimeoutAsync(stateContext, cancellationToken);
+        return transition.PhaseChanged || transition.TurnChanged;
     }
 }

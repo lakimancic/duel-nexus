@@ -1,7 +1,7 @@
 namespace Backend.Domain.Commands;
 
-using Backend.Domain.Commands.Draw;
 using Backend.Domain.Engine;
+using Backend.Domain.Engine.Phases;
 
 public sealed record SkipDrawActionCommand : IGameCommand<DrawPhaseProgressResult>
 {
@@ -13,15 +13,18 @@ public sealed record SkipDrawActionCommand : IGameCommand<DrawPhaseProgressResul
             context.UnitOfWork.PlayerGames.Update(context.Actor);
         }
 
-        var phaseAdvanced = await DrawPhaseCoordinator.TryAdvanceToMain1Async(context);
+        var transition = await context.PhaseStateMachine.AdvanceAsync(
+            new TurnPhaseStateContext(context.UnitOfWork, context.Game, context.CurrentTurn, context.Actor),
+            TurnPhaseAdvanceTrigger.PlayerCompletedActions,
+            cancellationToken);
 
         return new DrawPhaseProgressResult(
             Game: context.Game,
-            Turn: context.CurrentTurn,
+            Turn: transition.Turn,
             Player: context.Actor,
             TurnEnded: context.Actor.TurnEnded,
-            PhaseAdvanced: phaseAdvanced,
-            CurrentPhase: context.CurrentTurn.Phase
+            PhaseAdvanced: transition.PhaseChanged || transition.TurnChanged,
+            CurrentPhase: transition.Turn.Phase
         );
     }
 }

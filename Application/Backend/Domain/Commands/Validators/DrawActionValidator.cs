@@ -1,4 +1,4 @@
-namespace Backend.Domain.Commands.Draw;
+namespace Backend.Domain.Commands.Validators;
 
 using Backend.Data.Enums;
 using Backend.Domain.Commands;

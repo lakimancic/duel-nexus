@@ -9,9 +9,9 @@ using Backend.Application.Services;
 using Backend.Data.UnitOfWork;
 using Backend.Application.Mappings;
 using Backend.Domain.Commands;
-using Backend.Domain.Commands.Draw;
 using Backend.Domain.Commands.Validators;
 using Backend.Domain.Engine;
+using Backend.Domain.Engine.Phases;
 using Backend.Utils.WebApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +76,7 @@ builder.Services.AddScoped<IGameRoomService, GameRoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IGameEngine, GameEngine>();
 builder.Services.AddSingleton<IGameCommandLock, GameCommandLock>();
+builder.Services.AddSingleton<ITurnPhaseStateMachine, TurnPhaseStateMachine>();
 builder.Services.AddScoped<IGameCommandValidator<DrawActionCommand, DrawActionResult>, DrawActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<PlaceCardActionCommand, PlaceCardResult>, PlaceCardActionValidator>();

@@ -2,8 +2,8 @@ namespace Backend.Domain.Commands;
 
 using Backend.Data.Enums;
 using Backend.Data.Models;
-using Backend.Domain.Commands.Draw;
 using Backend.Domain.Engine;
+using Backend.Domain.Engine.Phases;
 
 public sealed record DrawActionCommand : IGameCommand<DrawActionResult>
 {
@@ -32,24 +32,31 @@ public sealed record DrawActionCommand : IGameCommand<DrawActionResult>
         var drawsAfterAction = drawsInTurn + 1;
         var phaseAdvanced = false;
         var shouldEndTurn = context.Actor.TurnEnded;
+        var turnForResult = context.CurrentTurn;
 
         if (drawsAfterAction >= GameConstants.MaxDrawsPerTurn)
         {
             context.Actor.TurnEnded = true;
             context.UnitOfWork.PlayerGames.Update(context.Actor);
             shouldEndTurn = true;
-            phaseAdvanced = await DrawPhaseCoordinator.TryAdvanceToMain1Async(context);
+            var transition = await context.PhaseStateMachine.AdvanceAsync(
+                new TurnPhaseStateContext(context.UnitOfWork, context.Game, context.CurrentTurn, context.Actor),
+                TurnPhaseAdvanceTrigger.PlayerCompletedActions,
+                cancellationToken);
+
+            phaseAdvanced = transition.PhaseChanged || transition.TurnChanged;
+            turnForResult = transition.Turn;
         }
 
         return new DrawActionResult(
             Game: context.Game,
-            Turn: context.CurrentTurn,
+            Turn: turnForResult,
             Player: context.Actor,
             DrawnCard: drawnCard,
             DrawsInTurn: drawsAfterAction,
             TurnEnded: shouldEndTurn,
             PhaseAdvanced: phaseAdvanced,
-            CurrentPhase: context.CurrentTurn.Phase
+            CurrentPhase: turnForResult.Phase
         );
     }
 }
