@@ -46,6 +46,9 @@ const GamePage = () => {
   const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
   const [cards, setCards] = useState<GameCardDto[]>([]);
   const [playerOrder, setPlayerOrder] = useState<string[]>([]);
+  const [playerSummaries, setPlayerSummaries] = useState<
+    Record<string, { username: string; lifePoints: number }>
+  >({});
   const [viewerPlayerId, setViewerPlayerId] = useState<string | null>(null);
   const [viewerDrawsInTurn, setViewerDrawsInTurn] = useState(0);
   const [viewerTurnEnded, setViewerTurnEnded] = useState(false);
@@ -56,8 +59,10 @@ const GamePage = () => {
   const [isSubmittingDrawAction, setIsSubmittingDrawAction] = useState(false);
   const [isSubmittingMainAction, setIsSubmittingMainAction] = useState(false);
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
-  const [placeFaceDown, setPlaceFaceDown] = useState(false);
-  const [pendingRevealCardId, setPendingRevealCardId] = useState<string | null>(null);
+  const [placementPositionHover, setPlacementPositionHover] = useState<{
+    fieldIndex: number;
+    defensePosition: boolean;
+  } | null>(null);
   const [turnAnnouncement, setTurnAnnouncement] = useState<{
     title: string;
     subtitle?: string;
@@ -89,6 +94,15 @@ const GamePage = () => {
     const playerNameByPlayerGameId = new Map(
       data.players.map((player) => [player.id, player.user.username])
     );
+    const nextPlayerSummaries = data.players.reduce<
+      Record<string, { username: string; lifePoints: number }>
+    >((acc, player) => {
+      acc[player.id] = {
+        username: player.user.username,
+        lifePoints: player.lifePoints,
+      };
+      return acc;
+    }, {});
     const orderedPlayerIds = [...data.players]
       .sort((a, b) => a.index - b.index)
       .map((player) => player.id);
@@ -96,6 +110,7 @@ const GamePage = () => {
 
     setCards(mappedCards);
     setPlayerOrder(orderedPlayerIds);
+    setPlayerSummaries(nextPlayerSummaries);
     setViewerPlayerId(data.viewerPlayerId);
     setViewerDrawsInTurn(data.viewerDrawsInTurn ?? 0);
     setViewerTurnEnded(
@@ -271,18 +286,9 @@ const GamePage = () => {
   useEffect(() => {
     if (!canViewerPlayMain1) {
       setSelectedHandCardId(null);
-      setPlaceFaceDown(false);
-      setPendingRevealCardId(null);
+      setPlacementPositionHover(null);
     }
   }, [canViewerPlayMain1]);
-
-  const pendingRevealCard = useMemo(
-    () =>
-      pendingRevealCardId
-        ? (cards.find((card) => card.id === pendingRevealCardId && card.isFaceDown) ?? null)
-        : null,
-    [cards, pendingRevealCardId]
-  );
 
   const selectedHandCard = useMemo(() => {
     if (!selectedHandCardId) return null;
@@ -344,6 +350,7 @@ const GamePage = () => {
       if (card.playerId !== viewerPlayerId || card.zone !== ZONE_HAND || !card.card) return;
 
       setSelectedHandCardId((prev) => (prev === card.id ? null : card.id));
+      setPlacementPositionHover(null);
     },
     [canViewerPlayMain1, viewerPlayerId]
   );
@@ -381,6 +388,44 @@ const GamePage = () => {
     ]
   );
 
+  const placeSelectedHandCard = useCallback(
+    async (fieldIndex: number, faceDown: boolean) => {
+      if (!canViewerPlayMain1 || !selectedHandCard || !safeGameId || isSubmittingMainAction) return;
+      if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
+      const shouldStartInDefense =
+        placementPositionHover?.fieldIndex === fieldIndex
+          ? placementPositionHover.defensePosition
+          : false;
+      const isMonsterPlacement = selectedHandCard.card?.type === CARD_TYPE_MONSTER;
+
+      setIsSubmittingMainAction(true);
+      setError(null);
+      try {
+        await gameHub.placeCard(safeGameId, selectedHandCard.id, fieldIndex, faceDown);
+        if (shouldStartInDefense && isMonsterPlacement) {
+          await gameHub.toggleDefensePosition(safeGameId, selectedHandCard.id);
+        }
+        await fetchGameState();
+        setSelectedHandCardId(null);
+        setPlacementPositionHover(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Place action failed.";
+        setError(message);
+      } finally {
+        setIsSubmittingMainAction(false);
+      }
+    },
+    [
+      canPlaceCardAtFieldIndex,
+      canViewerPlayMain1,
+      fetchGameState,
+      isSubmittingMainAction,
+      placementPositionHover,
+      safeGameId,
+      selectedHandCard,
+    ]
+  );
+
   const handleFieldClick = useCallback(
     (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
       if (!canViewerPlayMain1 || !viewerPlayerId) return;
@@ -388,29 +433,68 @@ const GamePage = () => {
 
       if (selectedHandCard) {
         if (card !== null) return;
-        if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
-        if (!safeGameId || isSubmittingMainAction) return;
+        void placeSelectedHandCard(fieldIndex, false);
+        return;
+      }
+    },
+    [
+      canViewerPlayMain1,
+      placeSelectedHandCard,
+      selectedHandCard,
+      viewerPlayerId,
+    ]
+  );
 
+  const handleFieldRightClick = useCallback(
+    (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
+      if (!canViewerPlayMain1 || !viewerPlayerId) return;
+      if (playerId !== viewerPlayerId) return;
+      if (!safeGameId || isSubmittingMainAction) return;
+
+      if (selectedHandCard && card === null) {
+        void placeSelectedHandCard(fieldIndex, true);
+        return;
+      }
+
+      if (!selectedHandCard && card?.isFaceDown && card.zone === ZONE_FIELD && card.playerId === viewerPlayerId) {
         setIsSubmittingMainAction(true);
         setError(null);
         void gameHub
-          .placeCard(safeGameId, selectedHandCard.id, fieldIndex, placeFaceDown)
+          .revealCard(safeGameId, card.id)
           .then(async () => {
             await fetchGameState();
-            setSelectedHandCardId(null);
-            setPlaceFaceDown(false);
           })
           .catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : "Place action failed.";
+            const message = err instanceof Error ? err.message : "Reveal action failed.";
             setError(message);
           })
           .finally(() => {
             setIsSubmittingMainAction(false);
           });
-        return;
       }
+    },
+    [
+      canViewerPlayMain1,
+      fetchGameState,
+      isSubmittingMainAction,
+      placeSelectedHandCard,
+      safeGameId,
+      selectedHandCard,
+      viewerPlayerId,
+    ]
+  );
 
-      if (!card || card.playerId !== playerId || card.zone !== ZONE_FIELD) return;
+  const handleFieldPositionClick = useCallback(
+    (
+      playerId: string,
+      _fieldIndex: number,
+      card: GameCardDto,
+      targetDefensePosition: boolean
+    ) => {
+      if (!canViewerPlayMain1 || !viewerPlayerId || selectedHandCard) return;
+      if (playerId !== viewerPlayerId) return;
+      if (card.zone !== ZONE_FIELD || card.playerId !== viewerPlayerId) return;
+      if (card.defensePosition === targetDefensePosition) return;
       if (!safeGameId || isSubmittingMainAction) return;
 
       setIsSubmittingMainAction(true);
@@ -419,7 +503,6 @@ const GamePage = () => {
         .toggleDefensePosition(safeGameId, card.id)
         .then(async () => {
           await fetchGameState();
-          setPendingRevealCardId(card.isFaceDown ? card.id : null);
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : "Card action failed.";
@@ -430,33 +513,23 @@ const GamePage = () => {
         });
     },
     [
-      canPlaceCardAtFieldIndex,
       canViewerPlayMain1,
       fetchGameState,
       isSubmittingMainAction,
-      placeFaceDown,
       safeGameId,
       selectedHandCard,
       viewerPlayerId,
     ]
   );
 
-  const handleRevealCard = useCallback(async () => {
-    if (!safeGameId || !pendingRevealCard || isSubmittingMainAction) return;
-
-    setIsSubmittingMainAction(true);
-    setError(null);
-    try {
-      await gameHub.revealCard(safeGameId, pendingRevealCard.id);
-      await fetchGameState();
-      setPendingRevealCardId(null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Reveal action failed.";
-      setError(message);
-    } finally {
-      setIsSubmittingMainAction(false);
-    }
-  }, [fetchGameState, isSubmittingMainAction, pendingRevealCard, safeGameId]);
+  const handleFieldPlacementPositionHover = useCallback(
+    (playerId: string, fieldIndex: number, targetDefensePosition: boolean) => {
+      if (!canViewerPlayMain1 || !viewerPlayerId || !selectedHandCard) return;
+      if (playerId !== viewerPlayerId) return;
+      setPlacementPositionHover({ fieldIndex, defensePosition: targetDefensePosition });
+    },
+    [canViewerPlayMain1, selectedHandCard, viewerPlayerId]
+  );
 
   const showBoard = !isLoading && !error && cards.length > 0 && viewerPlayerId;
   const isViewer = Boolean(currentUserId);
@@ -521,29 +594,31 @@ const GamePage = () => {
             >
               Next
             </button>
-            {canViewerPlayMain1 && pendingRevealCard ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void handleRevealCard();
-                }}
-                disabled={isSubmittingMainAction}
-                className="rounded-md border border-violet-200/50 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 disabled:cursor-default disabled:opacity-50"
-              >
-                Reveal
-              </button>
-            ) : null}
-            {canViewerPlayMain1 && selectedHandCard ? (
-              <label className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-black/35 px-3 py-2 text-xs text-white/90">
-                <input
-                  type="checkbox"
-                  checked={placeFaceDown}
-                  onChange={(event) => setPlaceFaceDown(event.target.checked)}
-                  className="size-3.5"
-                />
-                Set face-down
-              </label>
-            ) : null}
+            <div className="rounded-md border border-white/30 bg-black/45 px-3 py-2 text-[11px] leading-tight text-white/90">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-4 w-3 rounded-sm border border-white/60">
+                  <span className="h-full w-1/2 rounded-l-sm bg-cyan-300/75" />
+                  <span className="h-full w-1/2 rounded-r-sm bg-transparent" />
+                </span>
+                Left click field holder: place selected card face-up
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="inline-flex h-4 w-3 rounded-sm border border-white/60">
+                  <span className="h-full w-1/2 rounded-l-sm bg-transparent" />
+                  <span className="h-full w-1/2 rounded-r-sm bg-amber-300/75" />
+                </span>
+                Right click empty holder: place selected card face-down
+              </div>
+              <div className="mt-1 text-white/80">
+                While placing: hover vertical/horizontal holder to set initial Attack/Defense
+              </div>
+              <div className="mt-1 text-white/80">
+                Right click a face-down field card: reveal it
+              </div>
+              <div className="mt-1 text-white/80">
+                After placed: left click vertical/horizontal holder to change Attack/Defense
+              </div>
+            </div>
           </div>
 
           {isLoading && (
@@ -565,6 +640,8 @@ const GamePage = () => {
               cards={cards}
               playerIds={playerOrder}
               viewerPlayerId={viewerPlayerId}
+              activePlayerId={activePlayerId}
+              playerSummaries={playerSummaries}
               hoveredCard={hoveredCard}
               onHoverCardChange={setHoveredCard}
               onDeckClick={(playerId) => {
@@ -572,6 +649,9 @@ const GamePage = () => {
                 void handleDrawCard();
               }}
               onFieldClick={handleFieldClick}
+              onFieldRightClick={handleFieldRightClick}
+              onFieldPositionClick={handleFieldPositionClick}
+              onFieldPlacementPositionHover={handleFieldPlacementPositionHover}
               onGraveyardClick={handleGraveyardClick}
               onHandCardClick={handleHandCardClick}
               isDeckClickable={(playerId) =>
@@ -591,7 +671,56 @@ const GamePage = () => {
                   return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
                 }
 
-                return card !== null;
+                return false;
+              }}
+              isFieldRightClickable={(playerId, fieldIndex, card) => {
+                if (
+                  !canViewerPlayMain1 ||
+                  !viewerPlayerId ||
+                  playerId !== viewerPlayerId ||
+                  isSubmittingMainAction
+                ) {
+                  return false;
+                }
+
+                if (selectedHandCard) {
+                  return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
+                }
+
+                return false;
+              }}
+              canClickFieldPosition={(playerId, _fieldIndex, card, targetDefensePosition) => {
+                if (
+                  !canViewerPlayMain1 ||
+                  !viewerPlayerId ||
+                  playerId !== viewerPlayerId ||
+                  isSubmittingMainAction ||
+                  Boolean(selectedHandCard)
+                ) {
+                  return false;
+                }
+                if (card.zone !== ZONE_FIELD || card.playerId !== viewerPlayerId) return false;
+
+                return card.defensePosition !== targetDefensePosition;
+              }}
+              canHoverFieldPlacementPosition={(playerId, fieldIndex, targetDefensePosition) => {
+                if (
+                  !canViewerPlayMain1 ||
+                  !viewerPlayerId ||
+                  !selectedHandCard ||
+                  playerId !== viewerPlayerId ||
+                  isSubmittingMainAction
+                ) {
+                  return false;
+                }
+
+                if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return false;
+
+                if (selectedHandCard.card?.type !== CARD_TYPE_MONSTER) {
+                  return targetDefensePosition === false;
+                }
+
+                return true;
               }}
               isGraveyardClickable={(playerId) =>
                 canViewerPlayMain1 &&

@@ -14,6 +14,7 @@ import FriendlyPage from "@/features/friendly/pages/Friendly";
 import GameRoomPage from "@/features/friendly/pages/GameRoom";
 import DeckEditorPage from "@/features/decks/pages/DeckEditor";
 import GamePage from "@/features/game/pages/Game";
+import DebugGamePage from "@/features/game/pages/DebugGame";
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
           { path: "/register", element: <RegisterPage /> },
         ],
       },
+      { path: "/debug", element: <DebugGamePage /> },
       {
         element: <ProtectedLayout />,
         children: [

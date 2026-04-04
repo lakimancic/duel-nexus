@@ -13,14 +13,40 @@ interface BoardProps {
   cards: GameCardDto[];
   playerIds?: string[];
   viewerPlayerId?: string;
+  activePlayerId?: string | null;
+  playerSummaries?: Record<string, { username: string; lifePoints: number }>;
   hoveredCard?: CardDto | null;
   onHoverCardChange?: (card: CardDto | null) => void;
   onDeckClick?: (playerId: string) => void;
   onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
+  onFieldRightClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
+  onFieldPositionClick?: (
+    playerId: string,
+    fieldIndex: number,
+    card: GameCardDto,
+    targetDefensePosition: boolean
+  ) => void;
+  onFieldPlacementPositionHover?: (
+    playerId: string,
+    fieldIndex: number,
+    targetDefensePosition: boolean
+  ) => void;
   onGraveyardClick?: (playerId: string) => void;
   onHandCardClick?: (card: GameCardDto) => void;
   isDeckClickable?: (playerId: string) => boolean;
   isFieldClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
+  isFieldRightClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
+  canClickFieldPosition?: (
+    playerId: string,
+    fieldIndex: number,
+    card: GameCardDto,
+    targetDefensePosition: boolean
+  ) => boolean;
+  canHoverFieldPlacementPosition?: (
+    playerId: string,
+    fieldIndex: number,
+    targetDefensePosition: boolean
+  ) => boolean;
   isGraveyardClickable?: (playerId: string) => boolean;
   isHandCardClickable?: (card: GameCardDto) => boolean;
   selectedHandCardId?: string | null;
@@ -216,14 +242,22 @@ const Board = ({
   cards,
   playerIds: orderedPlayerIds,
   viewerPlayerId,
+  activePlayerId,
+  playerSummaries,
   hoveredCard,
   onHoverCardChange,
   onDeckClick,
   onFieldClick,
+  onFieldRightClick,
+  onFieldPositionClick,
+  onFieldPlacementPositionHover,
   onGraveyardClick,
   onHandCardClick,
   isDeckClickable,
   isFieldClickable,
+  isFieldRightClickable,
+  canClickFieldPosition,
+  canHoverFieldPlacementPosition,
   isGraveyardClickable,
   isHandCardClickable,
   selectedHandCardId,
@@ -344,6 +378,8 @@ const Board = ({
             metrics.width,
             metrics.height
           );
+          const handTopOffset = metrics.zoneHeight + Math.max(14, metrics.field * 0.22);
+          const playerInfoTopOffset = handTopOffset + Math.max(84, metrics.field * 1.5);
 
           return (
             <section
@@ -355,6 +391,25 @@ const Board = ({
                 transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
               }}
             >
+              <div
+                className="pointer-events-none absolute left-1/2 z-10"
+                style={{
+                  top: `${playerInfoTopOffset}px`,
+                  transform: `translateX(-50%) rotate(${-position.rotation}deg)`,
+                }}
+              >
+                <div
+                  className={`rounded-md border px-2 py-1 text-[11px] leading-tight whitespace-nowrap ${
+                    activePlayerId === playerId
+                      ? "border-lime-200/65 bg-lime-500/20 text-lime-100"
+                      : "border-white/30 bg-black/45 text-white/90"
+                  }`}
+                >
+                  <div className="font-semibold">{playerSummaries?.[playerId]?.username ?? playerId}</div>
+                  <div className="text-white/80">LP: {playerSummaries?.[playerId]?.lifePoints ?? "-"}</div>
+                </div>
+              </div>
+
               <div className="flex items-center" style={{ gap: `${metrics.sideGap}px` }}>
                 <Field
                   playerId={playerId}
@@ -364,7 +419,13 @@ const Board = ({
                   viewerPlayerId={viewerPlayerId}
                   onHoverCardChange={onHoverCardChange}
                   onFieldClick={onFieldClick}
+                  onFieldRightClick={onFieldRightClick}
+                  onFieldPositionClick={onFieldPositionClick}
+                  onFieldPlacementPositionHover={onFieldPlacementPositionHover}
                   isFieldClickable={isFieldClickable}
+                  isFieldRightClickable={isFieldRightClickable}
+                  canClickFieldPosition={canClickFieldPosition}
+                  canHoverFieldPlacementPosition={canHoverFieldPlacementPosition}
                 />
 
                 <div className="flex flex-col" style={{ gap: `${metrics.gap}px` }}>
