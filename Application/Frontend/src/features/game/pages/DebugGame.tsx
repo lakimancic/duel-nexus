@@ -1,8 +1,9 @@
+import AttackDaggerOverlay, { type AttackDaggerAnimation } from "@/features/game/components/AttackDaggerOverlay";
 import Board from "@/features/game/components/Board";
 import TurnStatus from "@/features/game/components/TurnStatus";
 import { TurnPhase, type GameCardDto } from "@/features/game/types/game.types";
 import type { CardDto } from "@/shared/types/card.types";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 const ZONE_FIELD = 0;
 const ZONE_HAND = 1;
@@ -93,6 +94,16 @@ const initialCards: GameCardDto[] = [
     card: p1SetMonster,
   },
   {
+    id: "g-10",
+    playerId: "p1",
+    zone: ZONE_FIELD,
+    deckOrder: null,
+    isFaceDown: false,
+    fieldIndex: 1,
+    defensePosition: false,
+    card: p1MonsterB,
+  },
+  {
     id: "g-5",
     playerId: "p2",
     zone: ZONE_FIELD,
@@ -134,62 +145,217 @@ const initialCards: GameCardDto[] = [
   },
 ];
 
+let attackAnimationId = 0;
+
+const getElementCenter = (selector: string) => {
+  const element = document.querySelector<HTMLElement>(selector);
+  if (!element) return null;
+
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+};
+
+interface PendingDebugAttackResolution {
+  attackerCardId: string;
+  defenderCardId: string | null;
+  defenderPlayerId: string;
+  damageToDefender: number;
+  damageToAttacker: number;
+  attackerDestroyed: boolean;
+  defenderDestroyed: boolean;
+  attackFailed: boolean;
+}
+
 const DebugGamePage = () => {
   const [cards, setCards] = useState<GameCardDto[]>(initialCards);
   const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
-  const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
-  const [placementPositionHover, setPlacementPositionHover] = useState<{
-    fieldIndex: number;
-    defensePosition: boolean;
-  } | null>(null);
+  const [selectedAttackerCardId, setSelectedAttackerCardId] = useState<string | null>(null);
+  const [attackedCardIds, setAttackedCardIds] = useState<string[]>([]);
+  const [attackAnimation, setAttackAnimation] = useState<AttackDaggerAnimation | null>(null);
+  const [pendingAttackResolution, setPendingAttackResolution] = useState<PendingDebugAttackResolution | null>(null);
+  const [playerSummaries, setPlayerSummaries] = useState({
+    p1: { username: "debug-user", lifePoints: 8000 },
+    p2: { username: "debug-opponent", lifePoints: 8000 },
+  });
 
   const viewerPlayerId = "p1";
   const activePlayerId = "p1";
   const playerIds = ["p1", "p2"];
+  const isResolvingAttack = attackAnimation !== null || pendingAttackResolution !== null;
 
-  const selectedHandCard = useMemo(
+  const selectedAttackerCard = useMemo(
     () =>
-      selectedHandCardId
-        ? (cards.find(
-            (card) => card.id === selectedHandCardId && card.playerId === viewerPlayerId && card.zone === ZONE_HAND
-          ) ?? null)
+      selectedAttackerCardId
+        ? (
+            cards.find(
+              (card) =>
+                card.id === selectedAttackerCardId &&
+                card.playerId === viewerPlayerId &&
+                card.zone === ZONE_FIELD &&
+                card.fieldIndex !== null &&
+                card.fieldIndex <= TOP_ROW_MAX_INDEX &&
+                !card.isFaceDown &&
+                !card.defensePosition &&
+                card.card?.type === CARD_TYPE_MONSTER &&
+                !attackedCardIds.includes(card.id)
+            ) ?? null
+          )
         : null,
-    [cards, selectedHandCardId]
+    [attackedCardIds, cards, selectedAttackerCardId]
   );
 
-  const canPlaceCardAtFieldIndex = (card: GameCardDto | null, fieldIndex: number) => {
-    const cardType = card?.card?.type;
-    if (cardType === undefined || cardType === null) return false;
+  const canUseCardAsAttacker = useCallback(
+    (card: GameCardDto | null) => {
+      if (!card) return false;
+      if (card.playerId !== viewerPlayerId) return false;
+      if (card.zone !== ZONE_FIELD || card.fieldIndex === null || card.fieldIndex > TOP_ROW_MAX_INDEX) return false;
+      if (card.isFaceDown || card.defensePosition) return false;
+      if (card.card?.type !== CARD_TYPE_MONSTER) return false;
+      return !attackedCardIds.includes(card.id);
+    },
+    [attackedCardIds]
+  );
 
-    if (cardType === CARD_TYPE_MONSTER) return fieldIndex <= TOP_ROW_MAX_INDEX;
-    if (cardType === CARD_TYPE_SPELL || cardType === CARD_TYPE_TRAP) return fieldIndex > TOP_ROW_MAX_INDEX;
-    return false;
-  };
+  const startAttackAnimation = useCallback((
+    attackerCardId: string,
+    defenderCardId: string | null,
+    defenderPlayerId: string | null,
+    attackFailed: boolean
+  ) => {
+    const attackerCenter = getElementCenter(`[data-game-card-id="${attackerCardId}"]`);
+    const targetCenter = defenderCardId
+      ? getElementCenter(`[data-game-card-id="${defenderCardId}"]`)
+      : defenderPlayerId
+        ? getElementCenter(`[data-player-target-id="${defenderPlayerId}"]`)
+        : null;
 
-  const placeSelectedCard = (fieldIndex: number, isFaceDown: boolean) => {
-    if (!selectedHandCard) return;
-    if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
-    const shouldStartInDefense =
-      selectedHandCard.card?.type === CARD_TYPE_MONSTER &&
-      placementPositionHover?.fieldIndex === fieldIndex &&
-      placementPositionHover.defensePosition;
+    if (!attackerCenter || !targetCenter) return false;
 
-    setCards((prev) =>
-      prev.map((card) =>
-        card.id === selectedHandCard.id
-          ? {
+    attackAnimationId += 1;
+    setAttackAnimation({
+      id: attackAnimationId,
+      startX: attackerCenter.x,
+      startY: attackerCenter.y,
+      endX: targetCenter.x,
+      endY: targetCenter.y,
+      attackFailed,
+    });
+    return true;
+  }, []);
+
+  const applyDebugAttackResolution = useCallback(
+    (resolution: PendingDebugAttackResolution) => {
+      setPlayerSummaries((prev) => ({
+        ...prev,
+        [resolution.defenderPlayerId]: {
+          ...prev[resolution.defenderPlayerId as keyof typeof prev],
+          lifePoints: Math.max(
+            0,
+            prev[resolution.defenderPlayerId as keyof typeof prev].lifePoints - resolution.damageToDefender
+          ),
+        },
+        [viewerPlayerId]: {
+          ...prev[viewerPlayerId],
+          lifePoints: Math.max(0, prev[viewerPlayerId].lifePoints - resolution.damageToAttacker),
+        },
+      }));
+
+      setCards((prev) =>
+        prev.map((card) => {
+          if (resolution.attackerDestroyed && card.id === resolution.attackerCardId) {
+            return {
               ...card,
-              zone: ZONE_FIELD,
-              fieldIndex,
-              isFaceDown,
-              defensePosition: shouldStartInDefense,
-            }
-          : card
-      )
-    );
-    setSelectedHandCardId(null);
-    setPlacementPositionHover(null);
-  };
+              zone: ZONE_GRAVEYARD,
+              fieldIndex: null,
+              isFaceDown: false,
+              defensePosition: false,
+            };
+          }
+
+          if (resolution.defenderDestroyed && resolution.defenderCardId && card.id === resolution.defenderCardId) {
+            return {
+              ...card,
+              zone: ZONE_GRAVEYARD,
+              fieldIndex: null,
+              isFaceDown: false,
+              defensePosition: false,
+            };
+          }
+
+          return card;
+        })
+      );
+
+      setAttackedCardIds((prev) => [...prev, resolution.attackerCardId]);
+    },
+    []
+  );
+
+  const executeDebugAttack = useCallback(
+    (defenderCard: GameCardDto | null, defenderPlayerId: string) => {
+      if (!selectedAttackerCard) return;
+      if (isResolvingAttack) return;
+
+      const attackerAtk = selectedAttackerCard.card?.attack ?? 0;
+      let attackFailed = false;
+      let damageToDefender = 0;
+      let damageToAttacker = 0;
+      let attackerDestroyed = false;
+      let defenderDestroyed = false;
+
+      if (!defenderCard) {
+        damageToDefender = Math.max(0, attackerAtk);
+      } else {
+        const defenderStat = defenderCard.defensePosition
+          ? (defenderCard.card?.defense ?? 0)
+          : (defenderCard.card?.attack ?? 0);
+
+        if (attackerAtk > defenderStat) {
+          defenderDestroyed = true;
+          if (!defenderCard.defensePosition) {
+            damageToDefender = attackerAtk - defenderStat;
+          }
+        } else if (attackerAtk < defenderStat) {
+          attackerDestroyed = true;
+          damageToAttacker = defenderStat - attackerAtk;
+          attackFailed = true;
+        } else if (!defenderCard.defensePosition) {
+          attackerDestroyed = true;
+          defenderDestroyed = true;
+        }
+      }
+
+      const resolution: PendingDebugAttackResolution = {
+        attackerCardId: selectedAttackerCard.id,
+        defenderCardId: defenderCard?.id ?? null,
+        defenderPlayerId,
+        damageToDefender,
+        damageToAttacker,
+        attackerDestroyed,
+        defenderDestroyed,
+        attackFailed,
+      };
+
+      const animationStarted = startAttackAnimation(
+        resolution.attackerCardId,
+        resolution.defenderCardId,
+        resolution.defenderPlayerId,
+        resolution.attackFailed
+      );
+
+      setSelectedAttackerCardId(null);
+      if (animationStarted) {
+        setPendingAttackResolution(resolution);
+        return;
+      }
+
+      applyDebugAttackResolution(resolution);
+    },
+    [applyDebugAttackResolution, isResolvingAttack, selectedAttackerCard, startAttackAnimation]
+  );
 
   return (
     <main className="relative min-h-screen w-full text-zinc-100 box-border">
@@ -200,33 +366,30 @@ const DebugGamePage = () => {
       <div className="relative h-screen w-full pl-2 pr-3">
         <div className="relative h-full w-full -ml-3">
           <div className="pointer-events-none absolute top-3 left-3 z-20">
-            <TurnStatus status={{ activePlayerId: "debug-user", phase: TurnPhase.Main1 }} />
+            <TurnStatus status={{ activePlayerId: "debug-user", phase: TurnPhase.Battle }} />
           </div>
           <div className="absolute top-3 right-3 z-20 rounded-md border border-white/30 bg-black/45 px-3 py-2 text-[11px] leading-tight text-white/90">
-            <div className="font-semibold text-white">Debug Mode (no backend)</div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="inline-flex h-4 w-3 rounded-sm border border-white/60">
-                <span className="h-full w-1/2 rounded-l-sm bg-cyan-300/75" />
-                <span className="h-full w-1/2 rounded-r-sm bg-transparent" />
-              </span>
-              Left click field holder: place selected card face-up
-            </div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="inline-flex h-4 w-3 rounded-sm border border-white/60">
-              <span className="h-full w-1/2 rounded-l-sm bg-transparent" />
-                <span className="h-full w-1/2 rounded-r-sm bg-amber-300/75" />
-              </span>
-              Right click empty holder: place selected card face-down
-            </div>
-            <div className="mt-1 text-white/80">
-              While placing: hover vertical/horizontal holder to set initial Attack/Defense
-            </div>
-            <div className="mt-1 text-white/80">
-              Right click a face-down field card: reveal it
-            </div>
-            <div className="mt-1 text-white/80">
-              After placed: left click vertical/horizontal holder to change Attack/Defense
-            </div>
+            <div className="font-semibold text-white">Debug Battle Mode (no backend)</div>
+            <div className="mt-1 text-white/80">1. Click your attack-position monster (yellow highlight)</div>
+            <div className="mt-1 text-white/80">2. Click enemy monster or enemy player panel</div>
+            <div className="mt-1 text-white/80">3. Dagger animation runs with success/fail behavior</div>
+            <button
+              type="button"
+              className="mt-2 rounded border border-cyan-200/50 bg-cyan-500/20 px-2 py-1 text-cyan-100"
+              onClick={() => {
+                setCards(initialCards);
+                setAttackedCardIds([]);
+                setSelectedAttackerCardId(null);
+                setAttackAnimation(null);
+                setPendingAttackResolution(null);
+                setPlayerSummaries({
+                  p1: { username: "debug-user", lifePoints: 8000 },
+                  p2: { username: "debug-opponent", lifePoints: 8000 },
+                });
+              }}
+            >
+              Reset Demo
+            </button>
           </div>
 
           <Board
@@ -234,92 +397,82 @@ const DebugGamePage = () => {
             playerIds={playerIds}
             viewerPlayerId={viewerPlayerId}
             activePlayerId={activePlayerId}
-            playerSummaries={{
-              p1: { username: "debug-user", lifePoints: 8000 },
-              p2: { username: "debug-opponent", lifePoints: 8000 },
-            }}
+            selectedAttackerCardId={selectedAttackerCardId}
+            playerSummaries={playerSummaries}
             hoveredCard={hoveredCard}
             onHoverCardChange={setHoveredCard}
-            onFieldClick={(playerId, fieldIndex, card) => {
-              if (playerId !== viewerPlayerId) return;
-              if (!selectedHandCard || card !== null) return;
-              placeSelectedCard(fieldIndex, false);
+            onPlayerClick={(playerId) => {
+              if (isResolvingAttack) return;
+              if (!selectedAttackerCard) return;
+              if (playerId === viewerPlayerId) return;
+              executeDebugAttack(null, playerId);
             }}
-            onFieldRightClick={(playerId, fieldIndex, card) => {
-              if (playerId !== viewerPlayerId) return;
-              if (selectedHandCard && card === null) {
-                placeSelectedCard(fieldIndex, true);
+            onFieldClick={(playerId, _fieldIndex, card) => {
+              if (isResolvingAttack) return;
+              if (!selectedAttackerCard) {
+                if (card && canUseCardAsAttacker(card)) {
+                  setSelectedAttackerCardId(card.id);
+                }
                 return;
               }
-              if (!selectedHandCard && card?.isFaceDown && card.zone === ZONE_FIELD) {
-                setCards((prev) =>
-                  prev.map((prevCard) =>
-                    prevCard.id === card.id ? { ...prevCard, isFaceDown: false } : prevCard
-                  )
-                );
-              }
-            }}
-            onFieldPositionClick={(playerId, _fieldIndex, card, targetDefensePosition) => {
-              if (playerId !== viewerPlayerId) return;
-              if (selectedHandCard) return;
-              if (card.defensePosition === targetDefensePosition) return;
 
-              setCards((prev) =>
-                prev.map((prevCard) =>
-                  prevCard.id === card.id ? { ...prevCard, defensePosition: targetDefensePosition } : prevCard
-                )
+              if (card?.id === selectedAttackerCard.id) {
+                setSelectedAttackerCardId(null);
+                return;
+              }
+
+              if (card && canUseCardAsAttacker(card)) {
+                setSelectedAttackerCardId(card.id);
+                return;
+              }
+
+              const isEnemyMonster =
+                playerId !== viewerPlayerId &&
+                card !== null &&
+                card.zone === ZONE_FIELD &&
+                card.fieldIndex !== null &&
+                card.fieldIndex <= TOP_ROW_MAX_INDEX;
+
+              if (!isEnemyMonster) return;
+
+              executeDebugAttack(card, playerId);
+            }}
+            isPlayerClickable={(playerId) =>
+              Boolean(selectedAttackerCard) &&
+              !isResolvingAttack &&
+              playerId !== viewerPlayerId &&
+              (playerSummaries[playerId as keyof typeof playerSummaries]?.lifePoints ?? 0) > 0
+            }
+            isFieldClickable={(playerId, fieldIndex, card) => {
+              if (isResolvingAttack) return false;
+              if (!selectedAttackerCard) {
+                return canUseCardAsAttacker(card);
+              }
+
+              if (canUseCardAsAttacker(card)) return true;
+
+              return (
+                playerId !== viewerPlayerId &&
+                card !== null &&
+                card.zone === ZONE_FIELD &&
+                card.fieldIndex !== null &&
+                card.fieldIndex <= TOP_ROW_MAX_INDEX &&
+                fieldIndex <= TOP_ROW_MAX_INDEX
               );
             }}
-            onFieldPlacementPositionHover={(playerId, fieldIndex, targetDefensePosition) => {
-              if (playerId !== viewerPlayerId || !selectedHandCard) return;
-              setPlacementPositionHover({ fieldIndex, defensePosition: targetDefensePosition });
+          />
+
+          <AttackDaggerOverlay
+            animation={attackAnimation}
+            selectedAttackerCardId={selectedAttackerCardId}
+            onAnimationEnd={() => {
+              setAttackAnimation(null);
+
+              if (!pendingAttackResolution) return;
+
+              applyDebugAttackResolution(pendingAttackResolution);
+              setPendingAttackResolution(null);
             }}
-            onHandCardClick={(card) => {
-              if (card.playerId !== viewerPlayerId || card.zone !== ZONE_HAND) return;
-              setPlacementPositionHover(null);
-              setSelectedHandCardId((prev) => (prev === card.id ? null : card.id));
-            }}
-            onGraveyardClick={(playerId) => {
-              if (playerId !== viewerPlayerId || !selectedHandCard) return;
-              setCards((prev) =>
-                prev.map((card) =>
-                  card.id === selectedHandCard.id
-                    ? { ...card, zone: ZONE_GRAVEYARD, fieldIndex: null, isFaceDown: false, defensePosition: false }
-                    : card
-                )
-              );
-              setSelectedHandCardId(null);
-            }}
-            isFieldClickable={(playerId, fieldIndex, card) =>
-              playerId === viewerPlayerId &&
-              Boolean(selectedHandCard) &&
-              card === null &&
-              canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)
-            }
-            isFieldRightClickable={(playerId, fieldIndex, card) =>
-              playerId === viewerPlayerId &&
-              Boolean(selectedHandCard) &&
-              card === null &&
-              canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)
-            }
-            canClickFieldPosition={(playerId, _fieldIndex, card, targetDefensePosition) =>
-              playerId === viewerPlayerId &&
-              !selectedHandCard &&
-              card.zone === ZONE_FIELD &&
-              card.playerId === viewerPlayerId &&
-              card.defensePosition !== targetDefensePosition
-            }
-            canHoverFieldPlacementPosition={(playerId, fieldIndex, targetDefensePosition) =>
-              playerId === viewerPlayerId &&
-              Boolean(selectedHandCard) &&
-              canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex) &&
-              (
-                selectedHandCard?.card?.type === CARD_TYPE_MONSTER || targetDefensePosition === false
-              )
-            }
-            isHandCardClickable={(card) => card.playerId === viewerPlayerId && card.zone === ZONE_HAND}
-            isGraveyardClickable={(playerId) => playerId === viewerPlayerId && Boolean(selectedHandCard)}
-            selectedHandCardId={selectedHandCardId}
           />
         </div>
       </div>

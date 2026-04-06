@@ -10,6 +10,7 @@ interface FieldProps {
   fieldSize: number;
   gap: number;
   viewerPlayerId?: string;
+  selectedAttackerCardId?: string | null;
   onHoverCardChange?: (card: CardDto | null) => void;
   onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
   onFieldRightClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
@@ -58,6 +59,7 @@ const CardField = ({
   canClickDefensePosition,
   canHoverPlaceAttackPosition,
   canHoverPlaceDefensePosition,
+  selectedAttackerCardId,
 }: {
   playerId: string;
   fieldIndex: number;
@@ -84,6 +86,7 @@ const CardField = ({
   canClickDefensePosition?: boolean;
   canHoverPlaceAttackPosition?: boolean;
   canHoverPlaceDefensePosition?: boolean;
+  selectedAttackerCardId?: string | null;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const innerGap = Math.max(3, Math.floor(fieldSize * 0.06));
@@ -105,13 +108,16 @@ const CardField = ({
   return (
     <div
       className={`relative rounded-md border bg-black/20 ${
-        isHovered
+        card?.id === selectedAttackerCardId
+          ? "border-amber-200/90 bg-amber-400/10 shadow-[0_0_0_1px_rgba(252,211,77,0.85),0_0_16px_rgba(245,158,11,0.25)]"
+          : isHovered
           ? "border-cyan-100/90 bg-cyan-500/10 shadow-[0_0_0_1px_rgba(165,243,252,0.7),0_0_16px_rgba(34,211,238,0.18)]"
           : isClickable || isRightClickable
             ? "border-cyan-200/55"
             : "border-white/25"
       }`}
       style={{ width: `${fieldSize}px`, height: `${fieldSize}px` }}
+      data-field-slot={`${playerId}:${fieldIndex}`}
       onMouseEnter={() => {
         setIsHovered(true);
         if (!onHoverCardChange) return;
@@ -160,8 +166,8 @@ const CardField = ({
             }}
             onClick={(event) => {
               if (!card) return;
-              event.stopPropagation();
               if (!canClickAttackPosition || !onFieldPositionClick) return;
+              event.stopPropagation();
               onFieldPositionClick(playerId, fieldIndex, card, false);
             }}
           />
@@ -182,8 +188,8 @@ const CardField = ({
             }}
             onClick={(event) => {
               if (!card) return;
-              event.stopPropagation();
               if (!canClickDefensePosition || !onFieldPositionClick) return;
+              event.stopPropagation();
               onFieldPositionClick(playerId, fieldIndex, card, true);
             }}
           />
@@ -194,6 +200,7 @@ const CardField = ({
         <div
           className="pointer-events-none absolute inset-0 flex items-center justify-center"
           style={{ padding: `${innerGap}px` }}
+          data-game-card-id={card.id}
         >
           <Card
             name={card.card?.name ?? "Card"}
@@ -225,6 +232,7 @@ const Field = ({
   fieldSize,
   gap,
   viewerPlayerId,
+  selectedAttackerCardId,
   onHoverCardChange,
   onFieldClick,
   onFieldRightClick,
@@ -251,6 +259,7 @@ const Field = ({
             card={slotCard}
             fieldSize={fieldSize}
             viewerPlayerId={viewerPlayerId}
+            selectedAttackerCardId={selectedAttackerCardId}
             onHoverCardChange={onHoverCardChange}
             onFieldClick={onFieldClick}
             onFieldRightClick={onFieldRightClick}

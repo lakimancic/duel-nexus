@@ -48,6 +48,7 @@ export interface GameStateDto {
   gameId: string;
   viewerPlayerId: string;
   viewerDrawsInTurn: number;
+  attackedCardIdsInCurrentTurn: string[];
   currentTurn: TurnDto;
   players: PlayerGameDto[];
   cards: Array<{
@@ -60,4 +61,23 @@ export interface GameStateDto {
     card: CardDto | null;
     playerGameId: string;
   }>;
+}
+
+export interface BattleAttackResultDto {
+  gameId: string;
+  roomId: string;
+  turnId: string;
+  playerGameId: string;
+  attackerCardId: string;
+  defenderCardId: string | null;
+  defenderPlayerGameId: string | null;
+  damageToDefender: number;
+  damageToAttacker: number;
+  attackerDestroyed: boolean;
+  defenderDestroyed: boolean;
+  attackFailed: boolean;
+  phaseAdvanced: boolean;
+  turnChanged: boolean;
+  activePlayerId: string | null;
+  currentPhase: TurnPhase | number;
 }

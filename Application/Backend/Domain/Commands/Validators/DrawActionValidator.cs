@@ -9,6 +9,12 @@ public sealed class DrawActionValidator : IGameCommandValidator<DrawActionComman
 {
     public async Task ValidateAsync(DrawActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
     {
+        if (context.Game.FinishedAt is not null)
+            throw new BadRequestException("Game is already finished.");
+
+        if (context.Actor.LifePoints <= 0)
+            throw new BadRequestException("You already lost this game.");
+
         var drawsInTurn = await context.UnitOfWork.CardMovements
             .CountDrawsInTurnByPlayerAsync(context.CurrentTurn.Id, context.Actor.Id);
 

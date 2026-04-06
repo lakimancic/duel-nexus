@@ -33,7 +33,11 @@ public sealed class Main1PhaseState : ITurnPhaseState
         if (players.Count == 0)
             throw new BadRequestException("Game has no players.");
 
-        var everyoneEnded = players.All(player => player.TurnEnded);
+        var alivePlayers = players.Where(player => player.LifePoints > 0).ToList();
+        if (alivePlayers.Count == 0)
+            throw new BadRequestException("Game has no active players.");
+
+        var everyoneEnded = alivePlayers.All(player => player.TurnEnded);
         var shouldAdvance = trigger == TurnPhaseAdvanceTrigger.Timeout
             ? !everyoneEnded
             : everyoneEnded;
@@ -49,7 +53,7 @@ public sealed class Main1PhaseState : ITurnPhaseState
             return TurnPhaseTransitionResult.NoChange(context.Turn);
         }
 
-        var battleStarter = players[(context.Turn.TurnNumber - 1) % players.Count];
+        var battleStarter = alivePlayers[(context.Turn.TurnNumber - 1) % alivePlayers.Count];
         context.Turn.Phase = TurnPhase.Battle;
         context.Turn.ActivePlayerId = battleStarter.Id;
         context.Turn.StartedAt = DateTime.UtcNow;
@@ -76,7 +80,7 @@ public sealed class Main1PhaseState : ITurnPhaseState
     {
         foreach (var player in players)
         {
-            player.TurnEnded = false;
+            player.TurnEnded = player.LifePoints <= 0;
             context.UnitOfWork.PlayerGames.Update(player);
         }
     }

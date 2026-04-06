@@ -14,9 +14,11 @@ interface BoardProps {
   playerIds?: string[];
   viewerPlayerId?: string;
   activePlayerId?: string | null;
+  selectedAttackerCardId?: string | null;
   playerSummaries?: Record<string, { username: string; lifePoints: number }>;
   hoveredCard?: CardDto | null;
   onHoverCardChange?: (card: CardDto | null) => void;
+  onPlayerClick?: (playerId: string) => void;
   onDeckClick?: (playerId: string) => void;
   onFieldClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
   onFieldRightClick?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => void;
@@ -34,6 +36,7 @@ interface BoardProps {
   onGraveyardClick?: (playerId: string) => void;
   onHandCardClick?: (card: GameCardDto) => void;
   isDeckClickable?: (playerId: string) => boolean;
+  isPlayerClickable?: (playerId: string) => boolean;
   isFieldClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
   isFieldRightClickable?: (playerId: string, fieldIndex: number, card: GameCardDto | null) => boolean;
   canClickFieldPosition?: (
@@ -243,9 +246,11 @@ const Board = ({
   playerIds: orderedPlayerIds,
   viewerPlayerId,
   activePlayerId,
+  selectedAttackerCardId,
   playerSummaries,
   hoveredCard,
   onHoverCardChange,
+  onPlayerClick,
   onDeckClick,
   onFieldClick,
   onFieldRightClick,
@@ -254,6 +259,7 @@ const Board = ({
   onGraveyardClick,
   onHandCardClick,
   isDeckClickable,
+  isPlayerClickable,
   isFieldClickable,
   isFieldRightClickable,
   canClickFieldPosition,
@@ -392,7 +398,7 @@ const Board = ({
               }}
             >
               <div
-                className="pointer-events-none absolute left-1/2 z-10"
+                className="absolute left-1/2 z-10"
                 style={{
                   top: `${playerInfoTopOffset}px`,
                   transform: `translateX(-50%) rotate(${-position.rotation}deg)`,
@@ -403,7 +409,16 @@ const Board = ({
                     activePlayerId === playerId
                       ? "border-lime-200/65 bg-lime-500/20 text-lime-100"
                       : "border-white/30 bg-black/45 text-white/90"
+                  } ${
+                    isPlayerClickable?.(playerId)
+                      ? "cursor-pointer ring-1 ring-cyan-200/50 transition hover:bg-cyan-300/15"
+                      : ""
                   }`}
+                  data-player-target-id={playerId}
+                  onClick={() => {
+                    if (!isPlayerClickable?.(playerId)) return;
+                    onPlayerClick?.(playerId);
+                  }}
                 >
                   <div className="font-semibold">{playerSummaries?.[playerId]?.username ?? playerId}</div>
                   <div className="text-white/80">LP: {playerSummaries?.[playerId]?.lifePoints ?? "-"}</div>
@@ -417,6 +432,7 @@ const Board = ({
                   fieldSize={metrics.field}
                   gap={metrics.gap}
                   viewerPlayerId={viewerPlayerId}
+                  selectedAttackerCardId={selectedAttackerCardId}
                   onHoverCardChange={onHoverCardChange}
                   onFieldClick={onFieldClick}
                   onFieldRightClick={onFieldRightClick}

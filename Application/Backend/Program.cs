@@ -79,6 +79,7 @@ builder.Services.AddSingleton<IGameCommandLock, GameCommandLock>();
 builder.Services.AddSingleton<ITurnPhaseStateMachine, TurnPhaseStateMachine>();
 builder.Services.AddScoped<IGameCommandValidator<DrawActionCommand, DrawActionResult>, DrawActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<SkipDrawActionCommand, DrawPhaseProgressResult>, SkipDrawActionValidator>();
+builder.Services.AddScoped<IGameCommandValidator<AttackActionCommand, BattleAttackResult>, AttackActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<PlaceCardActionCommand, PlaceCardResult>, PlaceCardActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<SendCardToGraveyardActionCommand, GameCardUpdateResult>, SendCardToGraveyardActionValidator>();
 builder.Services.AddScoped<IGameCommandValidator<ToggleDefensePositionActionCommand, GameCardUpdateResult>, ToggleDefensePositionActionValidator>();

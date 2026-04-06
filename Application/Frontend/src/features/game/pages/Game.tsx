@@ -1,7 +1,12 @@
 import Board from "@/features/game/components/Board";
+import AttackDaggerOverlay, { type AttackDaggerAnimation } from "@/features/game/components/AttackDaggerOverlay";
 import TurnStatus from "@/features/game/components/TurnStatus";
 import { gameApi } from "@/features/game/api/game.api";
-import { TurnPhase, type GameCardDto } from "@/features/game/types/game.types";
+import {
+  TurnPhase,
+  type BattleAttackResultDto,
+  type GameCardDto,
+} from "@/features/game/types/game.types";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { gameHub } from "@/shared/realtime/gameHub";
 import type { CardDto } from "@/shared/types/card.types";
@@ -12,6 +17,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 const ZONE_FIELD = 0;
 const ZONE_HAND = 1;
+const FIELD_TOP_ROW_MAX_INDEX = 4;
 const TOP_ROW_MAX_INDEX = 4;
 const CARD_TYPE_MONSTER = 0;
 const CARD_TYPE_SPELL = 1;
@@ -36,6 +42,19 @@ const PHASE_COLOR_CLASSES: Record<number, string> = {
   [TurnPhase.End]: "text-yellow-300 drop-shadow-[0_0_18px_rgba(253,224,71,0.95)]",
 };
 
+let attackAnimationId = 0;
+
+const getElementCenter = (selector: string) => {
+  const element = document.querySelector<HTMLElement>(selector);
+  if (!element) return null;
+
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+};
+
 const GamePage = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
@@ -50,7 +69,9 @@ const GamePage = () => {
     Record<string, { username: string; lifePoints: number }>
   >({});
   const [viewerPlayerId, setViewerPlayerId] = useState<string | null>(null);
+  const [viewerLifePoints, setViewerLifePoints] = useState(0);
   const [viewerDrawsInTurn, setViewerDrawsInTurn] = useState(0);
+  const [attackedCardIdsInTurn, setAttackedCardIdsInTurn] = useState<string[]>([]);
   const [viewerTurnEnded, setViewerTurnEnded] = useState(false);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [activePlayerLabel, setActivePlayerLabel] = useState<string>("-");
@@ -58,7 +79,10 @@ const GamePage = () => {
   const [phaseStartedAt, setPhaseStartedAt] = useState<string | null>(null);
   const [isSubmittingDrawAction, setIsSubmittingDrawAction] = useState(false);
   const [isSubmittingMainAction, setIsSubmittingMainAction] = useState(false);
+  const [isSubmittingBattleAction, setIsSubmittingBattleAction] = useState(false);
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
+  const [selectedAttackerCardId, setSelectedAttackerCardId] = useState<string | null>(null);
+  const [attackAnimation, setAttackAnimation] = useState<AttackDaggerAnimation | null>(null);
   const [placementPositionHover, setPlacementPositionHover] = useState<{
     fieldIndex: number;
     defensePosition: boolean;
@@ -71,6 +95,8 @@ const GamePage = () => {
 
   const previousTurnStatusRef = useRef<{ activePlayerId: string; phase: number } | null>(null);
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAttackAnimationActiveRef = useRef(false);
+  const pendingStateRefreshRef = useRef(false);
 
   const safeGameId = gameId ?? "";
 
@@ -112,7 +138,11 @@ const GamePage = () => {
     setPlayerOrder(orderedPlayerIds);
     setPlayerSummaries(nextPlayerSummaries);
     setViewerPlayerId(data.viewerPlayerId);
+    setViewerLifePoints(
+      data.players.find((player) => player.id === data.viewerPlayerId)?.lifePoints ?? 0
+    );
     setViewerDrawsInTurn(data.viewerDrawsInTurn ?? 0);
+    setAttackedCardIdsInTurn(data.attackedCardIdsInCurrentTurn ?? []);
     setViewerTurnEnded(
       data.players.find((player) => player.id === data.viewerPlayerId)?.turnEnded ?? false
     );
@@ -148,11 +178,21 @@ const GamePage = () => {
     };
 
     const onStateMayHaveChanged = (..._args: unknown[]) => {
+      if (isAttackAnimationActiveRef.current) {
+        pendingStateRefreshRef.current = true;
+        return;
+      }
+
       void fetchGameState();
     };
 
     const pollStateInterval = setInterval(() => {
       if (!disposed) {
+        if (isAttackAnimationActiveRef.current) {
+          pendingStateRefreshRef.current = true;
+          return;
+        }
+
         void fetchGameState();
       }
     }, 1000);
@@ -172,6 +212,7 @@ const GamePage = () => {
     gameHub.onToggleDefenseResult(onStateMayHaveChanged);
     gameHub.onRevealResult(onStateMayHaveChanged);
     gameHub.onPlayerCardUpdated(onStateMayHaveChanged);
+    gameHub.onPlayerAttacked(onStateMayHaveChanged);
 
     return () => {
       disposed = true;
@@ -187,6 +228,7 @@ const GamePage = () => {
       gameHub.offToggleDefenseResult(onStateMayHaveChanged);
       gameHub.offRevealResult(onStateMayHaveChanged);
       gameHub.offPlayerCardUpdated(onStateMayHaveChanged);
+      gameHub.offPlayerAttacked(onStateMayHaveChanged);
       void gameHub.leaveGame(safeGameId);
       clearInterval(pollStateInterval);
     };
@@ -236,14 +278,27 @@ const GamePage = () => {
   }, []);
 
   const phaseNumber = Number(phase);
+  const isViewerAlive = viewerLifePoints > 0;
   const canViewerDraw =
     Boolean(viewerPlayerId) &&
+    isViewerAlive &&
     !viewerTurnEnded &&
     phaseNumber === TurnPhase.Draw &&
     viewerDrawsInTurn < 2;
-  const canViewerPlayMain1 = Boolean(viewerPlayerId) && !viewerTurnEnded && phaseNumber === TurnPhase.Main1;
+  const canViewerPlayMain1 =
+    Boolean(viewerPlayerId) &&
+    isViewerAlive &&
+    !viewerTurnEnded &&
+    phaseNumber === TurnPhase.Main1;
+  const canViewerBattleAttack =
+    Boolean(viewerPlayerId) &&
+    isViewerAlive &&
+    !viewerTurnEnded &&
+    phaseNumber === TurnPhase.Battle &&
+    viewerPlayerId === activePlayerId;
   const canViewerAdvancePhase =
     Boolean(viewerPlayerId) &&
+    isViewerAlive &&
     (
       ((phaseNumber === TurnPhase.Draw || phaseNumber === TurnPhase.Main1) && !viewerTurnEnded) ||
       (phaseNumber === TurnPhase.Battle && viewerPlayerId === activePlayerId)
@@ -290,6 +345,12 @@ const GamePage = () => {
     }
   }, [canViewerPlayMain1]);
 
+  useEffect(() => {
+    if (!canViewerBattleAttack) {
+      setSelectedAttackerCardId(null);
+    }
+  }, [canViewerBattleAttack]);
+
   const selectedHandCard = useMemo(() => {
     if (!selectedHandCardId) return null;
 
@@ -304,6 +365,39 @@ const GamePage = () => {
     );
   }, [cards, selectedHandCardId, viewerPlayerId]);
 
+  const selectedAttackerCard = useMemo(() => {
+    if (!selectedAttackerCardId) return null;
+
+    return (
+      cards.find(
+        (card) =>
+          card.id === selectedAttackerCardId &&
+          card.playerId === viewerPlayerId &&
+          card.zone === ZONE_FIELD &&
+          card.fieldIndex !== null &&
+          card.fieldIndex <= FIELD_TOP_ROW_MAX_INDEX &&
+          !card.isFaceDown &&
+          !card.defensePosition &&
+          card.card?.type === CARD_TYPE_MONSTER &&
+          !attackedCardIdsInTurn.includes(card.id)
+      ) ?? null
+    );
+  }, [attackedCardIdsInTurn, cards, selectedAttackerCardId, viewerPlayerId]);
+
+  const canUseCardAsAttacker = useCallback(
+    (card: GameCardDto | null) => {
+      if (!card) return false;
+      if (!viewerPlayerId || card.playerId !== viewerPlayerId) return false;
+      if (card.zone !== ZONE_FIELD || card.fieldIndex === null) return false;
+      if (card.fieldIndex > FIELD_TOP_ROW_MAX_INDEX) return false;
+      if (card.isFaceDown || card.defensePosition) return false;
+      if (card.card?.type !== CARD_TYPE_MONSTER) return false;
+      if (attackedCardIdsInTurn.includes(card.id)) return false;
+      return true;
+    },
+    [attackedCardIdsInTurn, viewerPlayerId]
+  );
+
   const canPlaceCardAtFieldIndex = useCallback((card: GameCardDto | null, fieldIndex: number) => {
     const cardType = card?.card?.type;
     if (cardType === undefined || cardType === null) return false;
@@ -311,6 +405,29 @@ const GamePage = () => {
     if (cardType === CARD_TYPE_MONSTER) return fieldIndex <= TOP_ROW_MAX_INDEX;
     if (cardType === CARD_TYPE_SPELL || cardType === CARD_TYPE_TRAP) return fieldIndex > TOP_ROW_MAX_INDEX;
     return false;
+  }, []);
+
+  const playAttackAnimation = useCallback((result: BattleAttackResultDto) => {
+    const attackerCenter = getElementCenter(`[data-game-card-id="${result.attackerCardId}"]`);
+    const targetCenter = result.defenderCardId
+      ? getElementCenter(`[data-game-card-id="${result.defenderCardId}"]`)
+      : result.defenderPlayerGameId
+        ? getElementCenter(`[data-player-target-id="${result.defenderPlayerGameId}"]`)
+        : null;
+
+    if (!attackerCenter || !targetCenter) return false;
+
+    attackAnimationId += 1;
+    isAttackAnimationActiveRef.current = true;
+    setAttackAnimation({
+      id: attackAnimationId,
+      startX: attackerCenter.x,
+      startY: attackerCenter.y,
+      endX: targetCenter.x,
+      endY: targetCenter.y,
+      attackFailed: result.attackFailed,
+    });
+    return true;
   }, []);
 
   const handleDrawCard = useCallback(async () => {
@@ -330,7 +447,8 @@ const GamePage = () => {
   }, [canViewerDraw, fetchGameState, isSubmittingDrawAction, safeGameId]);
 
   const handleNextPhase = useCallback(async () => {
-    if (!safeGameId || !canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction) return;
+    if (attackAnimation !== null) return;
+    if (!safeGameId || !canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction || isSubmittingBattleAction) return;
     setIsSubmittingDrawAction(true);
     setError(null);
     try {
@@ -342,7 +460,15 @@ const GamePage = () => {
     } finally {
       setIsSubmittingDrawAction(false);
     }
-  }, [canViewerAdvancePhase, fetchGameState, isSubmittingDrawAction, isSubmittingMainAction, safeGameId]);
+  }, [
+    canViewerAdvancePhase,
+    fetchGameState,
+    attackAnimation,
+    isSubmittingBattleAction,
+    isSubmittingDrawAction,
+    isSubmittingMainAction,
+    safeGameId,
+  ]);
 
   const handleHandCardClick = useCallback(
     (card: GameCardDto) => {
@@ -426,8 +552,79 @@ const GamePage = () => {
     ]
   );
 
+  const executeBattleAttack = useCallback(
+    async (defenderCardId?: string, defenderPlayerGameId?: string) => {
+      if (!safeGameId || !selectedAttackerCard || !canViewerBattleAttack || isSubmittingBattleAction) return;
+
+      setIsSubmittingBattleAction(true);
+      setError(null);
+      try {
+        const result = await gameHub.attack(
+          safeGameId,
+          selectedAttackerCard.id,
+          defenderCardId,
+          defenderPlayerGameId
+        );
+        const animationStarted = playAttackAnimation(result);
+        setSelectedAttackerCardId(null);
+        if (animationStarted) {
+          pendingStateRefreshRef.current = true;
+        } else {
+          await fetchGameState();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Attack action failed.";
+        setError(message);
+      } finally {
+        setIsSubmittingBattleAction(false);
+      }
+    },
+    [
+      canViewerBattleAttack,
+      fetchGameState,
+      isSubmittingBattleAction,
+      playAttackAnimation,
+      safeGameId,
+      selectedAttackerCard,
+    ]
+  );
+
   const handleFieldClick = useCallback(
     (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
+      if (canViewerBattleAttack) {
+        if (attackAnimation !== null) return;
+        if (isSubmittingBattleAction) return;
+
+        if (!selectedAttackerCard) {
+          if (!card || !canUseCardAsAttacker(card)) return;
+          setSelectedAttackerCardId(card.id);
+          return;
+        }
+
+        if (card?.id === selectedAttackerCard.id) {
+          setSelectedAttackerCardId(null);
+          return;
+        }
+
+        if (card && canUseCardAsAttacker(card)) {
+          setSelectedAttackerCardId(card.id);
+          return;
+        }
+
+        const isEnemyMonsterTarget =
+          playerId !== viewerPlayerId &&
+          card !== null &&
+          card.zone === ZONE_FIELD &&
+          card.fieldIndex !== null &&
+          card.fieldIndex <= FIELD_TOP_ROW_MAX_INDEX;
+
+        if (isEnemyMonsterTarget) {
+          void executeBattleAttack(card.id);
+        }
+
+        return;
+      }
+
       if (!canViewerPlayMain1 || !viewerPlayerId) return;
       if (playerId !== viewerPlayerId) return;
 
@@ -438,9 +635,15 @@ const GamePage = () => {
       }
     },
     [
+      attackAnimation,
+      canUseCardAsAttacker,
+      canViewerBattleAttack,
       canViewerPlayMain1,
+      executeBattleAttack,
+      isSubmittingBattleAction,
       placeSelectedHandCard,
       selectedHandCard,
+      selectedAttackerCard,
       viewerPlayerId,
     ]
   );
@@ -531,6 +734,25 @@ const GamePage = () => {
     [canViewerPlayMain1, selectedHandCard, viewerPlayerId]
   );
 
+  const handlePlayerClick = useCallback(
+    (playerId: string) => {
+      if (!canViewerBattleAttack || !selectedAttackerCard) return;
+      if (playerId === viewerPlayerId) return;
+      if (isSubmittingBattleAction) return;
+      if (attackAnimation !== null) return;
+
+      void executeBattleAttack(undefined, playerId);
+    },
+    [
+      attackAnimation,
+      canViewerBattleAttack,
+      executeBattleAttack,
+      isSubmittingBattleAction,
+      selectedAttackerCard,
+      viewerPlayerId,
+    ]
+  );
+
   const showBoard = !isLoading && !error && cards.length > 0 && viewerPlayerId;
   const isViewer = Boolean(currentUserId);
 
@@ -589,7 +811,7 @@ const GamePage = () => {
               onClick={() => {
                 void handleNextPhase();
               }}
-              disabled={!canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction}
+              disabled={!canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction || isSubmittingBattleAction || attackAnimation !== null}
               className="rounded-md border border-amber-200/50 bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-100 disabled:cursor-default disabled:opacity-50"
             >
               Next
@@ -618,6 +840,9 @@ const GamePage = () => {
               <div className="mt-1 text-white/80">
                 After placed: left click vertical/horizontal holder to change Attack/Defense
               </div>
+              <div className="mt-2 border-t border-white/20 pt-2 text-white/80">
+                Battle: click your attack-position monster, then click enemy monster or enemy player.
+              </div>
             </div>
           </div>
 
@@ -641,9 +866,11 @@ const GamePage = () => {
               playerIds={playerOrder}
               viewerPlayerId={viewerPlayerId}
               activePlayerId={activePlayerId}
+              selectedAttackerCardId={selectedAttackerCardId}
               playerSummaries={playerSummaries}
               hoveredCard={hoveredCard}
               onHoverCardChange={setHoveredCard}
+              onPlayerClick={handlePlayerClick}
               onDeckClick={(playerId) => {
                 if (playerId !== viewerPlayerId) return;
                 void handleDrawCard();
@@ -657,7 +884,37 @@ const GamePage = () => {
               isDeckClickable={(playerId) =>
                 canViewerDraw && !isSubmittingDrawAction && playerId === viewerPlayerId
               }
+              isPlayerClickable={(playerId) =>
+                canViewerBattleAttack &&
+                Boolean(selectedAttackerCard) &&
+                !isSubmittingBattleAction &&
+                attackAnimation === null &&
+                Boolean(viewerPlayerId) &&
+                playerId !== viewerPlayerId &&
+                (playerSummaries[playerId]?.lifePoints ?? 0) > 0
+              }
               isFieldClickable={(playerId, fieldIndex, card) => {
+                if (canViewerBattleAttack) {
+                  if (isSubmittingBattleAction) return false;
+                  if (attackAnimation !== null) return false;
+
+                  if (!selectedAttackerCard) {
+                    return canUseCardAsAttacker(card);
+                  }
+
+                  if (canUseCardAsAttacker(card)) return true;
+
+                  return (
+                    Boolean(viewerPlayerId) &&
+                    playerId !== viewerPlayerId &&
+                    card !== null &&
+                    card.zone === ZONE_FIELD &&
+                    card.fieldIndex !== null &&
+                    card.fieldIndex <= FIELD_TOP_ROW_MAX_INDEX &&
+                    fieldIndex <= FIELD_TOP_ROW_MAX_INDEX
+                  );
+                }
+
                 if (
                   !canViewerPlayMain1 ||
                   !viewerPlayerId ||
@@ -695,6 +952,7 @@ const GamePage = () => {
                   !viewerPlayerId ||
                   playerId !== viewerPlayerId ||
                   isSubmittingMainAction ||
+                  canViewerBattleAttack ||
                   Boolean(selectedHandCard)
                 ) {
                   return false;
@@ -740,6 +998,20 @@ const GamePage = () => {
               selectedHandCardId={selectedHandCardId}
             />
           ) : null}
+
+          <AttackDaggerOverlay
+            animation={attackAnimation}
+            selectedAttackerCardId={selectedAttackerCardId}
+            onAnimationEnd={() => {
+              setAttackAnimation(null);
+              isAttackAnimationActiveRef.current = false;
+
+              if (!pendingStateRefreshRef.current) return;
+
+              pendingStateRefreshRef.current = false;
+              void fetchGameState();
+            }}
+          />
 
           {!isViewer && (
             <div className="absolute right-3 top-3 rounded-md border border-amber-200/40 bg-black/40 px-3 py-2 text-xs text-amber-100">

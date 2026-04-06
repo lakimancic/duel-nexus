@@ -153,6 +153,39 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         return _mapper.Map<DrawPhaseProgressDto>(result);
     }
 
+    public async Task<BattleAttackResultDto> Attack(
+        Guid gameId,
+        Guid userId,
+        Guid attackerCardId,
+        Guid? defenderCardId,
+        Guid? defenderPlayerGameId)
+    {
+        var result = await _gameEngine.ExecuteCommandAsync<AttackActionCommand, BattleAttackResult>(
+            gameId,
+            userId,
+            new AttackActionCommand(attackerCardId, defenderCardId, defenderPlayerGameId));
+
+        return new BattleAttackResultDto
+        {
+            GameId = result.Game.Id,
+            RoomId = result.Game.RoomId,
+            TurnId = result.Turn.Id,
+            PlayerGameId = result.Player.Id,
+            AttackerCardId = result.AttackerCardId,
+            DefenderCardId = result.DefenderCardId,
+            DefenderPlayerGameId = result.DefenderPlayerGameId,
+            DamageToDefender = result.DamageToDefender,
+            DamageToAttacker = result.DamageToAttacker,
+            AttackerDestroyed = result.AttackerDestroyed,
+            DefenderDestroyed = result.DefenderDestroyed,
+            AttackFailed = result.AttackFailed,
+            PhaseAdvanced = result.PhaseAdvanced,
+            TurnChanged = result.TurnChanged,
+            ActivePlayerId = result.ActivePlayerId,
+            CurrentPhase = result.CurrentPhase,
+        };
+    }
+
     public async Task<PlaceCardResultDto> PlaceCard(Guid gameId, Guid userId, Guid gameCardId, int fieldIndex, bool faceDown)
     {
         var result = await _gameEngine.ExecuteCommandAsync<PlaceCardActionCommand, PlaceCardResult>(
@@ -473,12 +506,16 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         var viewerDrawsInTurn = state.CurrentTurn.Phase == TurnPhase.Draw
             ? await _unitOfWork.CardMovements.CountDrawsInTurnByPlayerAsync(state.CurrentTurn.Id, state.Viewer.Id)
             : 0;
+        var attackedCardIds = state.CurrentTurn.Phase == TurnPhase.Battle
+            ? await _unitOfWork.Attacks.GetAttackerCardIdsByTurnAsync(state.CurrentTurn.Id)
+            : new HashSet<Guid>();
 
         return new GameStateDto
         {
             GameId = state.Game.Id,
             ViewerPlayerId = state.Viewer.Id,
             ViewerDrawsInTurn = viewerDrawsInTurn,
+            AttackedCardIdsInCurrentTurn = attackedCardIds.ToList(),
             CurrentTurn = _mapper.Map<TurnDto>(state.CurrentTurn),
             Players = state.Players.Select(player => _mapper.Map<PlayerGameDto>(player)).ToList(),
             Cards = state.Cards.Select(card => MapCardForViewer(card, state.Viewer.Id)).ToList(),

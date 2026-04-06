@@ -17,4 +17,19 @@ public class AttackRepository(DuelNexusDbContext context) : Repository<AttackAct
 			.Include(a => a.DefenderPlayer!).ThenInclude(pg => pg.User)
 			.FirstOrDefaultAsync();
 	}
+
+    public Task<bool> HasAttackForTurnAndAttackerAsync(Guid turnId, Guid attackerCardId)
+    {
+        return _dbSet.AnyAsync(action =>
+            action.TurnId == turnId &&
+            action.AttackerCardId == attackerCardId);
+    }
+
+    public async Task<HashSet<Guid>> GetAttackerCardIdsByTurnAsync(Guid turnId)
+    {
+        return await _dbSet
+            .Where(action => action.TurnId == turnId)
+            .Select(action => action.AttackerCardId)
+            .ToHashSetAsync();
+    }
 }

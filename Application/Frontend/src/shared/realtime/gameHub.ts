@@ -3,6 +3,7 @@ import { createConnection } from "./connection";
 import type { MessageDto } from "../types/message.types";
 import type { ShortUserDto } from "../types/user.types";
 import type { GameStartedEventDto } from "@/features/friendly/types/friendly.types";
+import type { BattleAttackResultDto } from "@/features/game/types/game.types";
 
 class GameHubClient {
   private connection: HubConnection;
@@ -185,6 +186,23 @@ class GameHubClient {
     );
   }
 
+  attack(
+    gameId: string,
+    attackerCardId: string,
+    defenderCardId?: string,
+    defenderPlayerGameId?: string
+  ) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke<BattleAttackResultDto>(
+        "game:action:attack",
+        gameId,
+        attackerCardId,
+        defenderCardId ?? null,
+        defenderPlayerGameId ?? null
+      )
+    );
+  }
+
   onDrawResult(handler: (...args: any[]) => void) {
     this.connection.on("game:draw:result", handler);
   }
@@ -279,6 +297,22 @@ class GameHubClient {
 
   offRevealResult(handler: (...args: any[]) => void) {
     this.connection.off("game:reveal:result", handler);
+  }
+
+  onAttackResult(handler: (...args: any[]) => void) {
+    this.connection.on("game:attack:result", handler);
+  }
+
+  offAttackResult(handler: (...args: any[]) => void) {
+    this.connection.off("game:attack:result", handler);
+  }
+
+  onPlayerAttacked(handler: (...args: any[]) => void) {
+    this.connection.on("game:player:attacked", handler);
+  }
+
+  offPlayerAttacked(handler: (...args: any[]) => void) {
+    this.connection.off("game:player:attacked", handler);
   }
 }
 

@@ -133,6 +133,24 @@ public partial class GameHub
             .SendAsync("game:player:card:updated", result);
     }
 
+    [HubMethodName("game:action:attack")]
+    public async Task<BattleAttackResultDto> AttackAction(
+        Guid gameId,
+        Guid attackerCardId,
+        Guid? defenderCardId,
+        Guid? defenderPlayerGameId)
+    {
+        var userId = GetUserId();
+        var result = await Games.Attack(gameId, userId, attackerCardId, defenderCardId, defenderPlayerGameId);
+
+        await Clients.Caller.SendAsync("game:attack:result", result);
+
+        await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
+            .SendAsync("game:player:attacked", result);
+
+        return result;
+    }
+
     [HubMethodName("game:action:next")]
     public async Task AdvancePhaseAction(Guid gameId)
     {

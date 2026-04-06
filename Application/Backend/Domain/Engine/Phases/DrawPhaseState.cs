@@ -34,7 +34,11 @@ public sealed class DrawPhaseState : ITurnPhaseState
         if (players.Count == 0)
             throw new BadRequestException("Game has no players.");
 
-        var everyoneEnded = players.All(player => player.TurnEnded);
+        var alivePlayers = players.Where(player => player.LifePoints > 0).ToList();
+        if (alivePlayers.Count == 0)
+            throw new BadRequestException("Game has no active players.");
+
+        var everyoneEnded = alivePlayers.All(player => player.TurnEnded);
         var shouldAdvance = trigger == TurnPhaseAdvanceTrigger.Timeout
             ? !everyoneEnded
             : everyoneEnded;
@@ -68,7 +72,7 @@ public sealed class DrawPhaseState : ITurnPhaseState
     {
         foreach (var player in players)
         {
-            player.TurnEnded = false;
+            player.TurnEnded = player.LifePoints <= 0;
             context.UnitOfWork.PlayerGames.Update(player);
         }
     }

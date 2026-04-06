@@ -8,6 +8,12 @@ public sealed class ToggleDefensePositionActionValidator : IGameCommandValidator
 {
     public async Task ValidateAsync(ToggleDefensePositionActionCommand command, GameCommandContext context, CancellationToken cancellationToken = default)
     {
+        if (context.Game.FinishedAt is not null)
+            throw new BadRequestException("Game is already finished.");
+
+        if (context.Actor.LifePoints <= 0)
+            throw new BadRequestException("You already lost this game.");
+
         if (context.CurrentTurn.Phase != TurnPhase.Main1)
             throw new BadRequestException("Changing battle position is allowed only in Main1 phase.");
 

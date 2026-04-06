@@ -14,7 +14,7 @@ public sealed class BattlePhaseState : ITurnPhaseState
         TurnPhaseAdvanceTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        if (trigger != TurnPhaseAdvanceTrigger.PlayerAdvance)
+        if (trigger is not TurnPhaseAdvanceTrigger.PlayerAdvance and not TurnPhaseAdvanceTrigger.PlayerCompletedActions)
             throw new BadRequestException("Unsupported trigger for Battle phase.");
 
         var actor = context.Actor
@@ -25,8 +25,10 @@ public sealed class BattlePhaseState : ITurnPhaseState
             throw new BadRequestException("Game has no players.");
 
         MarkActorAsEndedIfNeeded(actor, context);
+        await MarkPlayersWithoutAvailableAttacksAsEndedAsync(players, context, cancellationToken);
 
-        var nextBattlePlayer = GetNextNotEndedPlayer(players, actor.Id);
+        var alivePlayers = players.Where(player => player.LifePoints > 0).ToList();
+        var nextBattlePlayer = GetNextNotEndedPlayer(alivePlayers, actor.Id);
         if (nextBattlePlayer != null)
         {
             context.Turn.ActivePlayerId = nextBattlePlayer.Id;
@@ -58,11 +60,14 @@ public sealed class BattlePhaseState : ITurnPhaseState
 
     private static PlayerGame? GetNextNotEndedPlayer(List<PlayerGame> players, Guid currentPlayerId)
     {
+        if (players.Count == 0)
+            return null;
+
         var currentIndex = players.FindIndex(player => player.Id == currentPlayerId);
         if (currentIndex < 0)
-            throw new BadRequestException("Current battle player not found in game players.");
+            currentIndex = 0;
 
-        for (var step = 1; step < players.Count; step++)
+        for (var step = 1; step <= players.Count; step++)
         {
             var candidate = players[(currentIndex + step) % players.Count];
             if (!candidate.TurnEnded)
@@ -76,7 +81,47 @@ public sealed class BattlePhaseState : ITurnPhaseState
     {
         foreach (var player in players)
         {
-            player.TurnEnded = false;
+            player.TurnEnded = player.LifePoints <= 0;
+            context.UnitOfWork.PlayerGames.Update(player);
+        }
+    }
+
+    private static async Task MarkPlayersWithoutAvailableAttacksAsEndedAsync(
+        IEnumerable<PlayerGame> players,
+        TurnPhaseStateContext context,
+        CancellationToken cancellationToken)
+    {
+        var allCards = await context.UnitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
+        var attackedCardIds = await context.UnitOfWork.Attacks.GetAttackerCardIdsByTurnAsync(context.Turn.Id);
+
+        foreach (var player in players)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (player.LifePoints <= 0)
+            {
+                if (!player.TurnEnded)
+                {
+                    player.TurnEnded = true;
+                    context.UnitOfWork.PlayerGames.Update(player);
+                }
+
+                continue;
+            }
+
+            var hasAvailableAttacker = allCards.Any(card =>
+                card.PlayerGameId == player.Id &&
+                card.Zone == CardZone.Field &&
+                card.FieldIndex is >= 0 and <= 4 &&
+                !card.IsFaceDown &&
+                !card.DefensePosition &&
+                card.Card is MonsterCard &&
+                !attackedCardIds.Contains(card.Id));
+
+            if (hasAvailableAttacker || player.TurnEnded)
+                continue;
+
+            player.TurnEnded = true;
             context.UnitOfWork.PlayerGames.Update(player);
         }
     }
