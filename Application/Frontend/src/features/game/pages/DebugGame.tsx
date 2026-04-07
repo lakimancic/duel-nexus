@@ -219,6 +219,18 @@ const DebugGamePage = () => {
     [attackedCardIds]
   );
 
+  const playerHasMonsterOnField = useCallback(
+    (playerId: string) =>
+      cards.some(
+        (card) =>
+          card.playerId === playerId &&
+          card.zone === ZONE_FIELD &&
+          card.fieldIndex !== null &&
+          card.fieldIndex <= TOP_ROW_MAX_INDEX
+      ),
+    [cards]
+  );
+
   const startAttackAnimation = useCallback((
     attackerCardId: string,
     defenderCardId: string | null,
@@ -405,6 +417,7 @@ const DebugGamePage = () => {
               if (isResolvingAttack) return;
               if (!selectedAttackerCard) return;
               if (playerId === viewerPlayerId) return;
+              if (playerHasMonsterOnField(playerId)) return;
               executeDebugAttack(null, playerId);
             }}
             onFieldClick={(playerId, _fieldIndex, card) => {
@@ -441,6 +454,7 @@ const DebugGamePage = () => {
               Boolean(selectedAttackerCard) &&
               !isResolvingAttack &&
               playerId !== viewerPlayerId &&
+              !playerHasMonsterOnField(playerId) &&
               (playerSummaries[playerId as keyof typeof playerSummaries]?.lifePoints ?? 0) > 0
             }
             isFieldClickable={(playerId, fieldIndex, card) => {

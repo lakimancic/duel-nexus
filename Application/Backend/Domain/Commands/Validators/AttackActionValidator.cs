@@ -89,6 +89,16 @@ public sealed class AttackActionValidator : IGameCommandValidator<AttackActionCo
 
             if (defenderPlayer.LifePoints <= 0)
                 throw new BadRequestException("Selected player already lost.");
+
+            var cards = await context.UnitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
+            var defenderHasMonstersOnField = cards.Any(card =>
+                card.PlayerGameId == defenderPlayer.Id &&
+                card.Zone == CardZone.Field &&
+                card.FieldIndex is >= 0 and <= 4 &&
+                card.Card is MonsterCard);
+
+            if (defenderHasMonstersOnField)
+                throw new BadRequestException("Direct attack is allowed only when defender has no monsters on field.");
         }
     }
 }

@@ -1,5 +1,5 @@
 import DaggerImage from "@/assets/images/dagger.png";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export const DAGGER_FLIGHT_MS = 360;
 export const DAGGER_STUCK_MS = 280;
@@ -40,6 +40,11 @@ const AttackDaggerOverlay = ({
 }: AttackDaggerOverlayProps) => {
   const [phase, setPhase] = useState<"idle" | "flying" | "stuck">("idle");
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const onAnimationEndRef = useRef(onAnimationEnd);
+
+  useEffect(() => {
+    onAnimationEndRef.current = onAnimationEnd;
+  }, [onAnimationEnd]);
 
   useEffect(() => {
     const onMouseMove = (event: MouseEvent) => {
@@ -64,13 +69,13 @@ const AttackDaggerOverlay = ({
 
     const flightTimer = setTimeout(() => {
       if (animation.attackFailed) {
-        onAnimationEnd?.();
+        onAnimationEndRef.current?.();
         return;
       }
 
       setPhase("stuck");
       stuckTimer = setTimeout(() => {
-        onAnimationEnd?.();
+        onAnimationEndRef.current?.();
       }, DAGGER_STUCK_MS);
     }, DAGGER_FLIGHT_MS);
 
@@ -79,7 +84,7 @@ const AttackDaggerOverlay = ({
       clearTimeout(flightTimer);
       if (stuckTimer) clearTimeout(stuckTimer);
     };
-  }, [animation, onAnimationEnd]);
+  }, [animation]);
 
   const style = useMemo(() => {
     if (!animation) return null;

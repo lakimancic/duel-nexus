@@ -384,6 +384,18 @@ const GamePage = () => {
     );
   }, [attackedCardIdsInTurn, cards, selectedAttackerCardId, viewerPlayerId]);
 
+  const playerHasMonsterOnField = useCallback(
+    (playerId: string) =>
+      cards.some(
+        (card) =>
+          card.playerId === playerId &&
+          card.zone === ZONE_FIELD &&
+          card.fieldIndex !== null &&
+          card.fieldIndex <= FIELD_TOP_ROW_MAX_INDEX
+      ),
+    [cards]
+  );
+
   const canUseCardAsAttacker = useCallback(
     (card: GameCardDto | null) => {
       if (!card) return false;
@@ -740,6 +752,7 @@ const GamePage = () => {
       if (playerId === viewerPlayerId) return;
       if (isSubmittingBattleAction) return;
       if (attackAnimation !== null) return;
+      if (playerHasMonsterOnField(playerId)) return;
 
       void executeBattleAttack(undefined, playerId);
     },
@@ -748,6 +761,7 @@ const GamePage = () => {
       canViewerBattleAttack,
       executeBattleAttack,
       isSubmittingBattleAction,
+      playerHasMonsterOnField,
       selectedAttackerCard,
       viewerPlayerId,
     ]
@@ -891,6 +905,7 @@ const GamePage = () => {
                 attackAnimation === null &&
                 Boolean(viewerPlayerId) &&
                 playerId !== viewerPlayerId &&
+                !playerHasMonsterOnField(playerId) &&
                 (playerSummaries[playerId]?.lifePoints ?? 0) > 0
               }
               isFieldClickable={(playerId, fieldIndex, card) => {
