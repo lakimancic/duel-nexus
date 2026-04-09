@@ -14,8 +14,8 @@ public sealed class PlaceCardActionValidator : IGameCommandValidator<PlaceCardAc
         if (context.Actor.LifePoints <= 0)
             throw new BadRequestException("You already lost this game.");
 
-        if (context.CurrentTurn.Phase != TurnPhase.Main1)
-            throw new BadRequestException("Placing cards is allowed only in Main1 phase.");
+        if (context.CurrentTurn.Phase is not TurnPhase.Main1 and not TurnPhase.Main2)
+            throw new BadRequestException("Placing cards is allowed only in Main1/Main2 phase.");
 
         if (context.Actor.TurnEnded)
             throw new BadRequestException("You already finished Main1 actions for this phase.");

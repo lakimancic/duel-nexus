@@ -39,6 +39,7 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
         return await _dbSet
             .Where(gc => gc.Id == id)
             .Include(gc => gc.Card)
+                .ThenInclude(card => card!.Effect)
             .FirstOrDefaultAsync();
     }
 
@@ -72,6 +73,7 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
         return _dbSet
             .Where(gc => gc.PlayerGame.GameId == gameId)
             .Include(gc => gc.Card)
+                .ThenInclude(card => card!.Effect)
             .ToListAsync();
     }
 }

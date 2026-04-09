@@ -3,14 +3,18 @@ namespace Backend.Domain.Commands;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Domain.Engine;
+using Backend.Domain.Effects;
 using Backend.Domain.Engine.Phases;
 using Backend.Utils.WebApi;
 
 public sealed record AttackActionCommand(
     Guid AttackerCardId,
     Guid? DefenderCardId,
-    Guid? DefenderPlayerGameId) : IGameCommand<BattleAttackResult>
+    Guid? DefenderPlayerGameId,
+    Guid? ActivatedTrapCardId) : IGameCommand<BattleAttackResult>
 {
+    private static readonly CardEffectExecutor EffectExecutor = new();
+
     public async Task<BattleAttackResult> ExecuteAsync(GameCommandContext context, CancellationToken cancellationToken = default)
     {
         var attacker = await context.UnitOfWork.GameCards.GetByWithCardById(AttackerCardId)
@@ -39,6 +43,45 @@ public sealed record AttackActionCommand(
 
         if (defenderPlayer is null)
             throw new BadRequestException("Defender player cannot be resolved.");
+
+        var activatedEffect = await EffectExecutor.TryActivateTrapDuringAttackAsync(
+            commandContext: context,
+            defendingPlayer: defenderPlayer,
+            attackingPlayer: context.Actor,
+            attackerCard: attacker,
+            trapCardId: ActivatedTrapCardId,
+            cancellationToken: cancellationToken);
+
+        if (attacker.Zone != CardZone.Field || attacker.FieldIndex is null || attacker.IsFaceDown || attacker.DefensePosition)
+        {
+            await context.UnitOfWork.Attacks.AddAsync(new AttackAction
+            {
+                TurnId = context.CurrentTurn.Id,
+                AttackerCardId = attacker.Id,
+                DefenderCardId = defenderCard?.Id,
+                DefenderPlayerGameId = directDefenderPlayer?.Id ?? defenderPlayer.Id,
+                ExecutedAt = DateTime.UtcNow,
+            });
+
+            return new BattleAttackResult(
+                Game: context.Game,
+                Turn: context.CurrentTurn,
+                Player: context.Actor,
+                AttackerCardId: attacker.Id,
+                DefenderCardId: defenderCard?.Id,
+                DefenderPlayerGameId: directDefenderPlayer?.Id ?? defenderPlayer.Id,
+                DamageToDefender: 0,
+                DamageToAttacker: 0,
+                AttackerDestroyed: true,
+                DefenderDestroyed: false,
+                AttackFailed: true,
+                PhaseAdvanced: false,
+                TurnChanged: false,
+                ActivePlayerId: context.CurrentTurn.ActivePlayerId,
+                CurrentPhase: context.CurrentTurn.Phase,
+                ActivatedEffect: activatedEffect
+            );
+        }
 
         var attackerMonster = attacker.Card as MonsterCard
             ?? throw new BadRequestException("Only monster cards can attack.");
@@ -158,7 +201,8 @@ public sealed record AttackActionCommand(
             PhaseAdvanced: phaseAdvanced,
             TurnChanged: turnChanged,
             ActivePlayerId: activePlayerId,
-            CurrentPhase: turnForResult.Phase
+            CurrentPhase: turnForResult.Phase,
+            ActivatedEffect: activatedEffect
         );
     }
 

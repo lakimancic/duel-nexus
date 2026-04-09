@@ -3,10 +3,13 @@ namespace Backend.Domain.Commands;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Domain.Engine;
+using Backend.Domain.Effects;
 using Backend.Utils.WebApi;
 
 public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, bool FaceDown) : IGameCommand<PlaceCardResult>
 {
+    private static readonly CardEffectExecutor EffectExecutor = new();
+
     public async Task<PlaceCardResult> ExecuteAsync(GameCommandContext context, CancellationToken cancellationToken = default)
     {
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(GameCardId)
@@ -28,6 +31,8 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
             Type = ResolvePlaceType(card.Card.Type, FaceDown),
         });
 
+        var activatedEffect = await EffectExecutor.TryActivateSpellOnPlacementAsync(context, card, cancellationToken);
+
         return new PlaceCardResult(
             Game: context.Game,
             Turn: context.CurrentTurn,
@@ -35,7 +40,8 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
             Card: card,
             FieldIndex: FieldIndex,
             FaceDown: FaceDown,
-            CurrentPhase: context.CurrentTurn.Phase
+            CurrentPhase: context.CurrentTurn.Phase,
+            ActivatedEffect: activatedEffect
         );
     }
 

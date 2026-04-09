@@ -87,6 +87,7 @@ builder.Services.AddScoped<IGameCommandValidator<RevealCardActionCommand, GameCa
 builder.Services.AddScoped<IGameCommandValidator<AdvancePhaseActionCommand, PhaseAdvanceResult>, AdvancePhaseActionValidator>();
 builder.Services.AddScoped<IConnectionService, ConnectionService>();
 builder.Services.AddSingleton<ConnectionTracker>();
+builder.Services.AddSingleton<TrapResponseCoordinator>();
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 

@@ -3,6 +3,8 @@ import AttackDaggerOverlay, { type AttackDaggerAnimation } from "@/features/game
 import TurnStatus from "@/features/game/components/TurnStatus";
 import { gameApi } from "@/features/game/api/game.api";
 import {
+  type GameEffectActivationDto,
+  type TrapResponseWindowEventDto,
   TurnPhase,
   type BattleAttackResultDto,
   type GameCardDto,
@@ -23,8 +25,10 @@ const CARD_TYPE_MONSTER = 0;
 const CARD_TYPE_SPELL = 1;
 const CARD_TYPE_TRAP = 2;
 const TURN_ANNOUNCEMENT_DURATION_MS = 1100;
+const EFFECT_ANNOUNCEMENT_DURATION_MS = 5000;
 const DRAW_PHASE_TIMEOUT_SECONDS = 20;
 const MAIN1_PHASE_TIMEOUT_SECONDS = 60;
+const MAIN2_PHASE_TIMEOUT_SECONDS = 60;
 
 const PHASE_LABELS: Record<number, string> = {
   [TurnPhase.Draw]: "Draw",
@@ -61,7 +65,7 @@ const GamePage = () => {
   const currentUserId = useAuthStore((state) => state.userId);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
   const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
   const [cards, setCards] = useState<GameCardDto[]>([]);
   const [playerOrder, setPlayerOrder] = useState<string[]>([]);
@@ -92,13 +96,53 @@ const GamePage = () => {
     subtitle?: string;
     colorClass: string;
   } | null>(null);
+  const [effectAnnouncement, setEffectAnnouncement] = useState<{
+    title: string;
+    subtitle?: string;
+    colorClass: string;
+  } | null>(null);
+  const [trapWindow, setTrapWindow] = useState<TrapResponseWindowEventDto | null>(null);
+  const [isSubmittingTrapResponse, setIsSubmittingTrapResponse] = useState(false);
 
   const previousTurnStatusRef = useRef<{ activePlayerId: string; phase: number } | null>(null);
+  const viewerPlayerIdRef = useRef<string | null>(null);
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectAnnouncementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAttackAnimationActiveRef = useRef(false);
   const pendingStateRefreshRef = useRef(false);
 
   const safeGameId = gameId ?? "";
+
+  useEffect(() => {
+    viewerPlayerIdRef.current = viewerPlayerId;
+  }, [viewerPlayerId]);
+
+  const reportRuntimeError = useCallback((scope: string, err: unknown) => {
+    console.error(`[Game:${scope}]`, err);
+  }, []);
+
+  const showEffectAnnouncement = useCallback((effect: GameEffectActivationDto) => {
+    const effectTypeLabel = `Effect ${effect.effectType}`;
+    const byPlayerLabel = playerSummaries[effect.activatedByPlayerGameId]?.username ?? "Unknown player";
+    const sourceTypeLabel = effect.isTrap ? "Trap Activated" : "Spell Activated";
+    const colorClass = effect.isTrap
+      ? "text-amber-300 drop-shadow-[0_0_18px_rgba(253,224,71,0.9)]"
+      : "text-sky-300 drop-shadow-[0_0_18px_rgba(125,211,252,0.9)]";
+
+    setEffectAnnouncement({
+      title: `${sourceTypeLabel}: ${effect.sourceCardName}`,
+      subtitle: `${effectTypeLabel} by ${byPlayerLabel}`,
+      colorClass,
+    });
+
+    if (effectAnnouncementTimeoutRef.current) {
+      clearTimeout(effectAnnouncementTimeoutRef.current);
+    }
+    effectAnnouncementTimeoutRef.current = setTimeout(() => {
+      setEffectAnnouncement(null);
+      effectAnnouncementTimeoutRef.current = null;
+    }, EFFECT_ANNOUNCEMENT_DURATION_MS);
+  }, [playerSummaries]);
 
   const fetchGameState = useCallback(async () => {
     if (!safeGameId) return;
@@ -164,13 +208,13 @@ const GamePage = () => {
 
     const load = async () => {
       setIsLoading(true);
-      setError(null);
+      setFatalError(null);
       try {
         await fetchGameState();
       } catch (err) {
         if (!disposed && err instanceof AxiosError) {
           const data = err.response?.data as ErrorMessage | undefined;
-          setError(data?.error ?? "Failed to load game state.");
+          setFatalError(data?.error ?? "Failed to load game state.");
         }
       } finally {
         if (!disposed) setIsLoading(false);
@@ -183,7 +227,19 @@ const GamePage = () => {
         return;
       }
 
-      void fetchGameState();
+      void fetchGameState().catch((err: unknown) => {
+        reportRuntimeError("refresh", err);
+      });
+    };
+
+    const onEffectActivated = (effect: GameEffectActivationDto) => {
+      showEffectAnnouncement(effect);
+      onStateMayHaveChanged();
+    };
+
+    const onTrapWindow = (event: TrapResponseWindowEventDto) => {
+      if (!viewerPlayerIdRef.current || event.defenderPlayerGameId !== viewerPlayerIdRef.current) return;
+      setTrapWindow(event);
     };
 
     const pollStateInterval = setInterval(() => {
@@ -193,7 +249,9 @@ const GamePage = () => {
           return;
         }
 
-        void fetchGameState();
+        void fetchGameState().catch((err: unknown) => {
+          reportRuntimeError("poll", err);
+        });
       }
     }, 1000);
 
@@ -213,6 +271,8 @@ const GamePage = () => {
     gameHub.onRevealResult(onStateMayHaveChanged);
     gameHub.onPlayerCardUpdated(onStateMayHaveChanged);
     gameHub.onPlayerAttacked(onStateMayHaveChanged);
+    gameHub.onEffectActivated(onEffectActivated);
+    gameHub.onTrapWindow(onTrapWindow);
 
     return () => {
       disposed = true;
@@ -229,10 +289,12 @@ const GamePage = () => {
       gameHub.offRevealResult(onStateMayHaveChanged);
       gameHub.offPlayerCardUpdated(onStateMayHaveChanged);
       gameHub.offPlayerAttacked(onStateMayHaveChanged);
+      gameHub.offEffectActivated(onEffectActivated);
+      gameHub.offTrapWindow(onTrapWindow);
       void gameHub.leaveGame(safeGameId);
       clearInterval(pollStateInterval);
     };
-  }, [fetchGameState, navigate, safeGameId]);
+  }, [fetchGameState, navigate, reportRuntimeError, safeGameId, showEffectAnnouncement]);
 
   const turnStatus = useMemo(
     () => ({ activePlayerId: activePlayerLabel, phase }),
@@ -274,6 +336,9 @@ const GamePage = () => {
       if (announcementTimeoutRef.current) {
         clearTimeout(announcementTimeoutRef.current);
       }
+      if (effectAnnouncementTimeoutRef.current) {
+        clearTimeout(effectAnnouncementTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -289,7 +354,7 @@ const GamePage = () => {
     Boolean(viewerPlayerId) &&
     isViewerAlive &&
     !viewerTurnEnded &&
-    phaseNumber === TurnPhase.Main1;
+    (phaseNumber === TurnPhase.Main1 || phaseNumber === TurnPhase.Main2);
   const canViewerBattleAttack =
     Boolean(viewerPlayerId) &&
     isViewerAlive &&
@@ -301,12 +366,14 @@ const GamePage = () => {
     isViewerAlive &&
     (
       ((phaseNumber === TurnPhase.Draw || phaseNumber === TurnPhase.Main1) && !viewerTurnEnded) ||
+      (phaseNumber === TurnPhase.Main2 && !viewerTurnEnded) ||
       (phaseNumber === TurnPhase.Battle && viewerPlayerId === activePlayerId)
     );
 
   const phaseTimeoutSeconds = useMemo(() => {
     if (phaseNumber === TurnPhase.Draw) return DRAW_PHASE_TIMEOUT_SECONDS;
     if (phaseNumber === TurnPhase.Main1) return MAIN1_PHASE_TIMEOUT_SECONDS;
+    if (phaseNumber === TurnPhase.Main2) return MAIN2_PHASE_TIMEOUT_SECONDS;
     return null;
   }, [phaseNumber]);
 
@@ -446,29 +513,25 @@ const GamePage = () => {
     if (!safeGameId || !canViewerDraw || isSubmittingDrawAction) return;
 
     setIsSubmittingDrawAction(true);
-    setError(null);
     try {
       await gameHub.drawCard(safeGameId);
       await fetchGameState();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Draw action failed.";
-      setError(message);
+      reportRuntimeError("draw", err);
     } finally {
       setIsSubmittingDrawAction(false);
     }
-  }, [canViewerDraw, fetchGameState, isSubmittingDrawAction, safeGameId]);
+  }, [canViewerDraw, fetchGameState, isSubmittingDrawAction, reportRuntimeError, safeGameId]);
 
   const handleNextPhase = useCallback(async () => {
     if (attackAnimation !== null) return;
     if (!safeGameId || !canViewerAdvancePhase || isSubmittingDrawAction || isSubmittingMainAction || isSubmittingBattleAction) return;
     setIsSubmittingDrawAction(true);
-    setError(null);
     try {
       await gameHub.nextPhase(safeGameId);
       await fetchGameState();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Next phase action failed.";
-      setError(message);
+      reportRuntimeError("next-phase", err);
     } finally {
       setIsSubmittingDrawAction(false);
     }
@@ -479,6 +542,7 @@ const GamePage = () => {
     isSubmittingBattleAction,
     isSubmittingDrawAction,
     isSubmittingMainAction,
+    reportRuntimeError,
     safeGameId,
   ]);
 
@@ -501,7 +565,6 @@ const GamePage = () => {
       if (!safeGameId || isSubmittingMainAction) return;
 
       setIsSubmittingMainAction(true);
-      setError(null);
       void gameHub
         .sendCardToGraveyard(safeGameId, selectedHandCard.id)
         .then(async () => {
@@ -509,8 +572,7 @@ const GamePage = () => {
           setSelectedHandCardId(null);
         })
         .catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : "Send to graveyard failed.";
-          setError(message);
+          reportRuntimeError("grave", err);
         })
         .finally(() => {
           setIsSubmittingMainAction(false);
@@ -520,6 +582,7 @@ const GamePage = () => {
       canViewerPlayMain1,
       fetchGameState,
       isSubmittingMainAction,
+      reportRuntimeError,
       safeGameId,
       selectedHandCard,
       viewerPlayerId,
@@ -537,7 +600,6 @@ const GamePage = () => {
       const isMonsterPlacement = selectedHandCard.card?.type === CARD_TYPE_MONSTER;
 
       setIsSubmittingMainAction(true);
-      setError(null);
       try {
         await gameHub.placeCard(safeGameId, selectedHandCard.id, fieldIndex, faceDown);
         if (shouldStartInDefense && isMonsterPlacement) {
@@ -547,8 +609,7 @@ const GamePage = () => {
         setSelectedHandCardId(null);
         setPlacementPositionHover(null);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Place action failed.";
-        setError(message);
+        reportRuntimeError("place", err);
       } finally {
         setIsSubmittingMainAction(false);
       }
@@ -559,6 +620,7 @@ const GamePage = () => {
       fetchGameState,
       isSubmittingMainAction,
       placementPositionHover,
+      reportRuntimeError,
       safeGameId,
       selectedHandCard,
     ]
@@ -569,7 +631,6 @@ const GamePage = () => {
       if (!safeGameId || !selectedAttackerCard || !canViewerBattleAttack || isSubmittingBattleAction) return;
 
       setIsSubmittingBattleAction(true);
-      setError(null);
       try {
         const result = await gameHub.attack(
           safeGameId,
@@ -585,8 +646,7 @@ const GamePage = () => {
           await fetchGameState();
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Attack action failed.";
-        setError(message);
+        reportRuntimeError("attack", err);
       } finally {
         setIsSubmittingBattleAction(false);
       }
@@ -596,6 +656,7 @@ const GamePage = () => {
       fetchGameState,
       isSubmittingBattleAction,
       playAttackAnimation,
+      reportRuntimeError,
       safeGameId,
       selectedAttackerCard,
     ]
@@ -673,15 +734,13 @@ const GamePage = () => {
 
       if (!selectedHandCard && card?.isFaceDown && card.zone === ZONE_FIELD && card.playerId === viewerPlayerId) {
         setIsSubmittingMainAction(true);
-        setError(null);
         void gameHub
           .revealCard(safeGameId, card.id)
           .then(async () => {
             await fetchGameState();
           })
           .catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : "Reveal action failed.";
-            setError(message);
+            reportRuntimeError("reveal", err);
           })
           .finally(() => {
             setIsSubmittingMainAction(false);
@@ -693,6 +752,7 @@ const GamePage = () => {
       fetchGameState,
       isSubmittingMainAction,
       placeSelectedHandCard,
+      reportRuntimeError,
       safeGameId,
       selectedHandCard,
       viewerPlayerId,
@@ -713,15 +773,13 @@ const GamePage = () => {
       if (!safeGameId || isSubmittingMainAction) return;
 
       setIsSubmittingMainAction(true);
-      setError(null);
       void gameHub
         .toggleDefensePosition(safeGameId, card.id)
         .then(async () => {
           await fetchGameState();
         })
         .catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : "Card action failed.";
-          setError(message);
+          reportRuntimeError("toggle-defense", err);
         })
         .finally(() => {
           setIsSubmittingMainAction(false);
@@ -731,6 +789,7 @@ const GamePage = () => {
       canViewerPlayMain1,
       fetchGameState,
       isSubmittingMainAction,
+      reportRuntimeError,
       safeGameId,
       selectedHandCard,
       viewerPlayerId,
@@ -767,7 +826,35 @@ const GamePage = () => {
     ]
   );
 
-  const showBoard = !isLoading && !error && cards.length > 0 && viewerPlayerId;
+  const handleTrapActivation = useCallback(
+    async (trapGameCardId: string) => {
+      if (!safeGameId || !trapWindow || isSubmittingTrapResponse) return;
+
+      setIsSubmittingTrapResponse(true);
+      try {
+        await gameHub.activateTrapResponse(safeGameId, trapWindow.windowId, trapGameCardId);
+        setTrapWindow(null);
+      } catch (err) {
+        reportRuntimeError("trap-response", err);
+      } finally {
+        setIsSubmittingTrapResponse(false);
+      }
+    },
+    [isSubmittingTrapResponse, reportRuntimeError, safeGameId, trapWindow]
+  );
+
+  useEffect(() => {
+    if (!trapWindow) return;
+
+    const remainingMs = Math.max(0, Date.parse(trapWindow.expiresAtUtc) - Date.now());
+    const timeoutId = setTimeout(() => {
+      setTrapWindow((current) => (current?.windowId === trapWindow.windowId ? null : current));
+    }, remainingMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [trapWindow]);
+
+  const showBoard = !isLoading && !fatalError && cards.length > 0 && viewerPlayerId;
   const isViewer = Boolean(currentUserId);
 
   return (
@@ -792,6 +879,23 @@ const GamePage = () => {
           </div>
         </div>
       ) : null}
+      {effectAnnouncement ? (
+        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center px-4">
+          <div className={`text-center ${effectAnnouncement.colorClass}`}>
+            <p
+              className="text-4xl font-black tracking-[0.1em] uppercase [text-shadow:0_0_1.1rem_rgba(255,255,255,0.3)]"
+              style={{ WebkitTextStroke: "1px rgba(255,255,255,0.2)" }}
+            >
+              {effectAnnouncement.title}
+            </p>
+            {effectAnnouncement.subtitle ? (
+              <p className="mt-2 text-lg font-bold tracking-[0.06em] text-white [text-shadow:0_0_0.8rem_rgba(255,255,255,0.26)]">
+                {effectAnnouncement.subtitle}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative h-screen w-full pl-2 pr-3">
         <div className="relative h-full w-full -ml-3">
@@ -799,6 +903,29 @@ const GamePage = () => {
             <TurnStatus status={turnStatus} />
           </div>
           <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            {trapWindow ? (
+              <div className="rounded-md border border-amber-300/60 bg-black/65 px-3 py-2 text-xs text-amber-100">
+                <p className="font-semibold uppercase tracking-[0.06em]">Trap response window</p>
+                <p className="mt-1 text-[11px] text-amber-50/90">
+                  You have {trapWindow.timeoutSeconds}s to activate a trap.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {trapWindow.availableTrapCards.map((trap) => (
+                    <button
+                      key={trap.gameCardId}
+                      type="button"
+                      onClick={() => {
+                        void handleTrapActivation(trap.gameCardId);
+                      }}
+                      disabled={isSubmittingTrapResponse}
+                      className="rounded border border-amber-200/50 bg-amber-500/25 px-2 py-1 text-[10px] font-semibold text-amber-50 disabled:opacity-50"
+                    >
+                      {trap.cardName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {timeoutDisplay ? (
               <div
                 className={`rounded-md border px-3 py-2 text-xs font-semibold ${
@@ -864,11 +991,11 @@ const GamePage = () => {
             <div className="grid h-full w-full place-items-center text-white/80">Loading game...</div>
           )}
 
-          {!isLoading && error && (
-            <div className="grid h-full w-full place-items-center px-4 text-red-300">{error}</div>
+          {!isLoading && fatalError && (
+            <div className="grid h-full w-full place-items-center px-4 text-red-300">{fatalError}</div>
           )}
 
-          {!isLoading && !error && !showBoard && (
+          {!isLoading && !fatalError && !showBoard && (
             <div className="grid h-full w-full place-items-center px-4 text-white/70">
               Game state is empty.
             </div>

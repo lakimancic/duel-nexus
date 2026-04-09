@@ -20,4 +20,5 @@ public class BattleAttackResultDto
     public bool TurnChanged { get; set; }
     public Guid? ActivePlayerId { get; set; }
     public TurnPhase CurrentPhase { get; set; }
+    public GameEffectActivationDto? ActivatedEffect { get; set; }
 }

@@ -3,7 +3,10 @@ import { createConnection } from "./connection";
 import type { MessageDto } from "../types/message.types";
 import type { ShortUserDto } from "../types/user.types";
 import type { GameStartedEventDto } from "@/features/friendly/types/friendly.types";
-import type { BattleAttackResultDto } from "@/features/game/types/game.types";
+import type {
+  BattleAttackResultDto,
+  TrapResponseWindowEventDto,
+} from "@/features/game/types/game.types";
 
 class GameHubClient {
   private connection: HubConnection;
@@ -203,6 +206,12 @@ class GameHubClient {
     );
   }
 
+  activateTrapResponse(gameId: string, windowId: string, trapGameCardId: string) {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("game:action:trap:activate", gameId, windowId, trapGameCardId)
+    );
+  }
+
   onDrawResult(handler: (...args: any[]) => void) {
     this.connection.on("game:draw:result", handler);
   }
@@ -313,6 +322,22 @@ class GameHubClient {
 
   offPlayerAttacked(handler: (...args: any[]) => void) {
     this.connection.off("game:player:attacked", handler);
+  }
+
+  onEffectActivated(handler: (...args: any[]) => void) {
+    this.connection.on("game:effect:activated", handler);
+  }
+
+  offEffectActivated(handler: (...args: any[]) => void) {
+    this.connection.off("game:effect:activated", handler);
+  }
+
+  onTrapWindow(handler: (event: TrapResponseWindowEventDto) => void) {
+    this.connection.on("game:effect:trap:window", handler);
+  }
+
+  offTrapWindow(handler: (...args: any[]) => void) {
+    this.connection.off("game:effect:trap:window", handler);
   }
 }
 

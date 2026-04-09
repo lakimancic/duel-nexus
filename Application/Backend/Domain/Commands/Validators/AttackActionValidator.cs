@@ -100,5 +100,24 @@ public sealed class AttackActionValidator : IGameCommandValidator<AttackActionCo
             if (defenderHasMonstersOnField)
                 throw new BadRequestException("Direct attack is allowed only when defender has no monsters on field.");
         }
+
+        if (!command.ActivatedTrapCardId.HasValue)
+            return;
+
+        var trapCard = await context.UnitOfWork.GameCards.GetByWithCardById(command.ActivatedTrapCardId.Value)
+            ?? throw new ObjectNotFoundException("Trap card not found.");
+
+        if (trapCard.Card is not TrapCard)
+            throw new BadRequestException("Only trap cards can be activated as a battle response.");
+
+        var defenderPlayerId = hasDefenderCard
+            ? (await context.UnitOfWork.GameCards.GetByWithCardById(command.DefenderCardId!.Value))!.PlayerGameId
+            : command.DefenderPlayerGameId!.Value;
+
+        if (trapCard.PlayerGameId != defenderPlayerId)
+            throw new BadRequestException("Activated trap must belong to the defending player.");
+
+        if (trapCard.Zone != CardZone.Field || trapCard.FieldIndex is null || trapCard.FieldIndex < 5)
+            throw new BadRequestException("Activated trap card must be placed on spell/trap field.");
     }
 }

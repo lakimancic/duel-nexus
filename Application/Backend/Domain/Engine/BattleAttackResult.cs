@@ -18,5 +18,6 @@ public sealed record BattleAttackResult(
     bool PhaseAdvanced,
     bool TurnChanged,
     Guid? ActivePlayerId,
-    TurnPhase CurrentPhase
+    TurnPhase CurrentPhase,
+    GameEffectActivationSummary? ActivatedEffect
 );

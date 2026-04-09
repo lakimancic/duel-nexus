@@ -80,4 +80,29 @@ export interface BattleAttackResultDto {
   turnChanged: boolean;
   activePlayerId: string | null;
   currentPhase: TurnPhase | number;
+  activatedEffect: GameEffectActivationDto | null;
+}
+
+export interface GameEffectActivationDto {
+  sourceCardId: string;
+  activatedByPlayerGameId: string;
+  sourceCardName: string;
+  effectType: number;
+  isTrap: boolean;
+}
+
+export interface TrapCardOptionDto {
+  gameCardId: string;
+  cardName: string;
+  effectId: string | null;
+  effectType: number | null;
+}
+
+export interface TrapResponseWindowEventDto {
+  gameId: string;
+  windowId: string;
+  defenderPlayerGameId: string;
+  timeoutSeconds: number;
+  expiresAtUtc: string;
+  availableTrapCards: TrapCardOptionDto[];
 }

@@ -12,4 +12,5 @@ public class PlaceCardResultDto
     public int FieldIndex { get; set; }
     public bool FaceDown { get; set; }
     public TurnPhase CurrentPhase { get; set; }
+    public GameEffectActivationDto? ActivatedEffect { get; set; }
 }

@@ -158,12 +158,13 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         Guid userId,
         Guid attackerCardId,
         Guid? defenderCardId,
-        Guid? defenderPlayerGameId)
+        Guid? defenderPlayerGameId,
+        Guid? activatedTrapCardId)
     {
         var result = await _gameEngine.ExecuteCommandAsync<AttackActionCommand, BattleAttackResult>(
             gameId,
             userId,
-            new AttackActionCommand(attackerCardId, defenderCardId, defenderPlayerGameId));
+            new AttackActionCommand(attackerCardId, defenderCardId, defenderPlayerGameId, activatedTrapCardId));
 
         return new BattleAttackResultDto
         {
@@ -183,6 +184,7 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
             TurnChanged = result.TurnChanged,
             ActivePlayerId = result.ActivePlayerId,
             CurrentPhase = result.CurrentPhase,
+            ActivatedEffect = MapActivatedEffect(result.ActivatedEffect),
         };
     }
 
@@ -201,6 +203,81 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
             FieldIndex = result.FieldIndex,
             FaceDown = result.FaceDown,
             CurrentPhase = result.CurrentPhase,
+            ActivatedEffect = MapActivatedEffect(result.ActivatedEffect),
+        };
+    }
+
+    public async Task<TrapResponseWindowDto?> GetTrapResponseWindow(
+        Guid gameId,
+        Guid attackerUserId,
+        Guid attackerCardId,
+        Guid? defenderCardId,
+        Guid? defenderPlayerGameId)
+    {
+        var game = await _unitOfWork.Games.GetByIdAsync(gameId);
+        if (game is null)
+            return null;
+
+        var attackerPlayer = await _unitOfWork.PlayerGames.GetByUserIdAndGameIdAsync(attackerUserId, gameId);
+        if (attackerPlayer is null)
+            return null;
+
+        var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId);
+        if (currentTurn is null || currentTurn.Phase != TurnPhase.Battle || currentTurn.ActivePlayerId != attackerPlayer.Id)
+            return null;
+
+        var attackerCard = await _unitOfWork.GameCards.GetByWithCardById(attackerCardId);
+        if (attackerCard is null || attackerCard.PlayerGameId != attackerPlayer.Id || attackerCard.Zone != CardZone.Field)
+            return null;
+
+        var hasDefenderCard = defenderCardId.HasValue;
+        var hasDefenderPlayer = defenderPlayerGameId.HasValue;
+        if (hasDefenderCard == hasDefenderPlayer)
+            return null;
+
+        PlayerGame? defender = null;
+        if (hasDefenderCard)
+        {
+            var defenderGameCard = await _unitOfWork.GameCards.GetByWithCardById(defenderCardId!.Value);
+            if (defenderGameCard is null)
+                return null;
+
+            defender = await _unitOfWork.PlayerGames.GetByIdAsync(defenderGameCard.PlayerGameId);
+        }
+        else
+        {
+            defender = await _unitOfWork.PlayerGames.GetByIdAsync(defenderPlayerGameId!.Value);
+        }
+
+        if (defender is null || defender.Id == attackerPlayer.Id || defender.GameId != gameId || defender.LifePoints <= 0)
+            return null;
+
+        var cards = await _unitOfWork.GameCards.GetByGameIdWithCardAsync(gameId);
+        var availableTraps = cards
+            .Where(card =>
+                card.PlayerGameId == defender.Id &&
+                card.Zone == CardZone.Field &&
+                card.FieldIndex is >= 5 and <= 9 &&
+                card.Card is TrapCard)
+            .Select(card => new TrapCardOptionDto
+            {
+                GameCardId = card.Id,
+                CardName = card.Card.Name,
+                EffectId = card.Card.EffectId,
+                EffectType = card.Card.Effect?.Type,
+            })
+            .ToList();
+
+        if (availableTraps.Count == 0)
+            return null;
+
+        return new TrapResponseWindowDto
+        {
+            GameId = gameId,
+            DefenderPlayerGameId = defender.Id,
+            DefenderUserId = defender.UserId,
+            TimeoutSeconds = Domain.GameConstants.TrapResponseWindowSeconds,
+            AvailableTrapCards = availableTraps,
         };
     }
 
@@ -591,6 +668,21 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
             DefensePosition = card.DefensePosition,
             PlayerGameId = card.PlayerGameId,
             Card = shouldHideCardData ? null : _mapper.Map<CardDto>(card.Card),
+        };
+    }
+
+    private static GameEffectActivationDto? MapActivatedEffect(GameEffectActivationSummary? effect)
+    {
+        if (effect is null)
+            return null;
+
+        return new GameEffectActivationDto
+        {
+            SourceCardId = effect.SourceCardId,
+            ActivatedByPlayerGameId = effect.ActivatedByPlayerGameId,
+            SourceCardName = effect.SourceCardName,
+            EffectType = effect.EffectType,
+            IsTrap = effect.IsTrap,
         };
     }
 }

@@ -14,6 +14,7 @@ public sealed class TurnPhaseStateMachine : ITurnPhaseStateMachine
             [TurnPhase.Draw] = new DrawPhaseState(),
             [TurnPhase.Main1] = new Main1PhaseState(),
             [TurnPhase.Battle] = new BattlePhaseState(),
+            [TurnPhase.Main2] = new Main2PhaseState(),
         };
     }
 

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Backend.Application.DTOs.Chat;
+using Backend.Application.Services;
 using Backend.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -11,7 +12,8 @@ public partial class GameHub(
     IGameRoomService gameRoomService,
     IGameService gameService,
     IUserService userService,
-    IConnectionService connectionService
+    IConnectionService connectionService,
+    TrapResponseCoordinator trapResponses
     ) : Hub
 {
     protected readonly IChatService Chat = chatService;
@@ -19,6 +21,7 @@ public partial class GameHub(
     protected readonly IGameService Games = gameService;
     protected readonly IUserService Users = userService;
     protected readonly IConnectionService Connections = connectionService;
+    protected readonly TrapResponseCoordinator TrapResponses = trapResponses;
     public static string GetGameRoomGroupName(Guid gameRoomId) => $"game-room:{gameRoomId}";
     public static string GetGameGroupName(Guid gameId) => $"game:{gameId}";
 

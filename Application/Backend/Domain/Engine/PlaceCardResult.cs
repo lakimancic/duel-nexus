@@ -10,5 +10,6 @@ public sealed record PlaceCardResult(
     GameCard Card,
     int FieldIndex,
     bool FaceDown,
-    TurnPhase CurrentPhase
+    TurnPhase CurrentPhase,
+    GameEffectActivationSummary? ActivatedEffect
 );
