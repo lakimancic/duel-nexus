@@ -1,6 +1,7 @@
 namespace Backend.Domain.Commands.Validators;
 
 using Backend.Data.Enums;
+using Backend.Domain;
 using Backend.Domain.Engine;
 using Backend.Utils.WebApi;
 
@@ -18,7 +19,7 @@ public sealed class PlaceCardActionValidator : IGameCommandValidator<PlaceCardAc
             throw new BadRequestException("Placing cards is allowed only in Main1/Main2 phase.");
 
         if (context.Actor.TurnEnded)
-            throw new BadRequestException("You already finished Main1 actions for this phase.");
+            throw new BadRequestException("You already finished actions for this phase.");
 
         if (command.FieldIndex < 0 || command.FieldIndex > 9)
             throw new BadRequestException("Field index must be between 0 and 9.");
@@ -50,5 +51,49 @@ public sealed class PlaceCardActionValidator : IGameCommandValidator<PlaceCardAc
 
         if ((cardType == CardType.Spell || cardType == CardType.Trap) && !isBottomRow)
             throw new BadRequestException("Spell/Trap cards can be placed only in bottom row.");
+
+        if (context.CurrentTurn.Phase == TurnPhase.Main2 && cardType == CardType.Monster)
+            throw new BadRequestException("Monster cards cannot be placed in Main2 phase.");
+
+        if (command.FaceDown)
+        {
+            if (cardType == CardType.Spell)
+                throw new BadRequestException("Spell cards cannot be placed face-down.");
+
+            if (cardType == CardType.Monster && !isTopRow)
+                throw new BadRequestException("Face-down monsters must be placed in monster zone.");
+        }
+
+        var phasePlacements = await context.UnitOfWork.PlaceCards.GetByTurnAndPlayerSinceAsync(
+            context.CurrentTurn.Id,
+            context.Actor.Id,
+            context.CurrentTurn.StartedAt);
+
+        var monstersPlaced = phasePlacements.Count(place =>
+            place.Card.Card.Type == CardType.Monster &&
+            place.Type == PlaceType.NormalSummon);
+
+        var spellsPlaced = phasePlacements.Count(place =>
+            place.Card.Card.Type == CardType.Spell &&
+            (place.Type == PlaceType.ActivateSpell || place.Type == PlaceType.SetSpellTrap));
+
+        var trapsPlaced = phasePlacements.Count(place =>
+            place.Card.Card.Type == CardType.Trap &&
+            place.Type == PlaceType.SetSpellTrap);
+
+        if (cardType == CardType.Monster)
+        {
+            var maxMonsters = context.CurrentTurn.Phase == TurnPhase.Main1
+                ? GameConstants.MaxMonsterPlacementsInMain1
+                : GameConstants.MaxMonsterPlacementsInMain2;
+            if (monstersPlaced >= maxMonsters)
+                throw new BadRequestException("Monster placement limit reached for this phase.");
+        }
+
+        if (cardType == CardType.Spell && spellsPlaced >= GameConstants.MaxSpellPlacementsPerMainPhase)
+            throw new BadRequestException("Spell placement limit reached for this phase.");
+
+        if (cardType == CardType.Trap && trapsPlaced >= GameConstants.MaxTrapPlacementsPerMainPhase)
+            throw new BadRequestException("Trap placement limit reached for this phase.");
     }
 }

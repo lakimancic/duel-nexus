@@ -9,4 +9,9 @@ public static class GameConstants
     public const int MaxDeckSize = 40;
     public const int MaxHandSize = 10;
     public const int TrapResponseWindowSeconds = 5;
+    public const int MaxMonsterPlacementsInMain1 = 1;
+    public const int MaxMonsterPlacementsInMain2 = 0;
+    public const int MaxSpellPlacementsPerMainPhase = 1;
+    public const int MaxTrapPlacementsPerMainPhase = 1;
+    public const int EndPhaseTimeoutSeconds = 10;
 }

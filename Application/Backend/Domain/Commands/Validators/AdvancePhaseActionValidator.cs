@@ -18,6 +18,7 @@ public sealed class AdvancePhaseActionValidator : IGameCommandValidator<AdvanceP
         {
             case TurnPhase.Draw:
             case TurnPhase.Main1:
+            case TurnPhase.Main2:
                 if (context.Actor.TurnEnded)
                     throw new BadRequestException("You already clicked Next in this phase.");
                 break;

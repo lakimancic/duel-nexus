@@ -45,17 +45,14 @@ public sealed class Main2PhaseState : ITurnPhaseState
         if (!shouldAdvance)
             return TurnPhaseTransitionResult.NoChange(context.Turn);
 
-        context.Turn.EndedAt = DateTime.UtcNow;
+        context.Turn.Phase = TurnPhase.End;
+        context.Turn.ActivePlayerId = null;
+        context.Turn.StartedAt = DateTime.UtcNow;
         context.UnitOfWork.Turns.Update(context.Turn);
-
-        var nextTurn = await context.UnitOfWork.Turns.NextTurnAsync(context.Turn);
-        nextTurn.ActivePlayerId = null;
-        nextTurn.Phase = TurnPhase.Draw;
-        nextTurn.StartedAt = DateTime.UtcNow;
 
         ResetTurnEndedFlags(players, context);
 
-        return new TurnPhaseTransitionResult(nextTurn, ActivePlayerId: null, TurnChanged: true, PhaseChanged: true);
+        return new TurnPhaseTransitionResult(context.Turn, ActivePlayerId: null, TurnChanged: false, PhaseChanged: true);
     }
 
     private static void MarkActorAsEndedIfNeeded(PlayerGame? actor, TurnPhaseStateContext context)

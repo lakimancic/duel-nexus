@@ -15,6 +15,7 @@ public sealed class TurnPhaseStateMachine : ITurnPhaseStateMachine
             [TurnPhase.Main1] = new Main1PhaseState(),
             [TurnPhase.Battle] = new BattlePhaseState(),
             [TurnPhase.Main2] = new Main2PhaseState(),
+            [TurnPhase.End] = new EndPhaseState(),
         };
     }
 

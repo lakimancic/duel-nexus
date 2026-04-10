@@ -14,11 +14,11 @@ public sealed class SendCardToGraveyardActionValidator : IGameCommandValidator<S
         if (context.Actor.LifePoints <= 0)
             throw new BadRequestException("You already lost this game.");
 
-        if (context.CurrentTurn.Phase != TurnPhase.Main1)
-            throw new BadRequestException("Sending cards to graveyard is allowed only in Main1 phase.");
+        if (context.CurrentTurn.Phase is not TurnPhase.Main1 and not TurnPhase.Main2)
+            throw new BadRequestException("Sending cards to graveyard is allowed only in Main1/Main2 phase.");
 
         if (context.Actor.TurnEnded)
-            throw new BadRequestException("You already finished Main1 actions for this phase.");
+            throw new BadRequestException("You already finished actions for this phase.");
 
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(command.GameCardId)
             ?? throw new ObjectNotFoundException("Game card not found.");

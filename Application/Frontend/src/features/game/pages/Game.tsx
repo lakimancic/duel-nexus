@@ -29,6 +29,7 @@ const EFFECT_ANNOUNCEMENT_DURATION_MS = 5000;
 const DRAW_PHASE_TIMEOUT_SECONDS = 20;
 const MAIN1_PHASE_TIMEOUT_SECONDS = 60;
 const MAIN2_PHASE_TIMEOUT_SECONDS = 60;
+const END_PHASE_TIMEOUT_SECONDS = 10;
 
 const PHASE_LABELS: Record<number, string> = {
   [TurnPhase.Draw]: "Draw",
@@ -106,6 +107,7 @@ const GamePage = () => {
 
   const previousTurnStatusRef = useRef<{ activePlayerId: string; phase: number } | null>(null);
   const viewerPlayerIdRef = useRef<string | null>(null);
+  const playerSummariesRef = useRef<Record<string, { username: string; lifePoints: number }>>({});
   const announcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const effectAnnouncementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAttackAnimationActiveRef = useRef(false);
@@ -117,13 +119,17 @@ const GamePage = () => {
     viewerPlayerIdRef.current = viewerPlayerId;
   }, [viewerPlayerId]);
 
+  useEffect(() => {
+    playerSummariesRef.current = playerSummaries;
+  }, [playerSummaries]);
+
   const reportRuntimeError = useCallback((scope: string, err: unknown) => {
     console.error(`[Game:${scope}]`, err);
   }, []);
 
   const showEffectAnnouncement = useCallback((effect: GameEffectActivationDto) => {
     const effectTypeLabel = `Effect ${effect.effectType}`;
-    const byPlayerLabel = playerSummaries[effect.activatedByPlayerGameId]?.username ?? "Unknown player";
+    const byPlayerLabel = playerSummariesRef.current[effect.activatedByPlayerGameId]?.username ?? "Unknown player";
     const sourceTypeLabel = effect.isTrap ? "Trap Activated" : "Spell Activated";
     const colorClass = effect.isTrap
       ? "text-amber-300 drop-shadow-[0_0_18px_rgba(253,224,71,0.9)]"
@@ -142,7 +148,7 @@ const GamePage = () => {
       setEffectAnnouncement(null);
       effectAnnouncementTimeoutRef.current = null;
     }, EFFECT_ANNOUNCEMENT_DURATION_MS);
-  }, [playerSummaries]);
+  }, []);
 
   const fetchGameState = useCallback(async () => {
     if (!safeGameId) return;
@@ -374,6 +380,7 @@ const GamePage = () => {
     if (phaseNumber === TurnPhase.Draw) return DRAW_PHASE_TIMEOUT_SECONDS;
     if (phaseNumber === TurnPhase.Main1) return MAIN1_PHASE_TIMEOUT_SECONDS;
     if (phaseNumber === TurnPhase.Main2) return MAIN2_PHASE_TIMEOUT_SECONDS;
+    if (phaseNumber === TurnPhase.End) return END_PHASE_TIMEOUT_SECONDS;
     return null;
   }, [phaseNumber]);
 
@@ -481,10 +488,19 @@ const GamePage = () => {
     const cardType = card?.card?.type;
     if (cardType === undefined || cardType === null) return false;
 
+    if (phaseNumber === TurnPhase.Main2 && cardType === CARD_TYPE_MONSTER) return false;
     if (cardType === CARD_TYPE_MONSTER) return fieldIndex <= TOP_ROW_MAX_INDEX;
     if (cardType === CARD_TYPE_SPELL || cardType === CARD_TYPE_TRAP) return fieldIndex > TOP_ROW_MAX_INDEX;
     return false;
-  }, []);
+  }, [phaseNumber]);
+
+  const canPlaceCardFaceDown = useCallback((card: GameCardDto | null, fieldIndex: number) => {
+    const cardType = card?.card?.type;
+    if (cardType === undefined || cardType === null) return false;
+    if (!canPlaceCardAtFieldIndex(card, fieldIndex)) return false;
+    if (cardType === CARD_TYPE_SPELL) return false;
+    return true;
+  }, [canPlaceCardAtFieldIndex]);
 
   const playAttackAnimation = useCallback((result: BattleAttackResultDto) => {
     const attackerCenter = getElementCenter(`[data-game-card-id="${result.attackerCardId}"]`);
@@ -593,16 +609,19 @@ const GamePage = () => {
     async (fieldIndex: number, faceDown: boolean) => {
       if (!canViewerPlayMain1 || !selectedHandCard || !safeGameId || isSubmittingMainAction) return;
       if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
-      const shouldStartInDefense =
-        placementPositionHover?.fieldIndex === fieldIndex
-          ? placementPositionHover.defensePosition
-          : false;
+      const shouldStartInDefense = faceDown && selectedHandCard.card?.type === CARD_TYPE_MONSTER
+        ? true
+        : (
+          placementPositionHover?.fieldIndex === fieldIndex
+            ? placementPositionHover.defensePosition
+            : false
+        );
       const isMonsterPlacement = selectedHandCard.card?.type === CARD_TYPE_MONSTER;
 
       setIsSubmittingMainAction(true);
       try {
         await gameHub.placeCard(safeGameId, selectedHandCard.id, fieldIndex, faceDown);
-        if (shouldStartInDefense && isMonsterPlacement) {
+        if (!faceDown && shouldStartInDefense && isMonsterPlacement) {
           await gameHub.toggleDefensePosition(safeGameId, selectedHandCard.id);
         }
         await fetchGameState();
@@ -728,6 +747,7 @@ const GamePage = () => {
       if (!safeGameId || isSubmittingMainAction) return;
 
       if (selectedHandCard && card === null) {
+        if (!canPlaceCardFaceDown(selectedHandCard, fieldIndex)) return;
         void placeSelectedHandCard(fieldIndex, true);
         return;
       }
@@ -748,6 +768,7 @@ const GamePage = () => {
       }
     },
     [
+      canPlaceCardFaceDown,
       canViewerPlayMain1,
       fetchGameState,
       isSubmittingMainAction,
@@ -769,6 +790,7 @@ const GamePage = () => {
       if (!canViewerPlayMain1 || !viewerPlayerId || selectedHandCard) return;
       if (playerId !== viewerPlayerId) return;
       if (card.zone !== ZONE_FIELD || card.playerId !== viewerPlayerId) return;
+      if (card.card?.type !== CARD_TYPE_MONSTER) return;
       if (card.defensePosition === targetDefensePosition) return;
       if (!safeGameId || isSubmittingMainAction) return;
 
@@ -1067,7 +1089,7 @@ const GamePage = () => {
                 }
 
                 if (selectedHandCard) {
-                  return card === null && canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex);
+                  return card === null && canPlaceCardFaceDown(selectedHandCard, fieldIndex);
                 }
 
                 return false;
@@ -1100,6 +1122,7 @@ const GamePage = () => {
                   return false;
                 }
                 if (card.zone !== ZONE_FIELD || card.playerId !== viewerPlayerId) return false;
+                if (card.card?.type !== CARD_TYPE_MONSTER) return false;
 
                 return card.defensePosition !== targetDefensePosition;
               }}

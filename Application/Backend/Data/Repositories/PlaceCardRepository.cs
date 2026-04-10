@@ -33,6 +33,15 @@ public class PlaceCardRepository(DuelNexusDbContext context) : Repository<PlaceC
             .FirstOrDefaultAsync();
     }
 
+    public Task<List<PlaceCardAction>> GetByTurnAndPlayerSinceAsync(Guid turnId, Guid playerGameId, DateTime sinceUtc)
+    {
+        return _dbSet
+            .Where(p => p.TurnId == turnId && p.Card.PlayerGameId == playerGameId && p.ExecutedAt >= sinceUtc)
+            .Include(p => p.Card).ThenInclude(gc => gc.Card)
+            .OrderBy(p => p.ExecutedAt)
+            .ToListAsync();
+    }
+
     public Task<PlaceCardAction?> GetByIdWithIncludesAsync(Guid id)
     {
         return _dbSet

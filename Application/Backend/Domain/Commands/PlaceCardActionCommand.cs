@@ -15,10 +15,11 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(GameCardId)
             ?? throw new ObjectNotFoundException("Game card not found.");
 
+        var shouldStartInDefense = FaceDown && card.Card.Type == CardType.Monster;
         card.Zone = CardZone.Field;
         card.FieldIndex = FieldIndex;
         card.IsFaceDown = FaceDown;
-        card.DefensePosition = false;
+        card.DefensePosition = shouldStartInDefense;
         context.UnitOfWork.GameCards.Update(card);
 
         await context.UnitOfWork.PlaceCards.AddAsync(new PlaceCardAction
@@ -27,7 +28,7 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
             GameCardId = card.Id,
             FieldIndex = FieldIndex,
             FaceDown = FaceDown,
-            DefensePosition = false,
+            DefensePosition = shouldStartInDefense,
             Type = ResolvePlaceType(card.Card.Type, FaceDown),
         });
 

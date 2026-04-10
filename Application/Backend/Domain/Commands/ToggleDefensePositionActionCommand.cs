@@ -10,7 +10,10 @@ public sealed record ToggleDefensePositionActionCommand(Guid GameCardId) : IGame
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(GameCardId)
             ?? throw new ObjectNotFoundException("Game card not found.");
 
+        var switchedFromDefenseToOffense = card.DefensePosition;
         card.DefensePosition = !card.DefensePosition;
+        if (switchedFromDefenseToOffense && !card.DefensePosition && card.IsFaceDown)
+            card.IsFaceDown = false;
         context.UnitOfWork.GameCards.Update(card);
 
         return new GameCardUpdateResult(
