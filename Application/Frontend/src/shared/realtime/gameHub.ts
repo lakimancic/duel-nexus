@@ -2,9 +2,14 @@ import { HubConnection } from "@microsoft/signalr";
 import { createConnection } from "./connection";
 import type { MessageDto } from "../types/message.types";
 import type { ShortUserDto } from "../types/user.types";
-import type { GameStartedEventDto } from "@/features/friendly/types/friendly.types";
+import type {
+  GameStartedEventDto,
+  RankedMatchFoundEventDto,
+  RankedQueueJoinedEventDto,
+} from "@/features/friendly/types/friendly.types";
 import type {
   BattleAttackResultDto,
+  GameResultDto,
   TrapResponseWindowEventDto,
 } from "@/features/game/types/game.types";
 
@@ -131,6 +136,44 @@ class GameHubClient {
 
   offGameRoomStarted(handler: (...args: any[]) => void) {
     this.connection.off("game-room:game:started", handler);
+  }
+
+  // ========== Ranked matchmaking methods / subscriptions ==========
+
+  joinRankedQueue() {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("ranked:queue:join")
+    );
+  }
+
+  leaveRankedQueue() {
+    return this.ensureConnected().then(() =>
+      this.connection.invoke("ranked:queue:leave")
+    );
+  }
+
+  onRankedQueueJoined(handler: (event: RankedQueueJoinedEventDto) => void) {
+    this.connection.on("ranked:queue:joined", handler);
+  }
+
+  offRankedQueueJoined(handler: (...args: any[]) => void) {
+    this.connection.off("ranked:queue:joined", handler);
+  }
+
+  onRankedQueueLeft(handler: () => void) {
+    this.connection.on("ranked:queue:left", handler);
+  }
+
+  offRankedQueueLeft(handler: (...args: any[]) => void) {
+    this.connection.off("ranked:queue:left", handler);
+  }
+
+  onRankedMatchFound(handler: (event: RankedMatchFoundEventDto) => void) {
+    this.connection.on("ranked:match:found", handler);
+  }
+
+  offRankedMatchFound(handler: (...args: any[]) => void) {
+    this.connection.off("ranked:match:found", handler);
   }
 
   // ========== Game methods / subscriptions ==========
@@ -338,6 +381,14 @@ class GameHubClient {
 
   offTrapWindow(handler: (...args: any[]) => void) {
     this.connection.off("game:effect:trap:window", handler);
+  }
+
+  onGameEnded(handler: (event: GameResultDto) => void) {
+    this.connection.on("game:ended", handler);
+  }
+
+  offGameEnded(handler: (...args: any[]) => void) {
+    this.connection.off("game:ended", handler);
   }
 }
 

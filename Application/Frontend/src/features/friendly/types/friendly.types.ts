@@ -34,6 +34,19 @@ export interface GameStartedEventDto {
   gameId: string;
 }
 
+export interface RankedQueueJoinedEventDto {
+  userId: string;
+  position: number;
+  queueSize: number;
+  queuedAt: string;
+  elo: number;
+}
+
+export interface RankedMatchFoundEventDto {
+  roomId: string;
+  gameId: string;
+}
+
 export interface LeaveRoomResponse {
   cancelled: boolean;
 }

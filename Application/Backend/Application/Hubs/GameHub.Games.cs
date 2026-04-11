@@ -13,6 +13,10 @@ public partial class GameHub
             return;
 
         await Groups.AddToGroupAsync(Context.ConnectionId, GetGameGroupName(gameId));
+
+        var gameResult = await Games.GetGameResult(gameId, userId);
+        if (gameResult is not null)
+            await Clients.Caller.SendAsync("game:ended", gameResult);
     }
 
     [HubMethodName("game:leave")]
@@ -44,6 +48,8 @@ public partial class GameHub
 
             await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
                 .SendAsync("game:player:drew", publicEvent);
+
+            await NotifyGameEndedIfNeeded(gameId);
         }
         catch (BadRequestException exception)
         {
@@ -75,6 +81,8 @@ public partial class GameHub
 
         await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
             .SendAsync("game:player:draw:skipped", publicEvent);
+
+        await NotifyGameEndedIfNeeded(gameId);
     }
 
     [HubMethodName("game:action:place")]
@@ -102,6 +110,8 @@ public partial class GameHub
             await Clients.Group(GetGameGroupName(gameId))
                 .SendAsync("game:effect:activated", result.ActivatedEffect);
         }
+
+        await NotifyGameEndedIfNeeded(gameId);
     }
 
     [HubMethodName("game:action:grave")]
@@ -114,6 +124,8 @@ public partial class GameHub
 
         await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
             .SendAsync("game:player:card:updated", result);
+
+        await NotifyGameEndedIfNeeded(gameId);
     }
 
     [HubMethodName("game:action:toggle-defense")]
@@ -126,6 +138,8 @@ public partial class GameHub
 
         await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
             .SendAsync("game:player:card:updated", result);
+
+        await NotifyGameEndedIfNeeded(gameId);
     }
 
     [HubMethodName("game:action:reveal")]
@@ -138,6 +152,8 @@ public partial class GameHub
 
         await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
             .SendAsync("game:player:card:updated", result);
+
+        await NotifyGameEndedIfNeeded(gameId);
     }
 
     [HubMethodName("game:action:attack")]
@@ -204,6 +220,8 @@ public partial class GameHub
                 .SendAsync("game:effect:activated", result.ActivatedEffect);
         }
 
+        await NotifyGameEndedIfNeeded(gameId);
+
         return result;
     }
 
@@ -234,5 +252,17 @@ public partial class GameHub
 
         await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
             .SendAsync("game:phase:advanced", result);
+
+        await NotifyGameEndedIfNeeded(gameId);
+    }
+
+    private async Task NotifyGameEndedIfNeeded(Guid gameId)
+    {
+        var gameResult = await Games.TryFinalizeGameIfEnded(gameId);
+        if (gameResult is null)
+            return;
+
+        await Clients.Group(GetGameGroupName(gameId))
+            .SendAsync("game:ended", gameResult);
     }
 }

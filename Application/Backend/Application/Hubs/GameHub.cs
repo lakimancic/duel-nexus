@@ -11,6 +11,7 @@ public partial class GameHub(
     IChatService chatService,
     IGameRoomService gameRoomService,
     IGameService gameService,
+    IRankedMatchmakingService rankedMatchmaking,
     IUserService userService,
     IConnectionService connectionService,
     TrapResponseCoordinator trapResponses
@@ -19,6 +20,7 @@ public partial class GameHub(
     protected readonly IChatService Chat = chatService;
     protected readonly IGameRoomService Rooms = gameRoomService;
     protected readonly IGameService Games = gameService;
+    protected readonly IRankedMatchmakingService RankedMatchmaking = rankedMatchmaking;
     protected readonly IUserService Users = userService;
     protected readonly IConnectionService Connections = connectionService;
     protected readonly TrapResponseCoordinator TrapResponses = trapResponses;
@@ -70,6 +72,8 @@ public partial class GameHub(
             {
                 await Clients.All.SendAsync("users:disconnected", removedId.Value);
             }
+
+            await RankedMatchmaking.LeaveQueue(userId);
         }
         catch(Exception ex)
         {

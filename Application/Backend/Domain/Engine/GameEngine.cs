@@ -47,6 +47,9 @@ public sealed class GameEngine(
         return await _commandLock.ExecuteAsync(gameId, async () =>
         {
             var game = await GetGameOrThrow(gameId, cancellationToken);
+            if (game.FinishedAt.HasValue)
+                throw new BadRequestException("Game has already ended.");
+
             var currentTurn = await _unitOfWork.Turns.GetCurrentTurnAsync(gameId)
                 ?? throw new ObjectNotFoundException("Turn not found");
 

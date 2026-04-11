@@ -46,6 +46,8 @@ export interface TurnDto {
 
 export interface GameStateDto {
   gameId: string;
+  isFinished: boolean;
+  result?: GameResultDto | null;
   viewerPlayerId: string;
   viewerDrawsInTurn: number;
   attackedCardIdsInCurrentTurn: string[];
@@ -105,4 +107,25 @@ export interface TrapResponseWindowEventDto {
   timeoutSeconds: number;
   expiresAtUtc: string;
   availableTrapCards: TrapCardOptionDto[];
+}
+
+export interface GameEndPlayerRatingChangeDto {
+  playerGameId: string;
+  userId: string;
+  username: string;
+  oldElo: number;
+  newElo: number;
+  delta: number;
+  isWinner: boolean;
+}
+
+export interface GameResultDto {
+  gameId: string;
+  roomId: string;
+  isRanked: boolean;
+  finishedAt: string;
+  winnerPlayerGameId: string | null;
+  winnerUserId: string | null;
+  winnerUsername: string | null;
+  playerRatingChanges: GameEndPlayerRatingChangeDto[];
 }

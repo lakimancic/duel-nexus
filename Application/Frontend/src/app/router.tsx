@@ -14,6 +14,7 @@ import FriendlyPage from "@/features/friendly/pages/Friendly";
 import GameRoomPage from "@/features/friendly/pages/GameRoom";
 import DeckEditorPage from "@/features/decks/pages/DeckEditor";
 import GamePage from "@/features/game/pages/Game";
+import GameEndPage from "@/features/game/pages/GameEnd";
 import DebugGamePage from "@/features/game/pages/DebugGame";
 
 export const router = createBrowserRouter([
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: "/friendly", element: <FriendlyPage /> },
           { path: "/game-room/:roomId", element: <GameRoomPage /> },
           { path: "/game/:gameId", element: <GamePage /> },
+          { path: "/game/:gameId/end", element: <GameEndPage /> },
         ],
       },
       {

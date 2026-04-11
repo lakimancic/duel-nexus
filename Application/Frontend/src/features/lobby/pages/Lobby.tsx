@@ -10,6 +10,10 @@ import ActiveUsers from "../components/ActiveUsers";
 import { usePrivateMessagesStore } from "../store/private-messages.store";
 import { gameHub } from "@/shared/realtime/gameHub";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import type {
+  RankedMatchFoundEventDto,
+  RankedQueueJoinedEventDto,
+} from "@/features/friendly/types/friendly.types";
 
 type TabValues = "global" | "players";
 const tabValues = [
@@ -20,6 +24,9 @@ const tabValues = [
 const LobbyPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabValues>("global");
+  const [isQueueingRanked, setIsQueueingRanked] = useState(false);
+  const [rankedQueueStatus, setRankedQueueStatus] = useState<string | null>(null);
+  const [rankedQueueError, setRankedQueueError] = useState<string | null>(null);
   const myUserId = useAuthStore((state) => state.userId);
   const unreadCount = usePrivateMessagesStore((state) => state.unreadCount);
   const incrementUnread = usePrivateMessagesStore((state) => state.incrementUnread);
@@ -57,6 +64,61 @@ const LobbyPage = () => {
     };
   }, [incrementUnread, myUserId]);
 
+  useEffect(() => {
+    const queueJoinedHandler = (event: RankedQueueJoinedEventDto) => {
+      setIsQueueingRanked(true);
+      setRankedQueueStatus(`In queue: position ${event.position} / ${event.queueSize}`);
+      setRankedQueueError(null);
+    };
+
+    const queueLeftHandler = () => {
+      setIsQueueingRanked(false);
+      setRankedQueueStatus(null);
+    };
+
+    const matchFoundHandler = (event: RankedMatchFoundEventDto) => {
+      setIsQueueingRanked(false);
+      setRankedQueueStatus(null);
+      setRankedQueueError(null);
+      navigate(`/game/${event.gameId}`);
+    };
+
+    gameHub.onRankedQueueJoined(queueJoinedHandler);
+    gameHub.onRankedQueueLeft(queueLeftHandler);
+    gameHub.onRankedMatchFound(matchFoundHandler);
+
+    return () => {
+      gameHub.offRankedQueueJoined(queueJoinedHandler);
+      gameHub.offRankedQueueLeft(queueLeftHandler);
+      gameHub.offRankedMatchFound(matchFoundHandler);
+      void gameHub.leaveRankedQueue();
+    };
+  }, [navigate]);
+
+  const handlePlayRanked = async () => {
+    if (isQueueingRanked) return;
+
+    setRankedQueueError(null);
+    setRankedQueueStatus("Joining ranked queue...");
+
+    try {
+      await gameHub.joinRankedQueue();
+      setIsQueueingRanked(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to join ranked queue.";
+      setRankedQueueError(message);
+      setRankedQueueStatus(null);
+      setIsQueueingRanked(false);
+    }
+  };
+
+  const handleLeaveRankedQueue = async () => {
+    if (!isQueueingRanked) return;
+    await gameHub.leaveRankedQueue();
+    setIsQueueingRanked(false);
+    setRankedQueueStatus(null);
+  };
+
   return (
     <div className="h-screen w-full relative flex justify-center items-center">
       <div className="absolute top-4 right-5 z-10 flex items-center gap-3">
@@ -85,15 +147,39 @@ const LobbyPage = () => {
 
       <div className="flex-5 flex flex-col justify-center items-center relative h-full">
         <img src={Logo} alt="logo" className="w-[75%]" />
-        <div className="relative cursor-pointer group" onClick={() => {}}>
+        <button
+          type="button"
+          disabled={isQueueingRanked}
+          className="relative cursor-pointer group disabled:opacity-60 disabled:cursor-default"
+          onClick={() => {
+            void handlePlayRanked();
+          }}
+        >
           <img src={ButtonBackground} alt="button-bg" className="h-45" />
           <p
             className="absolute top-[50%] translate-y-[-40%] left-0 text-white text-center text-2xl font-bold w-full
             [text-shadow:0_0_1rem_#5a3485] group-hover:text-3xl transition-all duration-500"
           >
-            PLAY RANKED
+            {isQueueingRanked ? "MATCHMAKING..." : "PLAY RANKED"}
           </p>
-        </div>
+        </button>
+        {isQueueingRanked && (
+          <div className="mt-1 flex flex-col items-center gap-2">
+            <p className="text-sm text-amber-100">{rankedQueueStatus ?? "Waiting for match..."}</p>
+            <button
+              type="button"
+              className="rounded-md border border-white/40 bg-black/30 px-3 py-1 text-xs text-white cursor-pointer hover:bg-black/45"
+              onClick={() => {
+                void handleLeaveRankedQueue();
+              }}
+            >
+              Leave Queue
+            </button>
+          </div>
+        )}
+        {rankedQueueError && (
+          <p className="mt-1 text-sm text-red-300">{rankedQueueError}</p>
+        )}
         <div
           className="relative cursor-pointer group"
           onClick={() => navigate("/friendly")}

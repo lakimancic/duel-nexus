@@ -4,6 +4,7 @@ import TurnStatus from "@/features/game/components/TurnStatus";
 import { gameApi } from "@/features/game/api/game.api";
 import {
   type GameEffectActivationDto,
+  type GameResultDto,
   type TrapResponseWindowEventDto,
   TurnPhase,
   type BattleAttackResultDto,
@@ -155,6 +156,13 @@ const GamePage = () => {
 
     const response = await gameApi.getGameState(safeGameId);
     const data = response.data;
+    if (data.isFinished) {
+      navigate(`/game/${safeGameId}/end`, {
+        replace: true,
+        state: data.result ? { result: data.result } : undefined,
+      });
+      return;
+    }
 
     const mappedCards: GameCardDto[] = data.cards.map((card) => ({
       id: card.id,
@@ -202,7 +210,7 @@ const GamePage = () => {
     setActivePlayerLabel(
       activePlayerId ? (playerNameByPlayerGameId.get(activePlayerId) ?? activePlayerId) : "-"
     );
-  }, [safeGameId]);
+  }, [navigate, safeGameId]);
 
   useEffect(() => {
     if (!safeGameId) {
@@ -248,6 +256,11 @@ const GamePage = () => {
       setTrapWindow(event);
     };
 
+    const onGameEnded = (result: GameResultDto) => {
+      if (result.gameId.toLowerCase() !== safeGameId.toLowerCase()) return;
+      navigate(`/game/${safeGameId}/end`, { replace: true, state: { result } });
+    };
+
     const pollStateInterval = setInterval(() => {
       if (!disposed) {
         if (isAttackAnimationActiveRef.current) {
@@ -279,6 +292,7 @@ const GamePage = () => {
     gameHub.onPlayerAttacked(onStateMayHaveChanged);
     gameHub.onEffectActivated(onEffectActivated);
     gameHub.onTrapWindow(onTrapWindow);
+    gameHub.onGameEnded(onGameEnded);
 
     return () => {
       disposed = true;
@@ -297,6 +311,7 @@ const GamePage = () => {
       gameHub.offPlayerAttacked(onStateMayHaveChanged);
       gameHub.offEffectActivated(onEffectActivated);
       gameHub.offTrapWindow(onTrapWindow);
+      gameHub.offGameEnded(onGameEnded);
       void gameHub.leaveGame(safeGameId);
       clearInterval(pollStateInterval);
     };

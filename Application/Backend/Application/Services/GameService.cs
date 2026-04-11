@@ -12,11 +12,16 @@ using Backend.Utils.WebApi;
 
 namespace Backend.Application.Services;
 
-public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gameEngine) : IGameService
+public class GameService(
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    IGameEngine gameEngine,
+    IGameResultStore gameResultStore) : IGameService
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
     private readonly IGameEngine _gameEngine = gameEngine;
+    private readonly IGameResultStore _gameResultStore = gameResultStore;
 
     public async Task<TurnDto> AddNewGameTurn(Guid id)
     {
@@ -579,6 +584,8 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
 
     public async Task<GameStateDto> GetGameState(Guid gameId, Guid userId)
     {
+        await TryFinalizeGameIfEnded(gameId);
+
         var state = await _gameEngine.GetGameStateAsync(gameId, userId);
         var viewerDrawsInTurn = state.CurrentTurn.Phase == TurnPhase.Draw
             ? await _unitOfWork.CardMovements.CountDrawsInTurnByPlayerAsync(state.CurrentTurn.Id, state.Viewer.Id)
@@ -586,10 +593,13 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
         var attackedCardIds = state.CurrentTurn.Phase == TurnPhase.Battle
             ? await _unitOfWork.Attacks.GetAttackerCardIdsByTurnAsync(state.CurrentTurn.Id)
             : new HashSet<Guid>();
+        var gameResult = await GetGameResult(gameId, userId);
 
         return new GameStateDto
         {
             GameId = state.Game.Id,
+            IsFinished = state.Game.FinishedAt.HasValue,
+            Result = gameResult,
             ViewerPlayerId = state.Viewer.Id,
             ViewerDrawsInTurn = viewerDrawsInTurn,
             AttackedCardIdsInCurrentTurn = attackedCardIds.ToList(),
@@ -649,6 +659,151 @@ public class GameService(IUnitOfWork unitOfWork, IMapper mapper, IGameEngine gam
     {
         return _gameEngine.UserExistsInGameAsync(gameId, userId);
     }
+
+    public async Task<GameResultDto?> GetGameResult(Guid gameId, Guid userId)
+    {
+        var userInGame = await _gameEngine.UserExistsInGameAsync(gameId, userId);
+        if (!userInGame)
+            throw new BadRequestException("Player is not part of this game.");
+
+        var game = await _unitOfWork.Games.GetByIdAsync(gameId)
+            ?? throw new ObjectNotFoundException("Game not found");
+
+        if (!game.FinishedAt.HasValue)
+            return null;
+
+        var cached = _gameResultStore.Get(gameId);
+        if (cached is not null)
+            return cached;
+
+        var room = await _unitOfWork.GameRooms.GetByIdAsync(game.RoomId);
+        var players = await _unitOfWork.PlayerGames.GetByGameIdWithUserAsync(gameId);
+        var winner = players.FirstOrDefault(player => player.LifePoints > 0);
+
+        return new GameResultDto
+        {
+            GameId = game.Id,
+            RoomId = game.RoomId,
+            IsRanked = room?.IsRanked ?? false,
+            FinishedAt = game.FinishedAt.Value,
+            WinnerPlayerGameId = winner?.Id,
+            WinnerUserId = winner?.UserId,
+            WinnerUsername = winner?.User.Username,
+            PlayerRatingChanges = players
+                .OrderBy(player => player.Index)
+                .Select(player => new GameEndPlayerRatingChangeDto
+                {
+                    PlayerGameId = player.Id,
+                    UserId = player.UserId,
+                    Username = player.User.Username,
+                    OldElo = Math.Round(player.User.Elo, 2),
+                    NewElo = Math.Round(player.User.Elo, 2),
+                    Delta = 0,
+                    IsWinner = winner?.Id == player.Id,
+                })
+                .ToList(),
+        };
+    }
+
+    public async Task<GameResultDto?> TryFinalizeGameIfEnded(Guid gameId)
+    {
+        var game = await _unitOfWork.Games.GetByIdAsync(gameId)
+            ?? throw new ObjectNotFoundException("Game not found");
+
+        if (game.FinishedAt.HasValue)
+            return _gameResultStore.Get(gameId);
+
+        var players = await _unitOfWork.PlayerGames.GetByGameIdWithUserAsync(gameId);
+        var alivePlayers = players.Where(player => player.LifePoints > 0).ToList();
+        if (alivePlayers.Count > 1)
+            return null;
+
+        game.FinishedAt = DateTime.UtcNow;
+        _unitOfWork.Games.Update(game);
+
+        var room = await _unitOfWork.GameRooms.GetByIdAsync(game.RoomId);
+        var winner = alivePlayers.SingleOrDefault();
+        var snapshots = ApplyEloChanges(players, winner);
+        var result = BuildGameResult(game, room?.IsRanked ?? false, players, winner, snapshots);
+
+        await _unitOfWork.CompleteAsync();
+        _gameResultStore.Set(result);
+        return result;
+    }
+
+    private static GameResultDto BuildGameResult(
+        Game game,
+        bool isRanked,
+        IReadOnlyList<PlayerGame> players,
+        PlayerGame? winner,
+        IReadOnlyDictionary<Guid, EloSnapshot>? snapshots = null)
+    {
+        return new GameResultDto
+        {
+            GameId = game.Id,
+            RoomId = game.RoomId,
+            IsRanked = isRanked,
+            FinishedAt = game.FinishedAt ?? DateTime.UtcNow,
+            WinnerPlayerGameId = winner?.Id,
+            WinnerUserId = winner?.UserId,
+            WinnerUsername = winner?.User.Username,
+            PlayerRatingChanges = players
+                .OrderBy(player => player.Index)
+                .Select(player =>
+                {
+                    EloSnapshot snapshot = default;
+                    var hasSnapshot = snapshots is not null && snapshots.TryGetValue(player.Id, out snapshot);
+                    var oldElo = hasSnapshot ? snapshot.OldElo : player.User.Elo;
+                    var newElo = hasSnapshot ? snapshot.NewElo : player.User.Elo;
+                    var delta = hasSnapshot ? snapshot.Delta : 0;
+
+                    return new GameEndPlayerRatingChangeDto
+                    {
+                        PlayerGameId = player.Id,
+                        UserId = player.UserId,
+                        Username = player.User.Username,
+                        OldElo = Math.Round(oldElo, 2),
+                        NewElo = Math.Round(newElo, 2),
+                        Delta = Math.Round(delta, 2),
+                        IsWinner = winner?.Id == player.Id,
+                    };
+                })
+                .ToList(),
+        };
+    }
+
+    private IReadOnlyDictionary<Guid, EloSnapshot> ApplyEloChanges(IReadOnlyList<PlayerGame> players, PlayerGame? winner)
+    {
+        const double kFactor = 32;
+        var snapshots = new Dictionary<Guid, EloSnapshot>();
+
+        foreach (var player in players)
+        {
+            var oldElo = player.User.Elo;
+            var opponents = players.Where(opponent => opponent.Id != player.Id).ToList();
+            if (opponents.Count == 0 || winner is null)
+            {
+                snapshots[player.Id] = new EloSnapshot(oldElo, oldElo, 0);
+                continue;
+            }
+
+            var expectedScore = opponents
+                .Select(opponent => 1.0 / (1.0 + Math.Pow(10, (opponent.User.Elo - player.User.Elo) / 400.0)))
+                .Average();
+
+            var actualScore = winner.Id == player.Id ? 1.0 : 0.0;
+            var delta = Math.Round(kFactor * (actualScore - expectedScore), 2, MidpointRounding.AwayFromZero);
+            var newElo = Math.Max(100, oldElo + delta);
+            player.User.Elo = newElo;
+            snapshots[player.Id] = new EloSnapshot(oldElo, newElo, newElo - oldElo);
+
+            _unitOfWork.Users.Update(player.User);
+        }
+
+        return snapshots;
+    }
+
+    private readonly record struct EloSnapshot(double OldElo, double NewElo, double Delta);
 
     private GameCardDto MapCardForViewer(GameCard card, Guid viewerPlayerGameId)
     {

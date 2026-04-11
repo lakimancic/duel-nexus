@@ -24,6 +24,17 @@ public class GamesController(
         return Ok(state);
     }
 
+    [HttpGet("{id}/result")]
+    public async Task<IActionResult> GetGameResult(Guid id)
+    {
+        var userId = GetUserId();
+        var result = await _gameService.GetGameResult(id, userId);
+        if (result is null)
+            return NotFound(new { error = "Game has not ended yet." });
+
+        return Ok(result);
+    }
+
     private Guid GetUserId()
     {
         var subClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;

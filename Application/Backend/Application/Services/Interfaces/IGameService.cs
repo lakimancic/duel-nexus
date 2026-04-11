@@ -51,5 +51,7 @@ public interface IGameService
     Task<PagedResult<TurnDto>> GetGameTurns(Guid id, int page, int pageSize);
     Task<PlaceCardDto?> GetPlaceAction(Guid actionId);
     Task<PagedResult<PlaceCardDto>> GetPlaceActions(Guid id, int page, int pageSize);
+    Task<GameResultDto?> GetGameResult(Guid gameId, Guid userId);
+    Task<GameResultDto?> TryFinalizeGameIfEnded(Guid gameId);
     Task<bool> UserExistsInGame(Guid gameId, Guid userId);
 }
