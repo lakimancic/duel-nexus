@@ -1,7 +1,7 @@
 import Chat from "@/shared/components/Chat";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaComments, FaUserCircle } from "react-icons/fa";
+import { FaComments, FaTrophy, FaUserEdit } from "react-icons/fa";
 import Logo from "@/assets/images/logo.png";
 import ButtonBackground from "@/assets/images/btnBackground.png";
 import { useGlobalChat } from "../hooks/useGlobalChat";
@@ -124,11 +124,19 @@ const LobbyPage = () => {
       <div className="absolute top-4 right-5 z-10 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate("/decks")}
+          onClick={() => navigate("/profile")}
           className="rounded-full border border-amber-300/50 bg-[#4b1812]/75 p-2 text-amber-200 hover:text-white hover:border-amber-200 transition-colors cursor-pointer"
-          title="Deck Editor"
+          title="Profile"
         >
-          <FaUserCircle className="size-6" />
+          <FaUserEdit className="size-6" />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/scoreboard")}
+          className="rounded-full border border-emerald-300/40 bg-[#102922]/70 p-2 text-emerald-100 hover:text-white hover:border-emerald-200 transition-colors cursor-pointer"
+          title="Scoreboard"
+        >
+          <FaTrophy className="size-6" />
         </button>
         <button
           type="button"

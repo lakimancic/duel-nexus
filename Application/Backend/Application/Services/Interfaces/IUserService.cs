@@ -22,4 +22,6 @@ public interface IUserService
     Task DeletePlayerCard(Guid userId, Guid cardId);
     Task<PlayerCardDto?> EditPlayerCard(Guid id, Guid cardId, EditPlayerCardDto editPlayerCard);
     Task<List<DeckDto>> GetPlayerDecks(Guid id);
+    Task<List<ScoreboardEntryDto>> GetScoreboardAsync(int limit);
+    Task<UserProfileStatsDto> GetUserProfileStatsAsync(Guid id, int gamesLimit);
 }

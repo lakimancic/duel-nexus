@@ -7,10 +7,12 @@ public sealed class DestroyCardsEffectStrategy : IEffectStrategy
 {
     public async Task ApplyAsync(Effect effect, EffectExecutionContext context, CancellationToken cancellationToken = default)
     {
+        var nextGraveOrderByPlayer = new Dictionary<Guid, int>();
+
         // Trap responses can target the attacking monster directly.
         if (context.IsTrapResponse && context.AttackAttackerCard is not null && context.AttackAttackerCard.Zone == CardZone.Field)
         {
-            SendCardToGraveyard(context.AttackAttackerCard, context);
+            await SendCardToGraveyard(context.AttackAttackerCard, context, nextGraveOrderByPlayer);
             return;
         }
 
@@ -29,17 +31,26 @@ public sealed class DestroyCardsEffectStrategy : IEffectStrategy
         foreach (var target in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SendCardToGraveyard(target, context);
+            await SendCardToGraveyard(target, context, nextGraveOrderByPlayer);
         }
     }
 
-    private static void SendCardToGraveyard(GameCard card, EffectExecutionContext context)
+    private static async Task SendCardToGraveyard(
+        GameCard card,
+        EffectExecutionContext context,
+        Dictionary<Guid, int> nextGraveOrderByPlayer)
     {
+        if (!nextGraveOrderByPlayer.TryGetValue(card.PlayerGameId, out var nextOrder))
+        {
+            nextOrder = await context.UnitOfWork.GameCards.GetNextGraveOrderAsync(card.PlayerGameId);
+        }
+
         card.Zone = CardZone.Grave;
         card.FieldIndex = null;
         card.IsFaceDown = false;
         card.DefensePosition = false;
-        card.DeckOrder = null;
+        card.DeckOrder = nextOrder;
         context.UnitOfWork.GameCards.Update(card);
+        nextGraveOrderByPlayer[card.PlayerGameId] = nextOrder + 1;
     }
 }

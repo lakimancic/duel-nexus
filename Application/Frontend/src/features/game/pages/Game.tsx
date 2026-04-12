@@ -5,6 +5,7 @@ import { gameApi } from "@/features/game/api/game.api";
 import {
   type GameEffectActivationDto,
   type GameResultDto,
+  type TrapResponseWindowOpenedEventDto,
   type TrapResponseWindowEventDto,
   TurnPhase,
   type BattleAttackResultDto,
@@ -104,7 +105,13 @@ const GamePage = () => {
     colorClass: string;
   } | null>(null);
   const [trapWindow, setTrapWindow] = useState<TrapResponseWindowEventDto | null>(null);
+  const [trapWaitWindow, setTrapWaitWindow] = useState<TrapResponseWindowOpenedEventDto | null>(null);
   const [isSubmittingTrapResponse, setIsSubmittingTrapResponse] = useState(false);
+  const [pendingAttackTarget, setPendingAttackTarget] = useState<{
+    attackerCardId: string;
+    defenderCardId?: string;
+    defenderPlayerGameId?: string;
+  } | null>(null);
 
   const previousTurnStatusRef = useRef<{ activePlayerId: string; phase: number } | null>(null);
   const viewerPlayerIdRef = useRef<string | null>(null);
@@ -254,6 +261,23 @@ const GamePage = () => {
     const onTrapWindow = (event: TrapResponseWindowEventDto) => {
       if (!viewerPlayerIdRef.current || event.defenderPlayerGameId !== viewerPlayerIdRef.current) return;
       setTrapWindow(event);
+      setTrapWaitWindow({
+        gameId: event.gameId,
+        windowId: event.windowId,
+        defenderPlayerGameId: event.defenderPlayerGameId,
+        timeoutSeconds: event.timeoutSeconds,
+        expiresAtUtc: event.expiresAtUtc,
+      });
+    };
+
+    const onTrapWindowOpened = (event: TrapResponseWindowOpenedEventDto) => {
+      if (event.gameId.toLowerCase() !== safeGameId.toLowerCase()) return;
+      setTrapWaitWindow(event);
+    };
+
+    const onAttackResolved = (..._args: unknown[]) => {
+      setTrapWaitWindow(null);
+      onStateMayHaveChanged();
     };
 
     const onGameEnded = (result: GameResultDto) => {
@@ -289,9 +313,11 @@ const GamePage = () => {
     gameHub.onToggleDefenseResult(onStateMayHaveChanged);
     gameHub.onRevealResult(onStateMayHaveChanged);
     gameHub.onPlayerCardUpdated(onStateMayHaveChanged);
-    gameHub.onPlayerAttacked(onStateMayHaveChanged);
+    gameHub.onAttackResult(onAttackResolved);
+    gameHub.onPlayerAttacked(onAttackResolved);
     gameHub.onEffectActivated(onEffectActivated);
     gameHub.onTrapWindow(onTrapWindow);
+    gameHub.onTrapWindowOpened(onTrapWindowOpened);
     gameHub.onGameEnded(onGameEnded);
 
     return () => {
@@ -308,9 +334,11 @@ const GamePage = () => {
       gameHub.offToggleDefenseResult(onStateMayHaveChanged);
       gameHub.offRevealResult(onStateMayHaveChanged);
       gameHub.offPlayerCardUpdated(onStateMayHaveChanged);
-      gameHub.offPlayerAttacked(onStateMayHaveChanged);
+      gameHub.offAttackResult(onAttackResolved);
+      gameHub.offPlayerAttacked(onAttackResolved);
       gameHub.offEffectActivated(onEffectActivated);
       gameHub.offTrapWindow(onTrapWindow);
+      gameHub.offTrapWindowOpened(onTrapWindowOpened);
       gameHub.offGameEnded(onGameEnded);
       void gameHub.leaveGame(safeGameId);
       clearInterval(pollStateInterval);
@@ -426,6 +454,13 @@ const GamePage = () => {
       isExpired,
     };
   }, [nowMs, phaseStartedAt, phaseTimeoutSeconds]);
+
+  const trapWaitRemainingSeconds = useMemo(() => {
+    if (!trapWaitWindow) return null;
+    const expiresMs = Date.parse(trapWaitWindow.expiresAtUtc);
+    if (Number.isNaN(expiresMs)) return null;
+    return Math.max(0, Math.ceil((expiresMs - nowMs) / 1000));
+  }, [nowMs, trapWaitWindow]);
 
   useEffect(() => {
     if (!canViewerPlayMain1) {
@@ -662,9 +697,16 @@ const GamePage = () => {
 
   const executeBattleAttack = useCallback(
     async (defenderCardId?: string, defenderPlayerGameId?: string) => {
-      if (!safeGameId || !selectedAttackerCard || !canViewerBattleAttack || isSubmittingBattleAction) return;
+      if (!safeGameId || !selectedAttackerCard || !canViewerBattleAttack || isSubmittingBattleAction || pendingAttackTarget) return;
+
+      setPendingAttackTarget({
+        attackerCardId: selectedAttackerCard.id,
+        defenderCardId,
+        defenderPlayerGameId,
+      });
 
       setIsSubmittingBattleAction(true);
+      isAttackAnimationActiveRef.current = true;
       try {
         const result = await gameHub.attack(
           safeGameId,
@@ -677,18 +719,22 @@ const GamePage = () => {
         if (animationStarted) {
           pendingStateRefreshRef.current = true;
         } else {
+          isAttackAnimationActiveRef.current = false;
           await fetchGameState();
         }
       } catch (err) {
+        isAttackAnimationActiveRef.current = false;
         reportRuntimeError("attack", err);
       } finally {
         setIsSubmittingBattleAction(false);
+        setPendingAttackTarget(null);
       }
     },
     [
       canViewerBattleAttack,
       fetchGameState,
       isSubmittingBattleAction,
+      pendingAttackTarget,
       playAttackAnimation,
       reportRuntimeError,
       safeGameId,
@@ -700,7 +746,7 @@ const GamePage = () => {
     (playerId: string, fieldIndex: number, card: GameCardDto | null) => {
       if (canViewerBattleAttack) {
         if (attackAnimation !== null) return;
-        if (isSubmittingBattleAction) return;
+        if (isSubmittingBattleAction || pendingAttackTarget) return;
 
         if (!selectedAttackerCard) {
           if (!card || !canUseCardAsAttacker(card)) return;
@@ -748,6 +794,7 @@ const GamePage = () => {
       canViewerPlayMain1,
       executeBattleAttack,
       isSubmittingBattleAction,
+      pendingAttackTarget,
       placeSelectedHandCard,
       selectedHandCard,
       selectedAttackerCard,
@@ -846,7 +893,7 @@ const GamePage = () => {
     (playerId: string) => {
       if (!canViewerBattleAttack || !selectedAttackerCard) return;
       if (playerId === viewerPlayerId) return;
-      if (isSubmittingBattleAction) return;
+      if (isSubmittingBattleAction || pendingAttackTarget) return;
       if (attackAnimation !== null) return;
       if (playerHasMonsterOnField(playerId)) return;
 
@@ -857,6 +904,7 @@ const GamePage = () => {
       canViewerBattleAttack,
       executeBattleAttack,
       isSubmittingBattleAction,
+      pendingAttackTarget,
       playerHasMonsterOnField,
       selectedAttackerCard,
       viewerPlayerId,
@@ -890,6 +938,17 @@ const GamePage = () => {
 
     return () => clearTimeout(timeoutId);
   }, [trapWindow]);
+
+  useEffect(() => {
+    if (!trapWaitWindow) return;
+
+    const remainingMs = Math.max(0, Date.parse(trapWaitWindow.expiresAtUtc) - Date.now());
+    const timeoutId = setTimeout(() => {
+      setTrapWaitWindow((current) => (current?.windowId === trapWaitWindow.windowId ? null : current));
+    }, remainingMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [trapWaitWindow]);
 
   const showBoard = !isLoading && !fatalError && cards.length > 0 && viewerPlayerId;
   const isViewer = Boolean(currentUserId);
@@ -961,6 +1020,14 @@ const GamePage = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+            ) : null}
+            {trapWaitWindow && !trapWindow ? (
+              <div className="rounded-md border border-amber-300/60 bg-black/65 px-3 py-2 text-xs text-amber-100">
+                <p className="font-semibold uppercase tracking-[0.06em]">Waiting for trap response</p>
+                <p className="mt-1 text-[11px] text-amber-50/90">
+                  Defender has {trapWaitRemainingSeconds ?? trapWaitWindow.timeoutSeconds}s to answer.
+                </p>
               </div>
             ) : null}
             {timeoutDisplay ? (
@@ -1066,6 +1133,7 @@ const GamePage = () => {
                 canViewerBattleAttack &&
                 Boolean(selectedAttackerCard) &&
                 !isSubmittingBattleAction &&
+                !pendingAttackTarget &&
                 attackAnimation === null &&
                 Boolean(viewerPlayerId) &&
                 playerId !== viewerPlayerId &&
@@ -1074,7 +1142,7 @@ const GamePage = () => {
               }
               isFieldClickable={(playerId, fieldIndex, card) => {
                 if (canViewerBattleAttack) {
-                  if (isSubmittingBattleAction) return false;
+                  if (isSubmittingBattleAction || pendingAttackTarget) return false;
                   if (attackAnimation !== null) return false;
 
                   if (!selectedAttackerCard) {
@@ -1176,6 +1244,8 @@ const GamePage = () => {
                 !isSubmittingMainAction
               }
               selectedHandCardId={selectedHandCardId}
+              trapWaitDefenderPlayerId={trapWaitWindow?.defenderPlayerGameId ?? null}
+              trapWaitRemainingSeconds={trapWaitRemainingSeconds}
             />
           ) : null}
 

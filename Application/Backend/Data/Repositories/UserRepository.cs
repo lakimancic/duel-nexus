@@ -21,4 +21,13 @@ public class UserRepository(DuelNexusDbContext context) : Repository<User>(conte
             .Where(u => onlineUserIds.Contains(u.Id))
             .ToListAsync();
     }
+
+    public async Task<List<User>> GetTopByEloAsync(int limit)
+    {
+        return await _dbSet
+            .OrderByDescending(user => user.Elo)
+            .ThenBy(user => user.Username)
+            .Take(limit)
+            .ToListAsync();
+    }
 }

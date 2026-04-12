@@ -11,4 +11,5 @@ public interface IGameCardRepository : IRepository<GameCard>
     Task<List<GameCard>> GetTopDeckCardsByPlayerAsync(Guid playerGameId, int take);
     Task<GameCard?> GetByWithCardById(Guid id);
     Task<List<GameCard>> GetByGameIdWithCardAsync(Guid gameId);
+    Task<int> GetNextGraveOrderAsync(Guid playerGameId);
 }

@@ -20,7 +20,7 @@ public sealed class CardEffectExecutor
         var effect = placedCard.Card.Effect;
         if (effect is null)
         {
-            SendCardToGraveyard(placedCard, commandContext.UnitOfWork);
+            await SendCardToGraveyard(placedCard, commandContext.UnitOfWork);
             return null;
         }
 
@@ -37,7 +37,7 @@ public sealed class CardEffectExecutor
 
         var strategy = _strategyFactory.GetStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
-        SendCardToGraveyard(placedCard, commandContext.UnitOfWork);
+        await SendCardToGraveyard(placedCard, commandContext.UnitOfWork);
 
         var activation = await commandContext.UnitOfWork.EffectActivations.ActivateEffectAsync(
             commandContext.CurrentTurn,
@@ -80,7 +80,7 @@ public sealed class CardEffectExecutor
         var effect = trapCard.Card.Effect;
         if (effect is null)
         {
-            SendCardToGraveyard(trapCard, commandContext.UnitOfWork);
+            await SendCardToGraveyard(trapCard, commandContext.UnitOfWork);
             return null;
         }
 
@@ -97,7 +97,7 @@ public sealed class CardEffectExecutor
 
         var strategy = _strategyFactory.GetStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
-        SendCardToGraveyard(trapCard, commandContext.UnitOfWork);
+        await SendCardToGraveyard(trapCard, commandContext.UnitOfWork);
 
         var activation = await commandContext.UnitOfWork.EffectActivations.ActivateEffectAsync(
             commandContext.CurrentTurn,
@@ -114,13 +114,14 @@ public sealed class CardEffectExecutor
             IsTrap: true);
     }
 
-    private static void SendCardToGraveyard(GameCard card, Backend.Data.UnitOfWork.IUnitOfWork unitOfWork)
+    private static async Task SendCardToGraveyard(GameCard card, Backend.Data.UnitOfWork.IUnitOfWork unitOfWork)
     {
+        var nextGraveOrder = await unitOfWork.GameCards.GetNextGraveOrderAsync(card.PlayerGameId);
         card.Zone = CardZone.Grave;
         card.FieldIndex = null;
         card.IsFaceDown = false;
         card.DefensePosition = false;
-        card.DeckOrder = null;
+        card.DeckOrder = nextGraveOrder;
         unitOfWork.GameCards.Update(card);
     }
 }

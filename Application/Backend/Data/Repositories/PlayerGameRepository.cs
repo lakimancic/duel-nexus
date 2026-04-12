@@ -26,6 +26,20 @@ public class PlayerGameRepository(DuelNexusDbContext context) : Repository<Playe
             .FirstOrDefaultAsync();
     }
 
+    public Task<List<PlayerGame>> GetByUserIdWithGameAndPlayersAsync(Guid userId, int limit)
+    {
+        return _dbSet
+            .Where(playerGame => playerGame.UserId == userId)
+            .Include(playerGame => playerGame.Game)
+                .ThenInclude(game => game.Room)
+            .Include(playerGame => playerGame.Game)
+                .ThenInclude(game => game.Players)
+                    .ThenInclude(gamePlayer => gamePlayer.User)
+            .OrderByDescending(playerGame => playerGame.Game.StartedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public Task<List<PlayerGame>> GetByGameIdOrderedAsync(Guid gameId)
     {
         return _dbSet

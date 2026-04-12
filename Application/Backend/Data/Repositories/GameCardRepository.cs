@@ -76,4 +76,15 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
                 .ThenInclude(card => card!.Effect)
             .ToListAsync();
     }
+
+    public async Task<int> GetNextGraveOrderAsync(Guid playerGameId)
+    {
+        var currentMax = await _dbSet
+            .Where(card => card.PlayerGameId == playerGameId && card.Zone == CardZone.Grave && card.DeckOrder.HasValue)
+            .Select(card => card.DeckOrder!.Value)
+            .DefaultIfEmpty(-1)
+            .MaxAsync();
+
+        return currentMax + 1;
+    }
 }

@@ -14,11 +14,16 @@ using Backend.Domain;
 
 namespace Backend.Application.Services;
 
-public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher passwordHasher) : IUserService
+public class UserService(
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    PasswordHasher passwordHasher,
+    IGameResultStore gameResultStore) : IUserService
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
     private readonly PasswordHasher _passwordHasher = passwordHasher;
+    private readonly IGameResultStore _gameResultStore = gameResultStore;
 
     public async Task<bool> ExistsAsync(string email)
     {
@@ -147,10 +152,105 @@ public class UserService(IUnitOfWork unitOfWork, IMapper mapper, PasswordHasher 
         return _mapper.Map<List<DeckDto>>(decks);
     }
 
+    public async Task<List<ScoreboardEntryDto>> GetScoreboardAsync(int limit)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 100);
+        var topPlayers = await _unitOfWork.Users.GetTopByEloAsync(safeLimit);
+
+        return topPlayers
+            .Select((user, index) => new ScoreboardEntryDto
+            {
+                UserId = user.Id,
+                Username = user.Username,
+                Elo = Math.Round(user.Elo, 2),
+                Rank = index + 1,
+            })
+            .ToList();
+    }
+
+    public async Task<UserProfileStatsDto> GetUserProfileStatsAsync(Guid id, int gamesLimit)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id)
+            ?? throw new ObjectNotFoundException("User not found");
+
+        var safeGamesLimit = Math.Clamp(gamesLimit, 1, 100);
+        var userGames = await _unitOfWork.PlayerGames.GetByUserIdWithGameAndPlayersAsync(id, safeGamesLimit);
+
+        var games = userGames
+            .Select(myPlayerGame =>
+            {
+                var allPlayers = myPlayerGame.Game.Players
+                    .OrderBy(player => player.Index)
+                    .ToList();
+                var placementByPlayerGameId = BuildPlacementMap(allPlayers);
+                var cachedResult = _gameResultStore.Get(myPlayerGame.GameId);
+                var ratingChangesByPlayerId = cachedResult?.PlayerRatingChanges
+                    .ToDictionary(change => change.PlayerGameId);
+
+                return new UserProfileGameDto
+                {
+                    GameId = myPlayerGame.GameId,
+                    StartedAt = myPlayerGame.Game.StartedAt,
+                    FinishedAt = myPlayerGame.Game.FinishedAt,
+                    IsRanked = myPlayerGame.Game.Room?.IsRanked ?? false,
+                    Placement = placementByPlayerGameId.GetValueOrDefault(myPlayerGame.Id),
+                    EloChangeAvailable = cachedResult is not null,
+                    Players = allPlayers
+                        .Select(player =>
+                        {
+                            var ratingChange = ratingChangesByPlayerId is not null &&
+                                ratingChangesByPlayerId.TryGetValue(player.Id, out var cachedRatingChange)
+                                ? cachedRatingChange
+                                : null;
+                            var oldElo = ratingChange?.OldElo ?? player.User.Elo;
+                            var newElo = ratingChange?.NewElo ?? player.User.Elo;
+                            var delta = ratingChange is null
+                                ? (double?)null
+                                : Math.Round(ratingChange.Delta, 2);
+
+                            return new UserProfileGamePlayerDto
+                            {
+                                PlayerGameId = player.Id,
+                                UserId = player.UserId,
+                                Username = player.User.Username,
+                                Placement = placementByPlayerGameId.GetValueOrDefault(player.Id),
+                                LifePoints = player.LifePoints,
+                                IsWinner = myPlayerGame.Game.FinishedAt.HasValue
+                                    ? placementByPlayerGameId.GetValueOrDefault(player.Id) == 1
+                                    : false,
+                                OldElo = Math.Round(oldElo, 2),
+                                NewElo = Math.Round(newElo, 2),
+                                Delta = delta,
+                            };
+                        })
+                        .ToList(),
+                };
+            })
+            .OrderByDescending(game => game.StartedAt)
+            .ToList();
+
+        return new UserProfileStatsDto
+        {
+            UserId = user.Id,
+            Username = user.Username,
+            Elo = Math.Round(user.Elo, 2),
+            Games = games,
+        };
+    }
+
     public async Task<ShortUserDto?> GetShortUserById(Guid id)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         return _mapper.Map<ShortUserDto?>(user);
+    }
+
+    private static Dictionary<Guid, int> BuildPlacementMap(List<PlayerGame> players)
+    {
+        return players
+            .OrderByDescending(player => player.LifePoints)
+            .ThenBy(player => player.Index)
+            .Select((player, index) => new { player.Id, Placement = index + 1 })
+            .ToDictionary(item => item.Id, item => item.Placement);
     }
 
     private async Task SeedInitialPlayerCards(User user)

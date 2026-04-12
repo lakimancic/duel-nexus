@@ -109,6 +109,14 @@ export interface TrapResponseWindowEventDto {
   availableTrapCards: TrapCardOptionDto[];
 }
 
+export interface TrapResponseWindowOpenedEventDto {
+  gameId: string;
+  windowId: string;
+  defenderPlayerGameId: string;
+  timeoutSeconds: number;
+  expiresAtUtc: string;
+}
+
 export interface GameEndPlayerRatingChangeDto {
   playerGameId: string;
   userId: string;

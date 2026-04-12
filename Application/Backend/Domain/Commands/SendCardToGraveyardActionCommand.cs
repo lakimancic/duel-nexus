@@ -10,12 +10,13 @@ public sealed record SendCardToGraveyardActionCommand(Guid GameCardId) : IGameCo
     {
         var card = await context.UnitOfWork.GameCards.GetByWithCardById(GameCardId)
             ?? throw new ObjectNotFoundException("Game card not found.");
+        var nextGraveOrder = await context.UnitOfWork.GameCards.GetNextGraveOrderAsync(card.PlayerGameId);
 
         card.Zone = CardZone.Grave;
         card.FieldIndex = null;
         card.IsFaceDown = false;
         card.DefensePosition = false;
-        card.DeckOrder = null;
+        card.DeckOrder = nextGraveOrder;
         context.UnitOfWork.GameCards.Update(card);
 
         return new GameCardUpdateResult(

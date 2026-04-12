@@ -53,6 +53,8 @@ interface BoardProps {
   isGraveyardClickable?: (playerId: string) => boolean;
   isHandCardClickable?: (card: GameCardDto) => boolean;
   selectedHandCardId?: string | null;
+  trapWaitDefenderPlayerId?: string | null;
+  trapWaitRemainingSeconds?: number | null;
 }
 
 interface Metrics {
@@ -267,6 +269,8 @@ const Board = ({
   isGraveyardClickable,
   isHandCardClickable,
   selectedHandCardId,
+  trapWaitDefenderPlayerId,
+  trapWaitRemainingSeconds,
 }: BoardProps) => {
   const loadCardZones = useCardZonesStore((s) => s.load);
   const cardZones = useCardZonesStore((s) => s.items);
@@ -313,7 +317,15 @@ const Board = ({
     [cards, handZoneValue]
   );
   const graveyardCards = useMemo(
-    () => cards.filter((card) => card.zone === graveyardZoneValue),
+    () =>
+      cards
+        .filter((card) => card.zone === graveyardZoneValue)
+        .sort((left, right) => {
+          const leftOrder = left.deckOrder ?? -1;
+          const rightOrder = right.deckOrder ?? -1;
+          if (leftOrder !== rightOrder) return rightOrder - leftOrder;
+          return right.id.localeCompare(left.id);
+        }),
     [cards, graveyardZoneValue]
   );
 
@@ -422,6 +434,11 @@ const Board = ({
                 >
                   <div className="font-semibold">{playerSummaries?.[playerId]?.username ?? playerId}</div>
                   <div className="text-white/80">LP: {playerSummaries?.[playerId]?.lifePoints ?? "-"}</div>
+                  {trapWaitDefenderPlayerId === playerId && trapWaitRemainingSeconds !== null ? (
+                    <div className="mt-1 rounded border border-amber-300/60 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100">
+                      Trap window: {trapWaitRemainingSeconds}s
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

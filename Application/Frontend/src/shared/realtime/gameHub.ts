@@ -10,6 +10,7 @@ import type {
 import type {
   BattleAttackResultDto,
   GameResultDto,
+  TrapResponseWindowOpenedEventDto,
   TrapResponseWindowEventDto,
 } from "@/features/game/types/game.types";
 
@@ -381,6 +382,14 @@ class GameHubClient {
 
   offTrapWindow(handler: (...args: any[]) => void) {
     this.connection.off("game:effect:trap:window", handler);
+  }
+
+  onTrapWindowOpened(handler: (event: TrapResponseWindowOpenedEventDto) => void) {
+    this.connection.on("game:effect:trap:window:opened", handler);
+  }
+
+  offTrapWindowOpened(handler: (...args: any[]) => void) {
+    this.connection.off("game:effect:trap:window:opened", handler);
   }
 
   onGameEnded(handler: (event: GameResultDto) => void) {

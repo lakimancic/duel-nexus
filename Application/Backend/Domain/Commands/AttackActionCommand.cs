@@ -143,10 +143,10 @@ public sealed record AttackActionCommand(
         }
 
         if (attackerDestroyed)
-            SendCardToGraveyard(attacker, context);
+            await SendCardToGraveyard(attacker, context);
 
         if (defenderDestroyed && defenderCard is not null)
-            SendCardToGraveyard(defenderCard, context);
+            await SendCardToGraveyard(defenderCard, context);
 
         await context.UnitOfWork.Attacks.AddAsync(new AttackAction
         {
@@ -206,13 +206,14 @@ public sealed record AttackActionCommand(
         );
     }
 
-    private static void SendCardToGraveyard(GameCard card, GameCommandContext context)
+    private static async Task SendCardToGraveyard(GameCard card, GameCommandContext context)
     {
+        var nextGraveOrder = await context.UnitOfWork.GameCards.GetNextGraveOrderAsync(card.PlayerGameId);
         card.Zone = CardZone.Grave;
         card.FieldIndex = null;
         card.IsFaceDown = false;
         card.DefensePosition = false;
-        card.DeckOrder = null;
+        card.DeckOrder = nextGraveOrder;
         context.UnitOfWork.GameCards.Update(card);
     }
 

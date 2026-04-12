@@ -195,12 +195,14 @@ public partial class GameHub
                         availableTrapCards = trapWindow.AvailableTrapCards,
                     });
 
-                await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
+                await Clients.Group(GetGameGroupName(gameId))
                     .SendAsync("game:effect:trap:window:opened", new
                     {
                         gameId,
+                        windowId,
                         defenderPlayerGameId = trapWindow.DefenderPlayerGameId,
                         timeoutSeconds = GameConstants.TrapResponseWindowSeconds,
+                        expiresAtUtc,
                     });
 
                 activatedTrapCardId = await TrapResponses.WaitForSelectionOrTimeoutAsync(windowId);
