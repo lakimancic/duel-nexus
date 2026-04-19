@@ -1,5 +1,7 @@
 namespace Backend.Utils.Rand;
 
+using System.Security.Cryptography;
+
 public static class RandomExtensions
 {
     public static List<int> GenerateUniqueRandomIndices(int count)
@@ -11,12 +13,11 @@ public static class RandomExtensions
 
     public static void Shuffle<T>(this IList<T> list)
     {
-        var random = Random.Shared;
         int n = list.Count;
         while (n > 1)
         {
             n--;
-            int k = random.Next(n + 1);
+            int k = RandomNumberGenerator.GetInt32(n + 1);
             (list[k], list[n]) = (list[n], list[k]);
         }
     }

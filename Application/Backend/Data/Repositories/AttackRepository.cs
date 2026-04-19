@@ -20,6 +20,14 @@ public class AttackRepository(DuelNexusDbContext context) : Repository<AttackAct
 
     public Task<bool> HasAttackForTurnAndAttackerAsync(Guid turnId, Guid attackerCardId)
     {
+        var pendingAttackExists = _context.ChangeTracker.Entries<AttackAction>()
+            .Any(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.TurnId == turnId &&
+                entry.Entity.AttackerCardId == attackerCardId);
+        if (pendingAttackExists)
+            return Task.FromResult(true);
+
         return _dbSet.AnyAsync(action =>
             action.TurnId == turnId &&
             action.AttackerCardId == attackerCardId);
@@ -27,9 +35,18 @@ public class AttackRepository(DuelNexusDbContext context) : Repository<AttackAct
 
     public async Task<HashSet<Guid>> GetAttackerCardIdsByTurnAsync(Guid turnId)
     {
-        return await _dbSet
+        var attackerIds = await _dbSet
             .Where(action => action.TurnId == turnId)
             .Select(action => action.AttackerCardId)
             .ToHashSetAsync();
+
+        var pendingAttackerIds = _context.ChangeTracker.Entries<AttackAction>()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.TurnId == turnId)
+            .Select(entry => entry.Entity.AttackerCardId);
+
+        attackerIds.UnionWith(pendingAttackerIds);
+        return attackerIds;
     }
 }

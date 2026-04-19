@@ -11,7 +11,9 @@ public sealed record AttackActionCommand(
     Guid AttackerCardId,
     Guid? DefenderCardId,
     Guid? DefenderPlayerGameId,
-    Guid? ActivatedTrapCardId) : IGameCommand<BattleAttackResult>
+    Guid? ActivatedTrapCardId,
+    IReadOnlyCollection<Guid>? RequestedTargetCardIds = null,
+    IReadOnlyCollection<Guid>? RequestedTargetPlayerIds = null) : IGameCommand<BattleAttackResult>
 {
     private static readonly CardEffectExecutor EffectExecutor = new();
 
@@ -50,10 +52,13 @@ public sealed record AttackActionCommand(
             attackingPlayer: context.Actor,
             attackerCard: attacker,
             trapCardId: ActivatedTrapCardId,
+            requestedTargetCardIds: RequestedTargetCardIds,
+            requestedTargetPlayerIds: RequestedTargetPlayerIds,
             cancellationToken: cancellationToken);
 
         if (attacker.Zone != CardZone.Field || attacker.FieldIndex is null || attacker.IsFaceDown || attacker.DefensePosition)
         {
+            var attackerDestroyedByTrap = attacker.Zone == CardZone.Grave;
             await context.UnitOfWork.Attacks.AddAsync(new AttackAction
             {
                 TurnId = context.CurrentTurn.Id,
@@ -72,7 +77,7 @@ public sealed record AttackActionCommand(
                 DefenderPlayerGameId: directDefenderPlayer?.Id ?? defenderPlayer.Id,
                 DamageToDefender: 0,
                 DamageToAttacker: 0,
-                AttackerDestroyed: true,
+                AttackerDestroyed: attackerDestroyedByTrap,
                 DefenderDestroyed: false,
                 AttackFailed: true,
                 PhaseAdvanced: false,
@@ -113,14 +118,8 @@ public sealed record AttackActionCommand(
             }
             else if (attackerAttack < defenderStat)
             {
-                attackerDestroyed = true;
                 damageToAttacker = defenderStat - attackerAttack;
                 attackFailed = true;
-            }
-            else if (!defenderCard.DefensePosition)
-            {
-                attackerDestroyed = true;
-                defenderDestroyed = true;
             }
         }
 
@@ -146,7 +145,17 @@ public sealed record AttackActionCommand(
             await SendCardToGraveyard(attacker, context);
 
         if (defenderDestroyed && defenderCard is not null)
-            await SendCardToGraveyard(defenderCard, context);
+        {
+            var protectedCardIds = await ProtectionEffectHelper.GetProtectedCardIdsAsync(
+                context.UnitOfWork,
+                context.Game.Id,
+                context.CurrentTurn,
+                cancellationToken);
+            if (!protectedCardIds.Contains(defenderCard.Id))
+                await SendCardToGraveyard(defenderCard, context);
+            else
+                defenderDestroyed = false;
+        }
 
         await context.UnitOfWork.Attacks.AddAsync(new AttackAction
         {
@@ -157,38 +166,14 @@ public sealed record AttackActionCommand(
             ExecutedAt = DateTime.UtcNow,
         });
 
-        var turnForResult = context.CurrentTurn;
-        var phaseAdvanced = false;
-        var turnChanged = false;
-        var activePlayerId = context.CurrentTurn.ActivePlayerId;
-
-        var hasMoreAttacks = await HasAvailableAttackerAsync(
-            context,
-            context.Actor.Id,
-            additionalAttackedCardIds: [attacker.Id],
+        var transition = await context.PhaseStateMachine.AdvanceAsync(
+            new TurnPhaseStateContext(context.UnitOfWork, context.Game, context.CurrentTurn, context.Actor),
+            TurnPhaseAdvanceTrigger.PlayerCompletedActions,
             cancellationToken);
-        if (!hasMoreAttacks && !context.Actor.TurnEnded)
-        {
-            context.Actor.TurnEnded = true;
-            context.UnitOfWork.PlayerGames.Update(context.Actor);
-        }
-
-        if (!hasMoreAttacks || context.Actor.LifePoints <= 0)
-        {
-            var transition = await context.PhaseStateMachine.AdvanceAsync(
-                new TurnPhaseStateContext(context.UnitOfWork, context.Game, context.CurrentTurn, context.Actor),
-                TurnPhaseAdvanceTrigger.PlayerCompletedActions,
-                cancellationToken);
-
-            turnForResult = transition.Turn;
-            phaseAdvanced = transition.PhaseChanged;
-            turnChanged = transition.TurnChanged;
-            activePlayerId = transition.ActivePlayerId;
-        }
 
         return new BattleAttackResult(
             Game: context.Game,
-            Turn: turnForResult,
+            Turn: transition.Turn,
             Player: context.Actor,
             AttackerCardId: attacker.Id,
             DefenderCardId: defenderCard?.Id,
@@ -198,10 +183,10 @@ public sealed record AttackActionCommand(
             AttackerDestroyed: attackerDestroyed,
             DefenderDestroyed: defenderDestroyed,
             AttackFailed: attackFailed,
-            PhaseAdvanced: phaseAdvanced,
-            TurnChanged: turnChanged,
-            ActivePlayerId: activePlayerId,
-            CurrentPhase: turnForResult.Phase,
+            PhaseAdvanced: transition.PhaseChanged,
+            TurnChanged: transition.TurnChanged,
+            ActivePlayerId: transition.ActivePlayerId,
+            CurrentPhase: transition.Turn.Phase,
             ActivatedEffect: activatedEffect
         );
     }
@@ -215,31 +200,5 @@ public sealed record AttackActionCommand(
         card.DefensePosition = false;
         card.DeckOrder = nextGraveOrder;
         context.UnitOfWork.GameCards.Update(card);
-    }
-
-    private static async Task<bool> HasAvailableAttackerAsync(
-        GameCommandContext context,
-        Guid playerGameId,
-        IReadOnlyCollection<Guid> additionalAttackedCardIds,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var player = await context.UnitOfWork.PlayerGames.GetByIdAsync(playerGameId);
-        if (player is null || player.LifePoints <= 0)
-            return false;
-
-        var cards = await context.UnitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
-        var attackedCardIds = await context.UnitOfWork.Attacks.GetAttackerCardIdsByTurnAsync(context.CurrentTurn.Id);
-        var blockedCardIds = attackedCardIds.Concat(additionalAttackedCardIds).ToHashSet();
-
-        return cards.Any(card =>
-            card.PlayerGameId == playerGameId &&
-            card.Zone == CardZone.Field &&
-            card.FieldIndex is >= 0 and <= 4 &&
-            !card.IsFaceDown &&
-            !card.DefensePosition &&
-            card.Card is MonsterCard &&
-            !blockedCardIds.Contains(card.Id));
     }
 }

@@ -60,8 +60,15 @@ public sealed class PlaceCardActionValidator : IGameCommandValidator<PlaceCardAc
             if (cardType == CardType.Spell)
                 throw new BadRequestException("Spell cards cannot be placed face-down.");
 
+            if (cardType == CardType.Trap && !isBottomRow)
+                throw new BadRequestException("Trap cards must be placed in spell/trap zone.");
+
             if (cardType == CardType.Monster && !isTopRow)
                 throw new BadRequestException("Face-down monsters must be placed in monster zone.");
+        }
+        else if (cardType == CardType.Trap)
+        {
+            throw new BadRequestException("Trap cards can only be placed face-down.");
         }
 
         var phasePlacements = await context.UnitOfWork.PlaceCards.GetByTurnAndPlayerSinceAsync(

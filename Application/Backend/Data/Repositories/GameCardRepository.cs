@@ -2,6 +2,7 @@ using Backend.Data.Context;
 using Backend.Data.Enums;
 using Backend.Data.Models;
 using Backend.Data.Repositories.Interfaces;
+using Backend.Utils.Rand;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Data.Repositories;
@@ -25,7 +26,7 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
             }
         }
 
-        gameCards.Shuffle();
+        RandomExtensions.Shuffle(gameCards);
         for (int i = 0; i < gameCards.Count; i++)
         {
             gameCards[i].DeckOrder = i;
@@ -81,10 +82,9 @@ public class GameCardRepository(DuelNexusDbContext context) : Repository<GameCar
     {
         var currentMax = await _dbSet
             .Where(card => card.PlayerGameId == playerGameId && card.Zone == CardZone.Grave && card.DeckOrder.HasValue)
-            .Select(card => card.DeckOrder!.Value)
-            .DefaultIfEmpty(-1)
+            .Select(card => card.DeckOrder)
             .MaxAsync();
 
-        return currentMax + 1;
+        return (currentMax ?? -1) + 1;
     }
 }

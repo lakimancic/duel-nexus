@@ -5,6 +5,11 @@ namespace Backend.Application.Services;
 
 public sealed class TrapResponseCoordinator
 {
+    public sealed record TrapSelection(
+        Guid TrapCardId,
+        IReadOnlyCollection<Guid>? TargetCardIds,
+        IReadOnlyCollection<Guid>? TargetPlayerIds);
+
     private sealed class PendingTrapWindow
     {
         public required Guid WindowId { get; init; }
@@ -13,7 +18,7 @@ public sealed class TrapResponseCoordinator
         public required Guid DefenderPlayerGameId { get; init; }
         public required DateTimeOffset ExpiresAtUtc { get; init; }
         public required HashSet<Guid> AllowedTrapCardIds { get; init; }
-        public required TaskCompletionSource<Guid?> SelectionSource { get; init; }
+        public required TaskCompletionSource<TrapSelection?> SelectionSource { get; init; }
     }
 
     private readonly ConcurrentDictionary<Guid, PendingTrapWindow> _windowsById = [];
@@ -46,7 +51,7 @@ public sealed class TrapResponseCoordinator
             DefenderPlayerGameId = defenderPlayerGameId,
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(GameConstants.TrapResponseWindowSeconds),
             AllowedTrapCardIds = trapCardIds,
-            SelectionSource = new TaskCompletionSource<Guid?>(TaskCreationOptions.RunContinuationsAsynchronously),
+            SelectionSource = new TaskCompletionSource<TrapSelection?>(TaskCreationOptions.RunContinuationsAsynchronously),
         };
 
         if (!_windowIdByGameId.TryAdd(gameId, pendingWindowId))
@@ -63,7 +68,12 @@ public sealed class TrapResponseCoordinator
         return true;
     }
 
-    public bool TryActivateTrap(Guid windowId, Guid defenderUserId, Guid trapCardId)
+    public bool TryActivateTrap(
+        Guid windowId,
+        Guid defenderUserId,
+        Guid trapCardId,
+        IReadOnlyCollection<Guid>? targetCardIds,
+        IReadOnlyCollection<Guid>? targetPlayerIds)
     {
         if (!_windowsById.TryGetValue(windowId, out var window))
             return false;
@@ -77,10 +87,13 @@ public sealed class TrapResponseCoordinator
         if (!window.AllowedTrapCardIds.Contains(trapCardId))
             return false;
 
-        return window.SelectionSource.TrySetResult(trapCardId);
+        return window.SelectionSource.TrySetResult(new TrapSelection(
+            TrapCardId: trapCardId,
+            TargetCardIds: targetCardIds,
+            TargetPlayerIds: targetPlayerIds));
     }
 
-    public async Task<Guid?> WaitForSelectionOrTimeoutAsync(Guid windowId, CancellationToken cancellationToken = default)
+    public async Task<TrapSelection?> WaitForSelectionOrTimeoutAsync(Guid windowId, CancellationToken cancellationToken = default)
     {
         if (!_windowsById.TryGetValue(windowId, out var window))
             return null;

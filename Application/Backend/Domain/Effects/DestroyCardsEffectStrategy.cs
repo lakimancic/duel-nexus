@@ -8,23 +8,48 @@ public sealed class DestroyCardsEffectStrategy : IEffectStrategy
     public async Task ApplyAsync(Effect effect, EffectExecutionContext context, CancellationToken cancellationToken = default)
     {
         var nextGraveOrderByPlayer = new Dictionary<Guid, int>();
+        var protectedCardIds = await ProtectionEffectHelper.GetProtectedCardIdsAsync(
+            context.UnitOfWork,
+            context.Game.Id,
+            context.Turn,
+            cancellationToken);
 
-        // Trap responses can target the attacking monster directly.
-        if (context.IsTrapResponse && context.AttackAttackerCard is not null && context.AttackAttackerCard.Zone == CardZone.Field)
+        var hasRequestedTargets = (context.RequestedTargetCardIds?.Count ?? 0) > 0;
+
+        // Trap responses default to attacker when target wasn't explicitly chosen.
+        if (context.IsTrapResponse &&
+            !hasRequestedTargets &&
+            context.AttackAttackerCard is not null &&
+            context.AttackAttackerCard.Zone == CardZone.Field &&
+            !protectedCardIds.Contains(context.AttackAttackerCard.Id))
         {
             await SendCardToGraveyard(context.AttackAttackerCard, context, nextGraveOrderByPlayer);
+            context.AppliedTargetCardIds.Add(context.AttackAttackerCard.Id);
+            context.AppliedTargetPlayerIds.Add(context.AttackAttackerCard.PlayerGameId);
             return;
         }
 
         var cardsToDestroy = Math.Max(1, effect.Affects ?? 1);
         var allCards = await context.UnitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
-
-        var targets = allCards
+        var validEnemyFieldCards = allCards
             .Where(card =>
                 card.PlayerGameId != context.ActivatingPlayer.Id &&
                 card.Zone == CardZone.Field &&
                 card.FieldIndex is not null)
-            .OrderBy(card => card.FieldIndex)
+            .ToDictionary(card => card.Id, card => card);
+
+        var requestedTargets = (context.RequestedTargetCardIds ?? [])
+            .Where(targetId => validEnemyFieldCards.ContainsKey(targetId))
+            .Select(targetId => validEnemyFieldCards[targetId])
+            .DistinctBy(card => card.Id)
+            .ToList();
+
+        var targets = (requestedTargets.Count > 0
+            ? requestedTargets
+            : validEnemyFieldCards.Values
+                .OrderBy(card => card.FieldIndex)
+                .ToList())
+            .Where(card => !protectedCardIds.Contains(card.Id))
             .Take(cardsToDestroy)
             .ToList();
 
@@ -32,6 +57,8 @@ public sealed class DestroyCardsEffectStrategy : IEffectStrategy
         {
             cancellationToken.ThrowIfCancellationRequested();
             await SendCardToGraveyard(target, context, nextGraveOrderByPlayer);
+            context.AppliedTargetCardIds.Add(target.Id);
+            context.AppliedTargetPlayerIds.Add(target.PlayerGameId);
         }
     }
 

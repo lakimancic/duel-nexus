@@ -32,7 +32,12 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
             Type = ResolvePlaceType(card.Card.Type, FaceDown),
         });
 
-        var activatedEffect = await EffectExecutor.TryActivateSpellOnPlacementAsync(context, card, cancellationToken);
+        var activatedEffect = await EffectExecutor.TryActivateSpellOnPlacementAsync(
+            context,
+            card,
+            RequestedTargetCardIds,
+            RequestedTargetPlayerIds,
+            cancellationToken);
 
         return new PlaceCardResult(
             Game: context.Game,
@@ -45,6 +50,9 @@ public sealed record PlaceCardActionCommand(Guid GameCardId, int FieldIndex, boo
             ActivatedEffect: activatedEffect
         );
     }
+
+    public IReadOnlyCollection<Guid>? RequestedTargetCardIds { get; init; }
+    public IReadOnlyCollection<Guid>? RequestedTargetPlayerIds { get; init; }
 
     private static PlaceType ResolvePlaceType(CardType cardType, bool faceDown)
     {

@@ -1,6 +1,7 @@
 using Backend.Application.DTOs.Games;
 using Backend.Domain;
 using Backend.Utils.WebApi;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 
 public partial class GameHub
@@ -59,6 +60,11 @@ public partial class GameHub
         {
             throw new HubException(exception.Message);
         }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"[game:action:attack] {exception}");
+            throw new HubException($"Attack action failed: {exception.Message}");
+        }
     }
 
     [HubMethodName("game:action:draw:skip")]
@@ -86,32 +92,67 @@ public partial class GameHub
     }
 
     [HubMethodName("game:action:place")]
-    public async Task PlaceCardAction(Guid gameId, Guid gameCardId, int fieldIndex, bool faceDown)
+    public async Task PlaceCardAction(
+        Guid gameId,
+        Guid gameCardId,
+        int fieldIndex,
+        bool faceDown,
+        IReadOnlyCollection<Guid>? effectTargetCardIds = null,
+        IReadOnlyCollection<Guid>? effectTargetPlayerIds = null)
     {
-        var userId = GetUserId();
-        var result = await Games.PlaceCard(gameId, userId, gameCardId, fieldIndex, faceDown);
-
-        await Clients.Caller.SendAsync("game:place:result", result);
-
-        await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
-            .SendAsync("game:player:placed", new
-            {
-                result.GameId,
-                result.PlayerGameId,
-                result.TurnId,
-                result.GameCardId,
-                result.FieldIndex,
-                result.FaceDown,
-                result.CurrentPhase,
-            });
-
-        if (result.ActivatedEffect is not null)
+        try
         {
-            await Clients.Group(GetGameGroupName(gameId))
-                .SendAsync("game:effect:activated", result.ActivatedEffect);
-        }
+            var userId = GetUserId();
+            var result = await Games.PlaceCard(
+                gameId,
+                userId,
+                gameCardId,
+                fieldIndex,
+                faceDown,
+                effectTargetCardIds,
+                effectTargetPlayerIds);
 
-        await NotifyGameEndedIfNeeded(gameId);
+            await Clients.Caller.SendAsync("game:place:result", result);
+
+            await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
+                .SendAsync("game:player:placed", new
+                {
+                    result.GameId,
+                    result.PlayerGameId,
+                    result.TurnId,
+                    result.GameCardId,
+                    result.FieldIndex,
+                    result.FaceDown,
+                    result.CurrentPhase,
+                });
+
+            if (result.ActivatedEffect is not null)
+            {
+                await Clients.Group(GetGameGroupName(gameId))
+                    .SendAsync("game:effect:activated", result.ActivatedEffect);
+            }
+
+            await NotifyGameEndedIfNeeded(gameId);
+        }
+        catch (BadRequestException exception)
+        {
+            throw new HubException(exception.Message);
+        }
+        catch (ObjectNotFoundException exception)
+        {
+            throw new HubException(exception.Message);
+        }
+        catch (DbUpdateException exception)
+        {
+            Console.Error.WriteLine($"[game:action:place] {exception}");
+            var details = exception.InnerException?.Message ?? exception.Message;
+            throw new HubException($"Place action failed: {details}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"[game:action:place] {exception}");
+            throw new HubException($"Place action failed: {exception.Message}");
+        }
     }
 
     [HubMethodName("game:action:grave")]
@@ -163,75 +204,104 @@ public partial class GameHub
         Guid? defenderCardId,
         Guid? defenderPlayerGameId)
     {
-        var userId = GetUserId();
-        Guid? activatedTrapCardId = null;
-
-        var trapWindow = await Games.GetTrapResponseWindow(
-            gameId,
-            userId,
-            attackerCardId,
-            defenderCardId,
-            defenderPlayerGameId);
-
-        if (trapWindow is not null)
+        try
         {
-            var trapCardIds = trapWindow.AvailableTrapCards.Select(card => card.GameCardId).ToList();
-            if (TrapResponses.TryOpenWindow(
+            var userId = GetUserId();
+            Guid? activatedTrapCardId = null;
+            IReadOnlyCollection<Guid>? effectTargetCardIds = null;
+            IReadOnlyCollection<Guid>? effectTargetPlayerIds = null;
+
+            var trapWindow = await Games.GetTrapResponseWindow(
                 gameId,
-                trapWindow.DefenderUserId,
-                trapWindow.DefenderPlayerGameId,
-                trapCardIds,
-                out var windowId,
-                out var expiresAtUtc))
+                userId,
+                attackerCardId,
+                defenderCardId,
+                defenderPlayerGameId);
+
+            if (trapWindow is not null)
             {
-                await Clients.User(trapWindow.DefenderUserId.ToString())
-                    .SendAsync("game:effect:trap:window", new
-                    {
-                        gameId,
-                        windowId,
-                        defenderPlayerGameId = trapWindow.DefenderPlayerGameId,
-                        timeoutSeconds = GameConstants.TrapResponseWindowSeconds,
-                        expiresAtUtc,
-                        availableTrapCards = trapWindow.AvailableTrapCards,
-                    });
+                var trapCardIds = trapWindow.AvailableTrapCards.Select(card => card.GameCardId).ToList();
+                if (TrapResponses.TryOpenWindow(
+                    gameId,
+                    trapWindow.DefenderUserId,
+                    trapWindow.DefenderPlayerGameId,
+                    trapCardIds,
+                    out var windowId,
+                    out var expiresAtUtc))
+                {
+                    await Clients.User(trapWindow.DefenderUserId.ToString())
+                        .SendAsync("game:effect:trap:window", new
+                        {
+                            gameId,
+                            windowId,
+                            defenderPlayerGameId = trapWindow.DefenderPlayerGameId,
+                            timeoutSeconds = GameConstants.TrapResponseWindowSeconds,
+                            expiresAtUtc,
+                            availableTrapCards = trapWindow.AvailableTrapCards,
+                        });
 
-                await Clients.Group(GetGameGroupName(gameId))
-                    .SendAsync("game:effect:trap:window:opened", new
-                    {
-                        gameId,
-                        windowId,
-                        defenderPlayerGameId = trapWindow.DefenderPlayerGameId,
-                        timeoutSeconds = GameConstants.TrapResponseWindowSeconds,
-                        expiresAtUtc,
-                    });
+                    await Clients.Group(GetGameGroupName(gameId))
+                        .SendAsync("game:effect:trap:window:opened", new
+                        {
+                            gameId,
+                            windowId,
+                            defenderPlayerGameId = trapWindow.DefenderPlayerGameId,
+                            timeoutSeconds = GameConstants.TrapResponseWindowSeconds,
+                            expiresAtUtc,
+                        });
 
-                activatedTrapCardId = await TrapResponses.WaitForSelectionOrTimeoutAsync(windowId);
+                    var trapSelection = await TrapResponses.WaitForSelectionOrTimeoutAsync(windowId);
+                    activatedTrapCardId = trapSelection?.TrapCardId;
+                    effectTargetCardIds = trapSelection?.TargetCardIds;
+                    effectTargetPlayerIds = trapSelection?.TargetPlayerIds;
+                }
             }
+
+            var result = await Games.Attack(
+                gameId,
+                userId,
+                attackerCardId,
+                defenderCardId,
+                defenderPlayerGameId,
+                activatedTrapCardId,
+                effectTargetCardIds,
+                effectTargetPlayerIds);
+
+            await Clients.Caller.SendAsync("game:attack:result", result);
+
+            await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
+                .SendAsync("game:player:attacked", result);
+
+            if (result.ActivatedEffect is not null)
+            {
+                await Clients.Group(GetGameGroupName(gameId))
+                    .SendAsync("game:effect:activated", result.ActivatedEffect);
+            }
+
+            await NotifyGameEndedIfNeeded(gameId);
+
+            return result;
         }
-
-        var result = await Games.Attack(gameId, userId, attackerCardId, defenderCardId, defenderPlayerGameId, activatedTrapCardId);
-
-        await Clients.Caller.SendAsync("game:attack:result", result);
-
-        await Clients.GroupExcept(GetGameGroupName(gameId), [Context.ConnectionId])
-            .SendAsync("game:player:attacked", result);
-
-        if (result.ActivatedEffect is not null)
+        catch (BadRequestException exception)
         {
-            await Clients.Group(GetGameGroupName(gameId))
-                .SendAsync("game:effect:activated", result.ActivatedEffect);
+            throw new HubException(exception.Message);
         }
-
-        await NotifyGameEndedIfNeeded(gameId);
-
-        return result;
+        catch (ObjectNotFoundException exception)
+        {
+            throw new HubException(exception.Message);
+        }
     }
 
     [HubMethodName("game:action:trap:activate")]
-    public Task ActivateTrapResponse(Guid gameId, Guid windowId, Guid trapGameCardId)
+    public Task ActivateTrapResponse(
+        Guid gameId,
+        Guid windowId,
+        Guid trapGameCardId,
+        IReadOnlyCollection<Guid>? targetCardIds = null,
+        IReadOnlyCollection<Guid>? targetPlayerIds = null)
     {
         var userId = GetUserId();
-        var success = TrapResponses.TryActivateTrap(windowId, userId, trapGameCardId);
+        var success = TrapResponses.TryActivateTrap(windowId, userId, trapGameCardId, targetCardIds, targetPlayerIds);
         if (!success)
             throw new HubException("Trap response window expired or trap is not valid.");
 

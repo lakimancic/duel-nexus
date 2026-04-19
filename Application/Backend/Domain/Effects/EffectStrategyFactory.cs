@@ -13,9 +13,10 @@ public sealed class EffectStrategyFactory
         {
             [EffectType.DrawCards] = new DrawCardsEffectStrategy(),
             [EffectType.DestroyCards] = new DestroyCardsEffectStrategy(),
-            [EffectType.ChangeLifePoints] = new ChangeLifePointsEffectStrategy(),
+            [EffectType.AttackLifePoints] = new AttackLifePointsEffectStrategy(),
             [EffectType.ProtectCards] = new ProtectCardsEffectStrategy(),
             [EffectType.RestoreCards] = new RestoreCardsEffectStrategy(),
+            [EffectType.HealLifePoints] = new HealLifePointsEffectStrategy(),
         };
     }
 

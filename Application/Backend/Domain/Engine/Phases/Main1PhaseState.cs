@@ -53,7 +53,30 @@ public sealed class Main1PhaseState : ITurnPhaseState
             return TurnPhaseTransitionResult.NoChange(context.Turn);
         }
 
-        var battleStarter = alivePlayers[(context.Turn.TurnNumber - 1) % alivePlayers.Count];
+        var cards = await context.UnitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
+        var battleStarters = alivePlayers
+            .Where(player => cards.Any(card =>
+                card.PlayerGameId == player.Id &&
+                card.Zone == CardZone.Field &&
+                card.FieldIndex is >= 0 and <= 4 &&
+                !card.IsFaceDown &&
+                !card.DefensePosition &&
+                card.Card is MonsterCard))
+            .ToList();
+
+        if (battleStarters.Count == 0)
+        {
+            context.Turn.Phase = TurnPhase.Main2;
+            context.Turn.ActivePlayerId = null;
+            context.Turn.StartedAt = DateTime.UtcNow;
+            context.UnitOfWork.Turns.Update(context.Turn);
+            ResetTurnEndedFlags(players, context);
+            return new TurnPhaseTransitionResult(context.Turn, ActivePlayerId: null, TurnChanged: false, PhaseChanged: true);
+        }
+
+        var randomSeed = HashCode.Combine(context.Game.Id, context.Turn.TurnNumber, battleStarters.Count);
+        var random = new Random(randomSeed);
+        var battleStarter = battleStarters[random.Next(battleStarters.Count)];
         context.Turn.Phase = TurnPhase.Battle;
         context.Turn.ActivePlayerId = battleStarter.Id;
         context.Turn.StartedAt = DateTime.UtcNow;

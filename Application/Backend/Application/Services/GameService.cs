@@ -164,12 +164,20 @@ public class GameService(
         Guid attackerCardId,
         Guid? defenderCardId,
         Guid? defenderPlayerGameId,
-        Guid? activatedTrapCardId)
+        Guid? activatedTrapCardId,
+        IReadOnlyCollection<Guid>? effectTargetCardIds,
+        IReadOnlyCollection<Guid>? effectTargetPlayerIds)
     {
         var result = await _gameEngine.ExecuteCommandAsync<AttackActionCommand, BattleAttackResult>(
             gameId,
             userId,
-            new AttackActionCommand(attackerCardId, defenderCardId, defenderPlayerGameId, activatedTrapCardId));
+            new AttackActionCommand(
+                attackerCardId,
+                defenderCardId,
+                defenderPlayerGameId,
+                activatedTrapCardId,
+                effectTargetCardIds,
+                effectTargetPlayerIds));
 
         return new BattleAttackResultDto
         {
@@ -193,10 +201,23 @@ public class GameService(
         };
     }
 
-    public async Task<PlaceCardResultDto> PlaceCard(Guid gameId, Guid userId, Guid gameCardId, int fieldIndex, bool faceDown)
+    public async Task<PlaceCardResultDto> PlaceCard(
+        Guid gameId,
+        Guid userId,
+        Guid gameCardId,
+        int fieldIndex,
+        bool faceDown,
+        IReadOnlyCollection<Guid>? effectTargetCardIds,
+        IReadOnlyCollection<Guid>? effectTargetPlayerIds)
     {
         var result = await _gameEngine.ExecuteCommandAsync<PlaceCardActionCommand, PlaceCardResult>(
-            gameId, userId, new PlaceCardActionCommand(gameCardId, fieldIndex, faceDown));
+            gameId,
+            userId,
+            new PlaceCardActionCommand(gameCardId, fieldIndex, faceDown)
+            {
+                RequestedTargetCardIds = effectTargetCardIds,
+                RequestedTargetPlayerIds = effectTargetPlayerIds,
+            });
 
         return new PlaceCardResultDto
         {
@@ -270,6 +291,9 @@ public class GameService(
                 CardName = card.Card.Name,
                 EffectId = card.Card.EffectId,
                 EffectType = card.Card.Effect?.Type,
+                RequiresTarget = card.Card.Effect?.RequiresTarget ?? false,
+                TargetsPlayer = card.Card.Effect?.TargetsPlayer ?? false,
+                Affects = card.Card.Effect?.Affects,
             })
             .ToList();
 
@@ -722,9 +746,12 @@ public class GameService(
         _unitOfWork.Games.Update(game);
 
         var room = await _unitOfWork.GameRooms.GetByIdAsync(game.RoomId);
+        var isRanked = room?.IsRanked ?? false;
         var winner = alivePlayers.SingleOrDefault();
-        var snapshots = ApplyEloChanges(players, winner);
-        var result = BuildGameResult(game, room?.IsRanked ?? false, players, winner, snapshots);
+        var snapshots = isRanked
+            ? ApplyEloChanges(players, winner)
+            : null;
+        var result = BuildGameResult(game, isRanked, players, winner, snapshots);
 
         await _unitOfWork.CompleteAsync();
         _gameResultStore.Set(result);

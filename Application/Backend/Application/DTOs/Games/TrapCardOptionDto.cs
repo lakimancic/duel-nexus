@@ -8,4 +8,7 @@ public class TrapCardOptionDto
     public string CardName { get; set; } = string.Empty;
     public Guid? EffectId { get; set; }
     public EffectType? EffectType { get; set; }
+    public bool RequiresTarget { get; set; }
+    public bool TargetsPlayer { get; set; }
+    public int? Affects { get; set; }
 }

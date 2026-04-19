@@ -6,7 +6,8 @@ public enum EffectType
 {
     DrawCards,
     DestroyCards,
-    ChangeLifePoints,
+    AttackLifePoints,
     ProtectCards,
     RestoreCards,
+    HealLifePoints,
 }

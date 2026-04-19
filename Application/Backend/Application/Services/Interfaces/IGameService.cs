@@ -14,9 +14,24 @@ public interface IGameService
     Task<GameDto> CreateGame(CreateGameDto gameDto);
     Task<DrawActionResultDto> DrawCard(Guid gameId, Guid userId);
     Task<DrawPhaseProgressDto> SkipDraw(Guid gameId, Guid userId);
-    Task<BattleAttackResultDto> Attack(Guid gameId, Guid userId, Guid attackerCardId, Guid? defenderCardId, Guid? defenderPlayerGameId, Guid? activatedTrapCardId);
+    Task<BattleAttackResultDto> Attack(
+        Guid gameId,
+        Guid userId,
+        Guid attackerCardId,
+        Guid? defenderCardId,
+        Guid? defenderPlayerGameId,
+        Guid? activatedTrapCardId,
+        IReadOnlyCollection<Guid>? effectTargetCardIds,
+        IReadOnlyCollection<Guid>? effectTargetPlayerIds);
     Task<TrapResponseWindowDto?> GetTrapResponseWindow(Guid gameId, Guid attackerUserId, Guid attackerCardId, Guid? defenderCardId, Guid? defenderPlayerGameId);
-    Task<PlaceCardResultDto> PlaceCard(Guid gameId, Guid userId, Guid gameCardId, int fieldIndex, bool faceDown);
+    Task<PlaceCardResultDto> PlaceCard(
+        Guid gameId,
+        Guid userId,
+        Guid gameCardId,
+        int fieldIndex,
+        bool faceDown,
+        IReadOnlyCollection<Guid>? effectTargetCardIds,
+        IReadOnlyCollection<Guid>? effectTargetPlayerIds);
     Task<GameCardUpdateResultDto> SendCardToGraveyard(Guid gameId, Guid userId, Guid gameCardId);
     Task<GameCardUpdateResultDto> ToggleDefensePosition(Guid gameId, Guid userId, Guid gameCardId);
     Task<GameCardUpdateResultDto> RevealCard(Guid gameId, Guid userId, Guid gameCardId);

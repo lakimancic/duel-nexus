@@ -203,9 +203,24 @@ class GameHubClient {
     );
   }
 
-  placeCard(gameId: string, gameCardId: string, fieldIndex: number, faceDown: boolean) {
+  placeCard(
+    gameId: string,
+    gameCardId: string,
+    fieldIndex: number,
+    faceDown: boolean,
+    effectTargetCardIds?: string[],
+    effectTargetPlayerIds?: string[]
+  ) {
     return this.ensureConnected().then(() =>
-      this.connection.invoke("game:action:place", gameId, gameCardId, fieldIndex, faceDown)
+      this.connection.invoke(
+        "game:action:place",
+        gameId,
+        gameCardId,
+        fieldIndex,
+        faceDown,
+        effectTargetCardIds ?? null,
+        effectTargetPlayerIds ?? null
+      )
     );
   }
 
@@ -250,9 +265,22 @@ class GameHubClient {
     );
   }
 
-  activateTrapResponse(gameId: string, windowId: string, trapGameCardId: string) {
+  activateTrapResponse(
+    gameId: string,
+    windowId: string,
+    trapGameCardId: string,
+    targetCardIds?: string[],
+    targetPlayerIds?: string[]
+  ) {
     return this.ensureConnected().then(() =>
-      this.connection.invoke("game:action:trap:activate", gameId, windowId, trapGameCardId)
+      this.connection.invoke(
+        "game:action:trap:activate",
+        gameId,
+        windowId,
+        trapGameCardId,
+        targetCardIds ?? null,
+        targetPlayerIds ?? null
+      )
     );
   }
 

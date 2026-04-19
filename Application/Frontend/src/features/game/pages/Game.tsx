@@ -26,6 +26,9 @@ const TOP_ROW_MAX_INDEX = 4;
 const CARD_TYPE_MONSTER = 0;
 const CARD_TYPE_SPELL = 1;
 const CARD_TYPE_TRAP = 2;
+const EFFECT_TYPE_DESTROY_CARDS = 1;
+const EFFECT_TYPE_ATTACK_LIFE_POINTS = 2;
+const EFFECT_TYPE_PROTECT_CARDS = 3;
 const TURN_ANNOUNCEMENT_DURATION_MS = 1100;
 const EFFECT_ANNOUNCEMENT_DURATION_MS = 5000;
 const DRAW_PHASE_TIMEOUT_SECONDS = 20;
@@ -61,6 +64,22 @@ const getElementCenter = (selector: string) => {
     y: rect.top + rect.height / 2,
   };
 };
+
+interface EffectTargetOption {
+  id: string;
+  label: string;
+  sublabel?: string;
+}
+
+interface PendingEffectTargetSelection {
+  source: "spell" | "trap";
+  title: string;
+  targetsPlayer: boolean;
+  maxSelections: number;
+  options: EffectTargetOption[];
+  spellFieldIndex?: number;
+  trapGameCardId?: string;
+}
 
 const GamePage = () => {
   const { gameId } = useParams();
@@ -107,6 +126,8 @@ const GamePage = () => {
   const [trapWindow, setTrapWindow] = useState<TrapResponseWindowEventDto | null>(null);
   const [trapWaitWindow, setTrapWaitWindow] = useState<TrapResponseWindowOpenedEventDto | null>(null);
   const [isSubmittingTrapResponse, setIsSubmittingTrapResponse] = useState(false);
+  const [pendingEffectTargetSelection, setPendingEffectTargetSelection] = useState<PendingEffectTargetSelection | null>(null);
+  const [selectedEffectTargetIds, setSelectedEffectTargetIds] = useState<string[]>([]);
   const [pendingAttackTarget, setPendingAttackTarget] = useState<{
     attackerCardId: string;
     defenderCardId?: string;
@@ -552,6 +573,79 @@ const GamePage = () => {
     return true;
   }, [canPlaceCardAtFieldIndex]);
 
+  const buildCardTargetOptions = useCallback(
+    (owner: "viewer" | "enemy") => {
+      if (!viewerPlayerId) return [];
+      return cards
+        .filter((card) => {
+          if (card.zone !== ZONE_FIELD || card.fieldIndex === null || !card.card) return false;
+          if (owner === "viewer") return card.playerId === viewerPlayerId;
+          return card.playerId !== viewerPlayerId;
+        })
+        .map((card) => ({
+          id: card.id,
+          label: card.card?.name ?? "Card",
+          sublabel: playerSummaries[card.playerId]?.username ?? "Unknown",
+        }));
+    },
+    [cards, playerSummaries, viewerPlayerId]
+  );
+
+  const buildPlayerTargetOptions = useCallback(() => {
+    if (!viewerPlayerId) return [];
+    return Object.entries(playerSummaries)
+      .filter(([playerId, summary]) => playerId !== viewerPlayerId && summary.lifePoints > 0)
+      .map(([playerId, summary]) => ({
+        id: playerId,
+        label: summary.username,
+        sublabel: `${summary.lifePoints} LP`,
+      }));
+  }, [playerSummaries, viewerPlayerId]);
+
+  const getEffectTargetConfig = useCallback(
+    (
+      effectType: number | null | undefined,
+      requiresTarget: boolean,
+      targetsPlayer: boolean,
+      affects: number | null | undefined
+    ) => {
+      const maxSelections = Math.max(1, affects ?? 1);
+      if (!requiresTarget && effectType !== EFFECT_TYPE_ATTACK_LIFE_POINTS) {
+        return null;
+      }
+
+      if (targetsPlayer || effectType === EFFECT_TYPE_ATTACK_LIFE_POINTS) {
+        const options = buildPlayerTargetOptions();
+        return {
+          targetsPlayer: true,
+          maxSelections,
+          options,
+        };
+      }
+
+      if (effectType === EFFECT_TYPE_DESTROY_CARDS) {
+        const options = buildCardTargetOptions("enemy");
+        return {
+          targetsPlayer: false,
+          maxSelections,
+          options,
+        };
+      }
+
+      if (effectType === EFFECT_TYPE_PROTECT_CARDS) {
+        const options = buildCardTargetOptions("viewer");
+        return {
+          targetsPlayer: false,
+          maxSelections,
+          options,
+        };
+      }
+
+      return null;
+    },
+    [buildCardTargetOptions, buildPlayerTargetOptions]
+  );
+
   const playAttackAnimation = useCallback((result: BattleAttackResultDto) => {
     const attackerCenter = getElementCenter(`[data-game-card-id="${result.attackerCardId}"]`);
     const targetCenter = result.defenderCardId
@@ -656,7 +750,12 @@ const GamePage = () => {
   );
 
   const placeSelectedHandCard = useCallback(
-    async (fieldIndex: number, faceDown: boolean) => {
+    async (
+      fieldIndex: number,
+      faceDown: boolean,
+      effectTargetCardIds?: string[],
+      effectTargetPlayerIds?: string[]
+    ) => {
       if (!canViewerPlayMain1 || !selectedHandCard || !safeGameId || isSubmittingMainAction) return;
       if (!canPlaceCardAtFieldIndex(selectedHandCard, fieldIndex)) return;
       const shouldStartInDefense = faceDown && selectedHandCard.card?.type === CARD_TYPE_MONSTER
@@ -670,13 +769,22 @@ const GamePage = () => {
 
       setIsSubmittingMainAction(true);
       try {
-        await gameHub.placeCard(safeGameId, selectedHandCard.id, fieldIndex, faceDown);
+        await gameHub.placeCard(
+          safeGameId,
+          selectedHandCard.id,
+          fieldIndex,
+          faceDown,
+          effectTargetCardIds,
+          effectTargetPlayerIds
+        );
         if (!faceDown && shouldStartInDefense && isMonsterPlacement) {
           await gameHub.toggleDefensePosition(safeGameId, selectedHandCard.id);
         }
         await fetchGameState();
         setSelectedHandCardId(null);
         setPlacementPositionHover(null);
+        setPendingEffectTargetSelection(null);
+        setSelectedEffectTargetIds([]);
       } catch (err) {
         reportRuntimeError("place", err);
       } finally {
@@ -725,6 +833,7 @@ const GamePage = () => {
       } catch (err) {
         isAttackAnimationActiveRef.current = false;
         reportRuntimeError("attack", err);
+        await fetchGameState();
       } finally {
         setIsSubmittingBattleAction(false);
         setPendingAttackTarget(null);
@@ -783,6 +892,27 @@ const GamePage = () => {
 
       if (selectedHandCard) {
         if (card !== null) return;
+        const effect = selectedHandCard.card?.effect;
+        const targetConfig = getEffectTargetConfig(
+          effect?.type,
+          Boolean(effect?.requiresTarget),
+          Boolean(effect?.targetsPlayer),
+          effect?.affects
+        );
+
+        if (targetConfig && targetConfig.options.length > 0) {
+          setPendingEffectTargetSelection({
+            source: "spell",
+            title: `Select targets for ${selectedHandCard.card?.name ?? "effect"}`,
+            targetsPlayer: targetConfig.targetsPlayer,
+            maxSelections: targetConfig.maxSelections,
+            options: targetConfig.options,
+            spellFieldIndex: fieldIndex,
+          });
+          setSelectedEffectTargetIds([]);
+          return;
+        }
+
         void placeSelectedHandCard(fieldIndex, false);
         return;
       }
@@ -794,6 +924,7 @@ const GamePage = () => {
       canViewerPlayMain1,
       executeBattleAttack,
       isSubmittingBattleAction,
+      getEffectTargetConfig,
       pendingAttackTarget,
       placeSelectedHandCard,
       selectedHandCard,
@@ -911,14 +1042,22 @@ const GamePage = () => {
     ]
   );
 
-  const handleTrapActivation = useCallback(
-    async (trapGameCardId: string) => {
+  const submitTrapActivation = useCallback(
+    async (trapGameCardId: string, targetCardIds?: string[], targetPlayerIds?: string[]) => {
       if (!safeGameId || !trapWindow || isSubmittingTrapResponse) return;
 
       setIsSubmittingTrapResponse(true);
       try {
-        await gameHub.activateTrapResponse(safeGameId, trapWindow.windowId, trapGameCardId);
+        await gameHub.activateTrapResponse(
+          safeGameId,
+          trapWindow.windowId,
+          trapGameCardId,
+          targetCardIds,
+          targetPlayerIds
+        );
         setTrapWindow(null);
+        setPendingEffectTargetSelection(null);
+        setSelectedEffectTargetIds([]);
       } catch (err) {
         reportRuntimeError("trap-response", err);
       } finally {
@@ -927,6 +1066,78 @@ const GamePage = () => {
     },
     [isSubmittingTrapResponse, reportRuntimeError, safeGameId, trapWindow]
   );
+
+  const handleTrapActivation = useCallback(
+    (trapGameCardId: string, effectType: number | null, requiresTarget: boolean, targetsPlayer: boolean, affects: number | null) => {
+      const targetConfig = getEffectTargetConfig(effectType, requiresTarget, targetsPlayer, affects);
+      if (targetConfig && targetConfig.options.length > 0) {
+        setPendingEffectTargetSelection({
+          source: "trap",
+          title: "Select trap effect targets",
+          targetsPlayer: targetConfig.targetsPlayer,
+          maxSelections: targetConfig.maxSelections,
+          options: targetConfig.options,
+          trapGameCardId,
+        });
+        setSelectedEffectTargetIds([]);
+        return;
+      }
+
+      void submitTrapActivation(trapGameCardId);
+    },
+    [getEffectTargetConfig, submitTrapActivation]
+  );
+
+  const toggleEffectTargetSelection = useCallback(
+    (targetId: string) => {
+      setSelectedEffectTargetIds((previous) => {
+        if (!pendingEffectTargetSelection) return previous;
+
+        if (previous.includes(targetId)) {
+          return previous.filter((id) => id !== targetId);
+        }
+
+        if (previous.length >= pendingEffectTargetSelection.maxSelections) {
+          return previous;
+        }
+
+        return [...previous, targetId];
+      });
+    },
+    [pendingEffectTargetSelection]
+  );
+
+  const handleCancelEffectTargetSelection = useCallback(() => {
+    setPendingEffectTargetSelection(null);
+    setSelectedEffectTargetIds([]);
+  }, []);
+
+  const handleConfirmEffectTargetSelection = useCallback(() => {
+    if (!pendingEffectTargetSelection) return;
+
+    if (selectedEffectTargetIds.length === 0) return;
+
+    const targetCardIds = pendingEffectTargetSelection.targetsPlayer ? undefined : selectedEffectTargetIds;
+    const targetPlayerIds = pendingEffectTargetSelection.targetsPlayer ? selectedEffectTargetIds : undefined;
+
+    if (pendingEffectTargetSelection.source === "spell") {
+      if (pendingEffectTargetSelection.spellFieldIndex === undefined) return;
+      void placeSelectedHandCard(
+        pendingEffectTargetSelection.spellFieldIndex,
+        false,
+        targetCardIds,
+        targetPlayerIds
+      );
+      return;
+    }
+
+    if (!pendingEffectTargetSelection.trapGameCardId) return;
+    void submitTrapActivation(
+      pendingEffectTargetSelection.trapGameCardId,
+      targetCardIds,
+      targetPlayerIds
+    );
+  }, [pendingEffectTargetSelection, placeSelectedHandCard, selectedEffectTargetIds, submitTrapActivation]);
 
   useEffect(() => {
     if (!trapWindow) return;
@@ -992,6 +1203,58 @@ const GamePage = () => {
           </div>
         </div>
       ) : null}
+      {pendingEffectTargetSelection ? (
+        <div className="absolute inset-0 z-50 grid place-items-center bg-black/70 px-4">
+          <div className="w-full max-w-xl rounded-xl border border-cyan-200/40 bg-[#06111b]/95 p-4 text-white">
+            <h3 className="text-lg font-bold">{pendingEffectTargetSelection.title}</h3>
+            <p className="mt-1 text-xs text-white/70">
+              Select up to {pendingEffectTargetSelection.maxSelections} target
+              {pendingEffectTargetSelection.maxSelections > 1 ? "s" : ""}.
+            </p>
+            <div className="mt-3 grid gap-2">
+              {pendingEffectTargetSelection.options.map((option) => {
+                const selected = selectedEffectTargetIds.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      toggleEffectTargetSelection(option.id);
+                    }}
+                    className={`rounded border px-3 py-2 text-left text-sm ${
+                      selected
+                        ? "border-cyan-300/90 bg-cyan-500/30 text-cyan-50"
+                        : "border-white/25 bg-black/30 text-white/90"
+                    }`}
+                  >
+                    <div className="font-semibold">{option.label}</div>
+                    {option.sublabel ? (
+                      <div className="text-[11px] text-white/70">{option.sublabel}</div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelEffectTargetSelection}
+                className="rounded border border-white/30 bg-black/40 px-3 py-2 text-xs font-semibold text-white/90"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEffectTargetSelection}
+                disabled={selectedEffectTargetIds.length === 0}
+                className="rounded border border-cyan-200/60 bg-cyan-500/25 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50"
+              >
+                Confirm targets
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative h-screen w-full pl-2 pr-3">
         <div className="relative h-full w-full -ml-3">
@@ -1011,7 +1274,13 @@ const GamePage = () => {
                       key={trap.gameCardId}
                       type="button"
                       onClick={() => {
-                        void handleTrapActivation(trap.gameCardId);
+                        handleTrapActivation(
+                          trap.gameCardId,
+                          trap.effectType,
+                          trap.requiresTarget,
+                          trap.targetsPlayer,
+                          trap.affects
+                        );
                       }}
                       disabled={isSubmittingTrapResponse}
                       className="rounded border border-amber-200/50 bg-amber-500/25 px-2 py-1 text-[10px] font-semibold text-amber-50 disabled:opacity-50"
@@ -1041,16 +1310,6 @@ const GamePage = () => {
                 Timeout: {timeoutDisplay.label}
               </div>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                void handleDrawCard();
-              }}
-              disabled={!canViewerDraw || isSubmittingDrawAction}
-              className="rounded-md border border-cyan-200/50 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:cursor-default disabled:opacity-50"
-            >
-              Draw card
-            </button>
             <button
               type="button"
               onClick={() => {

@@ -12,5 +12,9 @@ public sealed record EffectExecutionContext(
     bool IsTrapResponse,
     GameCard? AttackAttackerCard,
     PlayerGame? AttackAttackerPlayer,
-    PlayerGame? AttackDefenderPlayer
+    PlayerGame? AttackDefenderPlayer,
+    IReadOnlyCollection<Guid>? RequestedTargetCardIds,
+    IReadOnlyCollection<Guid>? RequestedTargetPlayerIds,
+    HashSet<Guid> AppliedTargetCardIds,
+    HashSet<Guid> AppliedTargetPlayerIds
 );

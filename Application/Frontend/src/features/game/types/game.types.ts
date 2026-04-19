@@ -98,6 +98,9 @@ export interface TrapCardOptionDto {
   cardName: string;
   effectId: string | null;
   effectType: number | null;
+  requiresTarget: boolean;
+  targetsPlayer: boolean;
+  affects: number | null;
 }
 
 export interface TrapResponseWindowEventDto {

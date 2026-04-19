@@ -12,6 +12,8 @@ public sealed class CardEffectExecutor
     public async Task<GameEffectActivationSummary?> TryActivateSpellOnPlacementAsync(
         GameCommandContext commandContext,
         GameCard placedCard,
+        IReadOnlyCollection<Guid>? requestedTargetCardIds,
+        IReadOnlyCollection<Guid>? requestedTargetPlayerIds,
         CancellationToken cancellationToken = default)
     {
         if (placedCard.Card is not SpellCard || placedCard.IsFaceDown)
@@ -33,7 +35,11 @@ public sealed class CardEffectExecutor
             IsTrapResponse: false,
             AttackAttackerCard: null,
             AttackAttackerPlayer: null,
-            AttackDefenderPlayer: null);
+            AttackDefenderPlayer: null,
+            RequestedTargetCardIds: requestedTargetCardIds,
+            RequestedTargetPlayerIds: requestedTargetPlayerIds,
+            AppliedTargetCardIds: [],
+            AppliedTargetPlayerIds: []);
 
         var strategy = _strategyFactory.GetStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
@@ -44,7 +50,7 @@ public sealed class CardEffectExecutor
             effect,
             placedCard);
         activation.Resolved = true;
-        commandContext.UnitOfWork.EffectActivations.Update(activation);
+        await SaveTargetsAsync(activation, executionContext, commandContext.UnitOfWork);
 
         return new GameEffectActivationSummary(
             SourceCardId: placedCard.Id,
@@ -60,6 +66,8 @@ public sealed class CardEffectExecutor
         PlayerGame attackingPlayer,
         GameCard attackerCard,
         Guid? trapCardId,
+        IReadOnlyCollection<Guid>? requestedTargetCardIds,
+        IReadOnlyCollection<Guid>? requestedTargetPlayerIds,
         CancellationToken cancellationToken = default)
     {
         if (!trapCardId.HasValue)
@@ -93,7 +101,11 @@ public sealed class CardEffectExecutor
             IsTrapResponse: true,
             AttackAttackerCard: attackerCard,
             AttackAttackerPlayer: attackingPlayer,
-            AttackDefenderPlayer: defendingPlayer);
+            AttackDefenderPlayer: defendingPlayer,
+            RequestedTargetCardIds: requestedTargetCardIds,
+            RequestedTargetPlayerIds: requestedTargetPlayerIds,
+            AppliedTargetCardIds: [],
+            AppliedTargetPlayerIds: []);
 
         var strategy = _strategyFactory.GetStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
@@ -104,7 +116,7 @@ public sealed class CardEffectExecutor
             effect,
             trapCard);
         activation.Resolved = true;
-        commandContext.UnitOfWork.EffectActivations.Update(activation);
+        await SaveTargetsAsync(activation, executionContext, commandContext.UnitOfWork);
 
         return new GameEffectActivationSummary(
             SourceCardId: trapCard.Id,
@@ -123,5 +135,54 @@ public sealed class CardEffectExecutor
         card.DefensePosition = false;
         card.DeckOrder = nextGraveOrder;
         unitOfWork.GameCards.Update(card);
+    }
+
+    private static async Task SaveTargetsAsync(
+        EffectActivation activation,
+        EffectExecutionContext context,
+        Backend.Data.UnitOfWork.IUnitOfWork unitOfWork)
+    {
+        if (context.AppliedTargetCardIds.Count == 0 && context.AppliedTargetPlayerIds.Count == 0)
+            return;
+
+        var allCards = await unitOfWork.GameCards.GetByGameIdWithCardAsync(context.Game.Id);
+        var cardById = allCards.ToDictionary(card => card.Id, card => card);
+        var createdTargets = new HashSet<(Guid? TargetCardId, Guid TargetPlayerId)>();
+
+        foreach (var targetCardId in context.AppliedTargetCardIds)
+        {
+            if (!cardById.TryGetValue(targetCardId, out var targetCard))
+                continue;
+
+            var key = (TargetCardId: (Guid?)targetCardId, TargetPlayerId: targetCard.PlayerGameId);
+            if (!createdTargets.Add(key))
+                continue;
+
+            await unitOfWork.EffectTargets.AddAsync(new EffectTarget
+            {
+                Activation = activation,
+                TargetCardId = targetCardId,
+                TargetPlayerId = targetCard.PlayerGameId,
+            });
+        }
+
+        var playersCoveredByCardTargets = context.AppliedTargetCardIds
+            .Where(cardById.ContainsKey)
+            .Select(cardId => cardById[cardId].PlayerGameId)
+            .ToHashSet();
+
+        foreach (var targetPlayerId in context.AppliedTargetPlayerIds.Where(playerId => !playersCoveredByCardTargets.Contains(playerId)))
+        {
+            var key = (TargetCardId: (Guid?)null, TargetPlayerId: targetPlayerId);
+            if (!createdTargets.Add(key))
+                continue;
+
+            await unitOfWork.EffectTargets.AddAsync(new EffectTarget
+            {
+                Activation = activation,
+                TargetCardId = null,
+                TargetPlayerId = targetPlayerId,
+            });
+        }
     }
 }
