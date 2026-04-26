@@ -5,26 +5,18 @@ using Backend.Utils.WebApi;
 
 public sealed class EffectStrategyFactory
 {
-    private readonly IReadOnlyDictionary<EffectType, IEffectStrategy> _strategies;
-
-    public EffectStrategyFactory()
+    public static IEffectStrategy CreateStrategy(EffectType effectType)
     {
-        _strategies = new Dictionary<EffectType, IEffectStrategy>
+        return effectType switch
         {
-            [EffectType.DrawCards] = new DrawCardsEffectStrategy(),
-            [EffectType.DestroyCards] = new DestroyCardsEffectStrategy(),
-            [EffectType.AttackLifePoints] = new AttackLifePointsEffectStrategy(),
-            [EffectType.ProtectCards] = new ProtectCardsEffectStrategy(),
-            [EffectType.RestoreCards] = new RestoreCardsEffectStrategy(),
-            [EffectType.HealLifePoints] = new HealLifePointsEffectStrategy(),
+            EffectType.DrawCards => new DrawCardsEffectStrategy(),
+            EffectType.DestroyCards => new DestroyCardsEffectStrategy(),
+            EffectType.AttackLifePoints => new AttackLifePointsEffectStrategy(),
+            EffectType.ProtectCards => new ProtectCardsEffectStrategy(),
+            EffectType.RestoreCards => new RestoreCardsEffectStrategy(),
+            EffectType.HealLifePoints => new HealLifePointsEffectStrategy(),
+            _ => throw new BadRequestException(
+                $"Unsupported effect type '{effectType}'.")
         };
-    }
-
-    public IEffectStrategy GetStrategy(EffectType effectType)
-    {
-        if (!_strategies.TryGetValue(effectType, out var strategy))
-            throw new BadRequestException($"Unsupported effect type '{effectType}'.");
-
-        return strategy;
     }
 }

@@ -7,8 +7,6 @@ using Backend.Utils.WebApi;
 
 public sealed class CardEffectExecutor
 {
-    private readonly EffectStrategyFactory _strategyFactory = new();
-
     public async Task<GameEffectActivationSummary?> TryActivateSpellOnPlacementAsync(
         GameCommandContext commandContext,
         GameCard placedCard,
@@ -41,7 +39,7 @@ public sealed class CardEffectExecutor
             AppliedTargetCardIds: [],
             AppliedTargetPlayerIds: []);
 
-        var strategy = _strategyFactory.GetStrategy(effect.Type);
+        var strategy = EffectStrategyFactory.CreateStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
         await SendCardToGraveyard(placedCard, commandContext.UnitOfWork);
 
@@ -107,7 +105,7 @@ public sealed class CardEffectExecutor
             AppliedTargetCardIds: [],
             AppliedTargetPlayerIds: []);
 
-        var strategy = _strategyFactory.GetStrategy(effect.Type);
+        var strategy = EffectStrategyFactory.CreateStrategy(effect.Type);
         await strategy.ApplyAsync(effect, executionContext, cancellationToken);
         await SendCardToGraveyard(trapCard, commandContext.UnitOfWork);
 
